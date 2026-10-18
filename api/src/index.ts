@@ -22,6 +22,12 @@ export interface Env {
   // auth MD5) -> Supabase (TLS valide avec la CA Supabase televersee). C'est
   // le seul chemin fonctionnel vers PostgreSQL depuis un Worker.
   HYPERDRIVE?: { connectionString: string };
+  // Cle de signature des jetons du cabinet (wrangler secret put ORG_SIGN_KEY).
+  // Sans elle, la constante historique de orgSignKey() sert de repli : le
+  // comportement est alors identique a avant. La definir invalide les sessions
+  // en cours (chacun se reconnecte une fois) et ferme l'usurpation decrite
+  // au-dessus de orgSignKey().
+  ORG_SIGN_KEY?: string;
 }
 
 function genId(): string {
@@ -39,6 +45,19 @@ function isSupervisor(role: string): boolean {
 // Le cabinet est deja protege a chaque ouverture par le code d'acces
 // (AccessGate, cote web) : le jeton vit donc un an, pour rester connecte.
 export const ORG_TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+
+// Cle de signature des jetons du cabinet.
+//
+// Elle vivait en dur ici. Or ce depot est PUBLIC : quiconque le lit peut
+// forger un jeton valide pour n'importe quel utilisateur (le garde-fou de
+// verifyOrgToken() est la signature, pas un mot de passe) et donc lire ou
+// modifier tout le cabinet. La variable de Worker ORG_SIGN_KEY prime desormais
+// sur la constante : tant qu'elle n'est pas definie, le comportement reste
+// STRICTEMENT identique (aucune session invalidee) ; la definir ferme la
+// faille et deconnecte tout le monde une fois.
+export function orgSignKey(env: Env): string {
+  return env.ORG_SIGN_KEY || 'eurex_org_secret_2026';
+}
 
 // Heures pointees d'un utilisateur : vues days (7 derniers) / month (1..aujourd'hui) / year (mois).
 // Realise vs norme 8h30 lun-ven, repos sam-dim, depassement (+ heures du weekend = rattrapage
@@ -2788,7 +2807,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const effRole = user.role_label || user.role;
         // Create token
         const tokenPayload = JSON.stringify({ user_id: user.id, organization_id: user.organization_id, role: effRole, exp: Date.now() + ORG_TOKEN_TTL_MS });
-        const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('eurex_org_secret_2026'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(orgSignKey(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
         const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(tokenPayload));
         const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
         const token = btoa(tokenPayload).replace(/=/g, '') + '.' + sigHex;
@@ -2806,7 +2825,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const [dataB64, sigHex] = token.split('.');
           if (!dataB64 || !sigHex) return null;
           const data = atob(dataB64);
-          const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('eurex_org_secret_2026'), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+          const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(orgSignKey(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
           const sigBytes = new Uint8Array(sigHex.match(/.{2}/g)!.map(h => parseInt(h, 16)));
           const valid = await crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(data));
           if (!valid) return null;
