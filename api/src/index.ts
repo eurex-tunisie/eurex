@@ -628,6 +628,23 @@ async function markForwardGap(env: Env, mode: string, entries: MissedWrite[]): P
   }
 }
 
+// Nombre d'ecritures en attente de rejeu. Le drapeau forward_gap et le journal
+// ont des durees de vie SEPAREES : une reparation partielle reecrit le journal
+// (nouveau delai) sans retoucher le drapeau, qui peut donc expirer le premier.
+// Le journal survit alors seul, et sans ce compteur rien ne le rejouerait plus
+// jamais (constate en production le 2026-10-18 : un portal_token en attente
+// depuis le 15, drapeau disparu). Toute copie Supabase -> D1 doit consulter ce
+// compteur, sinon elle ecraserait l'ecriture que D1 a retenue.
+export async function outboxEnAttente(env: Env): Promise<number> {
+  try {
+    const raw = await env.DOCS_KV?.get(OUTBOX_KEY);
+    const box = JSON.parse(raw || '[]') as BoxItem[];
+    return Array.isArray(box) ? box.length : 0;
+  } catch {
+    return 0; // journal illisible : on ne bloque pas la lecture de l'etat
+  }
+}
+
 // Rend la connexion PostgreSQL ouverte pendant cette requete : un socket cree
 // dans le contexte d'une requete ne peut pas etre reutilise par la suivante.
 // No-op quand on est reste sur D1.
@@ -812,14 +829,20 @@ async function resyncAndFlipBack(env: Env): Promise<void> {
     //    peut se lever que lorsque D1 sert : si on testait le mode en premier,
     //    on sortirait par "deja sur D1" et le drapeau resterait leve jusqu'a
     //    son expiration de sept jours, abandonnant chaque nuit pour rien.
+    //    Le seul drapeau ne suffit pas : le journal de rejeu peut lui survivre
+    //    (delais separes, cf. outboxEnAttente). Tant qu'il reste des ecritures
+    //    en attente, une copie Supabase -> D1 les effacerait : on examine donc
+    //    les deux temoins, et on s'abstient tant que le rejeu n'a pas abouti.
     const fwd = await env.DOCS_KV.get(FWD_GAP_KEY);
-    if (fwd) {
+    const reliquat = await outboxEnAttente(env);
+    const origine = fwd || 'journal de rejeu';
+    if (fwd || reliquat > 0) {
       const rep = await repairForwardGap(env, (m) => console.log('[reparation]', m));
       if (!rep.ok) {
         // On s'abstient : copier Supabase -> D1 ecraserait (et purgerait) une
         // ecriture que D1 a bien retenue. D1 reste primaire et sert
         // correctement — un retard, pas une perte. Le cron suivant reprend.
-        console.error('[resync] abandonnee : ecart inverse non repare (' + (rep.error || '?') + ') depuis ' + fwd);
+        console.error('[resync] abandonnee : ecart inverse non repare (' + (rep.error || '?') + ') depuis ' + origine);
         return;
       }
       await env.DOCS_KV.delete(FWD_GAP_KEY);
@@ -981,7 +1004,7 @@ async function handleInternal(request: Request, env: Env, path: string): Promise
       // ...et ce qu'il reste a REJOUPER pour le lever. Zero alors que
       // forward_gap est renseigne = rien de conserve, donc rien que le rejeu
       // puisse resoudre (traitement manuel).
-      outbox: (JSON.parse((await kv.get(OUTBOX_KEY)) || '[]') as BoxItem[]).length,
+      outbox: await outboxEnAttente(env),
     });
   }
 
@@ -996,21 +1019,26 @@ async function handleInternal(request: Request, env: Env, path: string): Promise
     // detruire. Faire ici ce que le cron faisait seul evite d'etre bloque
     // jusqu'a minuit pour une reparation pourtant faisable a la main.
     const fwd = await kv.get(FWD_GAP_KEY);
+    // Le journal suffit a lui seul : voir outboxEnAttente (le drapeau peut
+    // avoir expire avant lui). Sans cette seconde condition, une copie
+    // Supabase -> D1 ecraserait l'ecriture que D1 a retenue.
+    const reliquat = await outboxEnAttente(env);
+    const origine = fwd || 'journal de rejeu';
     let repair: { ok: boolean; error?: string; rows?: number } | null = null;
-    if (fwd && body?.dry) {
+    if ((fwd || reliquat > 0) && body?.dry) {
       return json({
-        ok: false, dry: true, forward_gap: fwd,
+        ok: false, dry: true, forward_gap: origine, outbox: reliquat,
         error: "ecart inverse en attente : relancer sans {\"dry\":true} pour reparer D1 -> Supabase avant la copie",
       }, 409);
-    } else if (fwd && body?.allow_forward_gap === true) {
+    } else if ((fwd || reliquat > 0) && body?.allow_forward_gap === true) {
       // Passage outre assume : la copie ecrasera l'ecriture retenue par D1.
       console.warn('[resync] ecart inverse passe outre sur demande : cet ecart sera perdu');
-    } else if (fwd) {
+    } else if (fwd || reliquat > 0) {
       repair = await repairForwardGap(env, (m) => console.log('[reparation]', m));
       if (!repair.ok) {
         return json({
           ok: false,
-          error: 'ecart a reparer en sens inverse depuis ' + fwd + ' : ' + (repair.error || '?') +
+          error: 'ecart a reparer en sens inverse depuis ' + origine + ' : ' + (repair.error || '?') +
                  ". Relancer avec {\"allow_forward_gap\":true} pour passer outre en acceptant la perte.",
           repair,
         }, 409);
