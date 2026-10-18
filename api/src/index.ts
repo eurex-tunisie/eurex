@@ -33,6 +33,13 @@ function isSupervisor(role: string): boolean {
   return role === 'expert' || role === 'manager';
 }
 
+// Duree de vie du jeton du cabinet (en-tete Authorization: Bearer).
+// Elle etait de 24 h : l'utilisateur devait retaper email + mot de passe chaque
+// jour, et un jeton perime le renvoyait a l'ecran de connexion sans prevenir.
+// Le cabinet est deja protege a chaque ouverture par le code d'acces
+// (AccessGate, cote web) : le jeton vit donc un an, pour rester connecte.
+export const ORG_TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+
 // Heures pointees d'un utilisateur : vues days (7 derniers) / month (1..aujourd'hui) / year (mois).
 // Realise vs norme 8h30 lun-ven, repos sam-dim, depassement (+ heures du weekend = rattrapage
 // du ghyeb) et solde net de periode (le depassement d'un jour compense le manque d'un autre).
@@ -2752,7 +2759,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // Rôle affiché : role_label ('manager') prime sur le rôle stocké ('expert')
         const effRole = user.role_label || user.role;
         // Create token
-        const tokenPayload = JSON.stringify({ user_id: user.id, organization_id: user.organization_id, role: effRole, exp: Date.now() + 86400000 });
+        const tokenPayload = JSON.stringify({ user_id: user.id, organization_id: user.organization_id, role: effRole, exp: Date.now() + ORG_TOKEN_TTL_MS });
         const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('eurex_org_secret_2026'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
         const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(tokenPayload));
         const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
