@@ -9,6 +9,7 @@ import OrgAlerts from '../../components/OrgAlerts';
 import MesHeures from '../../components/MesHeures';
 import NouvellesTaches from '../../components/NouvellesTaches';
 import { EXPORT_LABELS } from '../../lib/orgAlerts';
+import { verifyRate } from '../../lib/orgVerify';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
 import { FolderOpen, AlertTriangle, Clock, ArrowUpDown, Search } from 'lucide-react';
@@ -87,6 +88,11 @@ export default function OrgDashboardComptable() {
   const avgProgress = clients.length > 0
     ? Math.round(clients.reduce((s, c) => s + (c.progress || 0), 0) / clients.length * 10) / 10
     : 0;
+  // File de validation : ce que j'ai rendu et qui attend la validation de l'expert
+  // (tous mois confondus). Derive des clients deja charges : aucune requete en plus.
+  const sumValidated = clients.reduce((s, c) => s + (c.verify_counts?.validated || 0), 0);
+  const sumPending = clients.reduce((s, c) => s + (c.verify_counts?.pending || 0), 0);
+  const validationRate = verifyRate({ validated: sumValidated, pending: sumPending });
 
   if (loading) return (
     <div className="space-y-4">
@@ -95,7 +101,7 @@ export default function OrgDashboardComptable() {
         <Skeleton className="h-9 w-64" />
         <Skeleton className="h-9 w-28" />
       </div>
-      <SkeletonKpiGrid count={6} />
+      <SkeletonKpiGrid count={7} />
       <SkeletonCardGrid count={6} />
     </div>
   );
@@ -136,11 +142,14 @@ export default function OrgDashboardComptable() {
             sub: `${docsRecus} / ${docsTotal} reçus` },
           { label: 'Clients clôturés', value: closedClients, icon: '✅', color: 'emerald',
             sub: `sur ${clients.length} au total` },
+          { label: 'En attente de validation', value: sumPending, icon: '🔍', color: sumPending > 0 ? 'amber' : 'gray',
+            sub: validationRate == null ? 'rien encore passé en validation' : `${validationRate}% validé · ${sumValidated} validée${sumValidated > 1 ? 's' : ''}` },
         ].map((kpi, i) => {
           const bgMap: Record<string, string> = {
             blue: 'bg-blue-50 border-blue-200',
             emerald: 'bg-emerald-50 border-emerald-200',
             red: 'bg-red-50 border-red-200',
+            amber: 'bg-amber-50 border-amber-200',
             orange: 'bg-orange-50 border-orange-200',
             gray: 'bg-gray-50 border-gray-200',
           };
@@ -148,6 +157,7 @@ export default function OrgDashboardComptable() {
             blue: 'text-blue-700',
             emerald: 'text-emerald-700',
             red: 'text-red-700',
+            amber: 'text-amber-700',
             orange: 'text-orange-600',
             gray: 'text-gray-700',
           };

@@ -2955,8 +2955,13 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const d = dosByClient.get(c.id) || null;
           let taskStats = { total: 0, fait: 0, en_cours: 0, bloque_client: 0 };
           let docStats = { total: 0, received: 0 };
+          // Verification : compteurs HORS perimetre d'export et HORS perimetre de
+          // mois (meme regle que /api/org/comptables) — une tâche rendue attend sa
+          // validation quel que soit son mois.
+          const verifyCounts = { validated: 0, pending: 0 };
           if (d) {
             for (const t of (tasksByDossier.get(d.id) || []) as any[]) {
+              if (t.status === 'fait') verifyCounts.validated++; else if (t.status === 'a_verifier') verifyCounts.pending++;
               if (!exportScopeKeeps(t.export_scope, c.export_status)) continue;
               if (!inDashboardScope(t.month, d.exercice)) continue;
               taskStats.total++; if (t.status === 'fait') taskStats.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') taskStats.en_cours++; else if (t.status === 'bloque_client') taskStats.bloque_client++;
@@ -2964,7 +2969,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             const ds = docByDossier.get(d.id);
             if (ds) { docStats.total = ds.total || 0; docStats.received = ds.received || 0; }
           }
-          return { ...c, dossier_actuel: d, task_stats: taskStats, doc_stats: docStats, progress: taskStats.total > 0 ? Math.round(taskStats.fait / taskStats.total * 100 * 10) / 10 : 0 };
+          return { ...c, dossier_actuel: d, task_stats: taskStats, verify_counts: verifyCounts, doc_stats: docStats, progress: taskStats.total > 0 ? Math.round(taskStats.fait / taskStats.total * 100 * 10) / 10 : 0 };
         });
         return json(enriched.filter(Boolean));
       }
@@ -4660,8 +4665,12 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // Presence : derniere activite (< 3 min = connecte) + heures pointees du jour (journée locale TN = UTC+1)
         const { results: dayRows } = await env.DB.prepare("SELECT user_id, COALESCE(SUM(duration_seconds),0) AS secs FROM org_time_entries WHERE stopped_at IS NOT NULL AND started_at >= datetime('now','start of day','-60 minutes') GROUP BY user_id").all();
         const dayByUser = new Map((dayRows as any[]).map(r => [r.user_id, r.secs]));
-        const { results: running } = await env.DB.prepare('SELECT user_id, started_at FROM org_time_entries WHERE stopped_at IS NULL').all();
-        const runByUser = new Map((running as any[]).map(r => [r.user_id, r.started_at]));
+        // Chrono en cours (1 requete pour tout le cabinet) : on ramene aussi le
+        // libelle de la tâche pour afficher « ce qu'elle fait maintenant » sur la
+        // carte elle-meme, sans ouvrir sa fiche (LEFT JOIN : un chrono ne doit pas
+        // disparaitre si la tâche a ete supprimee).
+        const { results: running } = await env.DB.prepare('SELECT te.user_id, te.started_at, t.label AS task_label FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL').all();
+        const runByUser = new Map((running as any[]).map(r => [r.user_id, r]));
         const nowS = Math.floor(Date.now() / 1000);
         const parseUtc = (s: any) => s ? Math.floor(Date.parse(String(s).replace(' ', 'T') + 'Z') / 1000) : 0;
         // Norme 8h30 uniquement lun-ven (heure locale TN = UTC+1) ; sam/dim = repos
@@ -4701,16 +4710,26 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const taskStats = tasksByUid.get(c.id) || [];
           const today = new Date().toISOString().slice(0, 10);
           const s = { total: 0, fait: 0, en_cours: 0, bloque_client: 0, overdue: 0 };
+          // Verification : compteurs volontairement HORS perimetre d'export et HORS
+          // perimetre de mois. Une tâche rendue par le comptable doit etre validee
+          // quel que soit son mois (et la file « a verifier » de l'expert, elle,
+          // n'est filtree ni par mois ni par export) : les deux nombres doivent
+          // parler du meme ensemble, sinon le taux affiche est faux.
+          const vc = { validated: 0, pending: 0 };
           for (const t of taskStats as any[]) {
+            if (t.status === 'fait') vc.validated++; else if (t.status === 'a_verifier') vc.pending++;
             if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
             if (!inDashboardScope(t.month, t.exercice)) continue;
             s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
             if (t.status !== 'fait' && t.due_date && String(t.due_date).slice(0, 10) < today) s.overdue++;
           }
-          const runStart = parseUtc(runByUser.get(c.id));
+          const runRow = runByUser.get(c.id);
+          const runStart = parseUtc(runRow?.started_at);
           const qual = qualByUid.get(c.id) || { verified: 0, returned: 0 };
           const qualTotal = qual.verified + qual.returned;
           return { ...c, role: c.role_label || c.role, client_count: clients.length, avg_progress: clients.length > 0 ? Math.round(clients.reduce((sum: number, cl: any) => sum + (cl.cached_progress || 0), 0) / clients.length * 10) / 10 : 0, task_stats: s,
+            verify_counts: vc,
+            active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at } : null,
             verify_stats: { verified: qual.verified, returned: qual.returned, score: qualTotal > 0 ? Math.round((qual.verified / qualTotal) * 100) : null },
             online: parseUtc(c.last_seen_at) >= nowS - 180,
             worked_today_seconds: (Number(dayByUser.get(c.id)) || 0) + Math.max(0, runStart ? nowS - runStart : 0),

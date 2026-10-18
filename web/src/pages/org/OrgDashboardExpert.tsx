@@ -9,6 +9,7 @@ import OrgAlerts from '../../components/OrgAlerts';
 import MesHeures from '../../components/MesHeures';
 import NouvellesTaches from '../../components/NouvellesTaches';
 import { EXPORT_LABELS } from '../../lib/orgAlerts';
+import { verifyRate, verifyRateTone, pendingRate, pendingVerify, elapsedLabel, VerifyCounts } from '../../lib/orgVerify';
 import { useCardMin } from '../../lib/useCardMin';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
@@ -36,6 +37,40 @@ const verifyBadge = (h: number | null) => {
   if (h < 1) return { cls: 'bg-orange-100 text-orange-700', label: `${Math.max(1, Math.round(h * 60))} min restantes` };
   return { cls: 'bg-amber-100 text-amber-700', label: `${Math.round(h)} h restantes` };
 };
+
+// Puce « taux de verification » : Validé X% · en attente Y% (— si rien a verifier)
+function VerifyRateBadge({ counts }: { counts?: VerifyCounts | null }) {
+  const tone = verifyRateTone(counts);
+  const rate = verifyRate(counts);
+  const pending = pendingRate(counts);
+  const cls = tone === 'none' ? 'bg-gray-100 text-gray-500'
+    : tone === 'good' ? 'bg-emerald-50 text-emerald-700'
+      : tone === 'warn' ? 'bg-amber-50 text-amber-700'
+        : 'bg-orange-50 text-orange-600';
+  const title = rate == null
+    ? 'Rien à vérifier pour le moment'
+    : `${counts!.validated} validée${counts!.validated > 1 ? 's' : ''} · ${counts!.pending} en attente — part de son travail déjà validé (tous mois confondus)`;
+  return (
+    <span className={`px-2 py-1 rounded-lg font-medium ${cls}`} title={title} data-testid="card-verify-rate">
+      🔍 Validé {rate == null ? '—' : `${rate}%`} · en attente {pending == null ? '—' : `${pending}%`}
+    </span>
+  );
+}
+
+// Puce « N à vérifier » : toujours visible, meme a 0 (l'expert doit voir qu'une
+// validation reste a faire) ; neutre a 0, orange des qu'il y a du travail.
+function VerifyPendingBadge({ counts, fallback, comptableId }: { counts?: VerifyCounts | null; fallback?: number; comptableId: string }) {
+  const pending = pendingVerify(counts, fallback);
+  return (
+    <span
+      className={`px-2 py-1 rounded-lg font-medium ${pending > 0 ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'}`}
+      data-testid={`unverified-comptable-${comptableId}`}
+      title="Tâches rendues en attente de votre validation (tous mois confondus)"
+    >
+      ✅ {pending} à vérifier
+    </span>
+  );
+}
 
 export default function OrgDashboardExpert() {
   const navigate = useNavigate();
@@ -679,7 +714,7 @@ export default function OrgDashboardExpert() {
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-bold text-gray-800 group-hover:text-purple-700 transition-colors">{c.full_name}</h3>
                   <p className="text-xs text-gray-400 mt-0.5">{c.email}</p>
-                  <div className="flex items-center gap-4 mt-2 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-4 mt-2 text-[11px]">
                     <span className={`flex items-center gap-1.5 font-semibold ${c.online ? 'text-emerald-600' : 'text-gray-400'}`} title={c.online ? 'Présence (activité < 3 min)' : agoFull(c.last_seen_at)}>
                       <span className={`inline-block w-2 h-2 rounded-full ${c.online ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
                       {c.online ? 'Connecté' : <span className="text-gray-400 font-medium">Hors ligne · <span className="text-amber-600 font-semibold">{fmtAgo(c.last_seen_at)}</span></span>}
@@ -688,6 +723,18 @@ export default function OrgDashboardExpert() {
                       <span className="text-gray-500">Aujourd'hui : <b className="text-gray-700">{fmtHm(c.worked_today_seconds)} / 8h30</b></span>
                     ) : (
                       <span className="text-gray-400 italic">Repos (samedi / dimanche){(c.worked_today_seconds || 0) > 0 ? ` · ${fmtHm(c.worked_today_seconds)} pointées` : ''}</span>
+                    )}
+                    {/* Ce qu'elle fait maintenant : chrono en cours (tâche + durée) ou
+                        rien. Affiche en permanence : « connectée » ne veut pas dire
+                        « en train de travailler ». */}
+                    {c.active_timer ? (
+                      <span className="flex items-center gap-1 font-semibold text-purple-600 max-w-[240px]" title={`${c.active_timer.task_label} · chrono actif depuis ${elapsedLabel(c.active_timer.started_at)}`}>
+                        <span className="shrink-0">▶</span>
+                        <span className="truncate">{c.active_timer.task_label}</span>
+                        <span className="shrink-0 font-normal text-purple-400">· {elapsedLabel(c.active_timer.started_at)}</span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic">⏸ Ne travaille pas actuellement</span>
                     )}
                   </div>
                   {c.norm_seconds ? (
@@ -705,7 +752,7 @@ export default function OrgDashboardExpert() {
                       />
                     </div>
                   ) : null}
-                  <div className="flex items-center gap-3 mt-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
                     <button
                       onClick={e => { e.stopPropagation(); navigate(`/cabinet?tab=global&comptable=${c.id}`); }}
                       title="Voir ses dossiers dans la vue globale"
@@ -724,28 +771,31 @@ export default function OrgDashboardExpert() {
                     >
                       📋 {c.task_stats.fait}/{c.task_stats.total}
                     </span>
-                    {c.verify_stats?.score != null && (
-                      <span
-                        className={`px-2 py-1 rounded-lg font-medium ${
-                          c.verify_stats.score >= 90 ? 'bg-emerald-50 text-emerald-700'
-                          : c.verify_stats.score >= 75 ? 'bg-amber-50 text-amber-700'
-                          : 'bg-red-50 text-red-600'
-                        }`}
-                        title={`Validations vérifiées : ${c.verify_stats.verified} · Renvois en correction : ${c.verify_stats.returned}`}
-                      >
-                        {c.verify_stats.score >= 90 ? '✓' : c.verify_stats.score >= 75 ? '⚠' : '↺'} Qualité {c.verify_stats.score}%
-                      </span>
-                    )}
+                    {/* Qualite : toujours affichee, meme sans aucune verification
+                        (avant, la puce disparaissait : l'expert ne voyait pas que
+                        rien n'avait encore ete valide). */}
+                    <span
+                      className={`px-2 py-1 rounded-lg font-medium ${
+                        c.verify_stats?.score == null ? 'bg-gray-100 text-gray-500'
+                        : c.verify_stats.score >= 90 ? 'bg-emerald-50 text-emerald-700'
+                        : c.verify_stats.score >= 75 ? 'bg-amber-50 text-amber-700'
+                        : 'bg-red-50 text-red-600'
+                      }`}
+                      title={c.verify_stats?.score == null
+                        ? 'Aucune validation ni renvoi en correction pour le moment'
+                        : `Validations vérifiées : ${c.verify_stats.verified} · Renvois en correction : ${c.verify_stats.returned}`}
+                    >
+                      {c.verify_stats?.score == null ? '' : c.verify_stats.score >= 90 ? '✓ ' : c.verify_stats.score >= 75 ? '⚠ ' : '↺ '}Qualité {c.verify_stats?.score == null ? '—' : `${c.verify_stats.score}%`}
+                    </span>
+                    {/* Taux de verification : part de son travail deja valide */}
+                    <VerifyRateBadge counts={c.verify_counts} />
                     {c.task_stats.bloque_client > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-1 rounded-lg font-medium animate-pulse">
                         🔴 {c.task_stats.bloque_client} bloqué{c.task_stats.bloque_client > 1 ? 's' : ''} client
                       </span>
                     )}
-                    {(unverifiedByComptable[c.id] || 0) > 0 && (
-                      <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded-lg font-medium" data-testid={`unverified-comptable-${c.id}`}>
-                        ✅ {unverifiedByComptable[c.id]} à vérifier
-                      </span>
-                    )}
+                    {/* Tâches faites pas encore validées : toujours affichee, meme a 0 */}
+                    <VerifyPendingBadge counts={c.verify_counts} fallback={unverifiedByComptable[c.id]} comptableId={c.id} />
                     {(c.task_stats.overdue || 0) > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-1 rounded-lg font-medium" data-testid={`overdue-comptable-${c.id}`} title="Tâches en retard sur ses dossiers en cours">
                         ⏰ {c.task_stats.overdue} retard{c.task_stats.overdue! > 1 ? 's' : ''}
