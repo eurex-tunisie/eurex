@@ -43,6 +43,35 @@ psql "$SUPABASE_DB_URL" -f api/supabase/schema.sql
    convient) — en cas de refus, relancer avec `--no-replica` et corriger les
    orphelines éventuelles signalées à l'import.
 
+### ⚠️ Après CHAQUE migration D1 : rattraper Supabase
+`schema.sql` est une **photographie** datée (voir son en-tête), pas une source
+qui se met à jour. Toute migration appliquée à D1 après cette date n'existe
+PAS côté PostgreSQL tant qu'on ne la rejoue pas à la main — et rien ne le
+signale : la double écriture ne recopie que des **lignes**, jamais des
+**colonnes**.
+
+C'est arrivé : `schema.sql` du 2026-10-09 (migrations ≤ 0034), alors que D1
+avait reçu 0035 à 0038. Résultat, chaque lecture confiée à PostgreSQL échouait
+et retombait sur D1 —
+
+```
+(error) lecture repartie indisponible, repli sur D1 :
+        column c.deleted_at does not exist
+```
+
+— en silence apparent (l'utilisateur ne voit qu'un repli), avec deux
+conséquences réelles : la répartition des lectures ne soulageait plus le quota
+de lignes lues de D1, et une bascule automatique sur Supabase aurait cassé la
+page Clients au lieu de secourir l'application.
+
+**Règle** : après toute migration D1, rejouer sa partie **structurelle** côté
+Supabase (SQL Editor ou psql), et **jamais** sa partie données si D1 était
+primaire à ce moment-là (la double écriture les a déjà copiées : les rejouer
+ferait des doublons).
+
+Exemple prêt à l'emploi : `api/supabase/rattrapage-0035-0038.sql` (idempotent,
+se termine par un contrôle de colonnes).
+
 ---
 
 ## 2. Écarts / décisions de conversion
