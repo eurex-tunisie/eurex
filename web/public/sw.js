@@ -38,6 +38,14 @@ async function depuisReseau(cache, requete) {
   return reponse;
 }
 
+// Repli hors ligne : la page demandee si on l'a, sinon la page d'accueil gardee
+// a l'installation (null si vraiment rien).
+async function replier(cache, requete) {
+  const enCache = await cache.match(requete);
+  if (enCache) return enCache;
+  return (await cache.match(BASE)) || null;
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
@@ -83,11 +91,17 @@ self.addEventListener('fetch', (event) => {
       }
 
       try {
-        return await depuisReseau(cache, requete); // toujours la derniere version
+        const reponse = await depuisReseau(cache, requete);
+        // Un 5xx sur une navigation (serveur en panne) n'est pas une nouvelle
+        // version : on sert la copie gardee plutot que d'afficher une page
+        // d'erreur a la place de l'application.
+        if (requete.mode === 'navigate' && reponse.status >= 500) {
+          const secours = await replier(cache, requete);
+          if (secours) return secours;
+        }
+        return reponse; // toujours la derniere version
       } catch (erreur) {
-        const enCache = await cache.match(requete);
-        if (enCache) return enCache;
-        const secours = await cache.match(BASE); // hors ligne et page jamais visitee
+        const secours = await replier(cache, requete);
         if (secours) return secours;
         throw erreur;
       }

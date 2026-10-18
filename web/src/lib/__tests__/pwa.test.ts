@@ -119,13 +119,19 @@ describe('service worker', () => {
   test('seuls les assets hashes sont en cache d’abord ; tout le reste vient du reseau', () => {
     expect(swSrc).toContain("const immutable = url.pathname.startsWith(`${BASE}assets/`);");
     expect(swSrc).toContain('return enCache || depuisReseau(cache, requete);'); // assets : cache d'abord
-    expect(swSrc).toContain('return await depuisReseau(cache, requete);'); // tout le reste : reseau d'abord
+    expect(swSrc).toContain('const reponse = await depuisReseau(cache, requete);'); // tout le reste : reseau d'abord
+    expect(swSrc).toContain('return reponse; // toujours la derniere version');
     expect(swSrc).toContain("if (!url.pathname.startsWith(BASE)) return;");
   });
 
   test('hors ligne : repli sur la page d’accueil gardee a l’installation', () => {
     expect(swSrc).toContain('await ranger(cache, BASE, await fetch(BASE));');
-    expect(swSrc).toContain('const secours = await cache.match(BASE);');
+    expect(swSrc).toContain('const secours = await replier(cache, requete);');
+    expect(swSrc).toContain('return (await cache.match(BASE)) || null;');
+  });
+
+  test('un 5xx sur une navigation sert la copie gardee (pas de page d’erreur)', () => {
+    expect(swSrc).toContain("if (requete.mode === 'navigate' && reponse.status >= 500)");
   });
 
   test('cache borne (pas de croissance sans fin) et jamais de reponse 404 rangee', () => {
