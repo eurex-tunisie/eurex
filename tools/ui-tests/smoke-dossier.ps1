@@ -1,10 +1,11 @@
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
+. "$PSScriptRoot\creds.ps1"
 $B = "https://eurex-api.ezzinesalim21.workers.dev"
 $script:fail = 0
 function OK($cond, $msg) { if ($cond) { "PASS: $msg" } else { $script:fail++; "FAIL: $msg" } }
 function Body($o) { ($o | ConvertTo-Json -Compress) }
 
-$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='expert@eurex.tn';password='expert1234567'}) -ContentType 'application/json'
+$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.expert.email;password=$CRED.expert.password}) -ContentType 'application/json'
 $H = @{ Authorization = 'Bearer ' + $lr.token }
 OK ($null -ne $lr.token) "login expert"
 

@@ -1,4 +1,5 @@
 ﻿const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 (async () => {
   const b = await chromium.launch();
@@ -23,8 +24,8 @@ const BASE = process.env.BASE;
   if (!(await submit.count())) { console.log('ECHEC: pas de bouton submit'); process.exit(1); }
   console.log('2. structure form OK (autocomplete + name + submit)');
 
-  await email.fill('expert@eurex.tn');
-  await pwd.fill('expert1234567');
+  await email.fill(CRED.expert.email);
+  await pwd.fill(CRED.expert.password);
   await p.click('button[title="Afficher"]');
   if ((await pwd.getAttribute('type')) !== 'text') { console.log('ECHEC oeil'); process.exit(1); }
   console.log('3. oeil actif (type=text)');

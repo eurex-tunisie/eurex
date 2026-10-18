@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
@@ -17,7 +18,7 @@ async function waitText(p, sub, want, tries = 30) {
   // verifyOrgToken ecrit last_seen_at) pour que sa carte affiche "Connecte".
   const lr = await fetch('https://eurex-api.ezzinesalim21.workers.dev/api/org/auth/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'samar@eurex.tn', password: 'samar1234567' }),
+    body: JSON.stringify({ email: CRED.samar.email, password: CRED.samar.password }),
   }).then(r => r.json());
   await fetch('https://eurex-api.ezzinesalim21.workers.dev/api/org/auth/me', {
     headers: { Authorization: 'Bearer ' + lr.token },
@@ -30,8 +31,8 @@ async function waitText(p, sub, want, tries = 30) {
   await p.evaluate(() => sessionStorage.setItem('eurex_authorized', '1'));
   await p.goto(BASE + '/cabinet', { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('input[name="email"]', { timeout: 20000 });
-  await p.fill('input[name="email"]', 'expert@eurex.tn');
-  await p.fill('input[name="password"]', 'expert1234567');
+  await p.fill('input[name="email"]', CRED.expert.email);
+  await p.fill('input[name="password"]', CRED.expert.password);
   await p.click('button[type="submit"]');
   // dashboard expert : tab comptables par defaut
   ok(await waitText(p, 'Connect', true), 'E1: statut presence affiche (Connecte/Hors ligne)');

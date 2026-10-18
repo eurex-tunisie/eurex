@@ -1,4 +1,5 @@
 ﻿const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
@@ -24,7 +25,7 @@ async function login(p, email, pwd) {
   const p1 = await c1.newPage();
   p1.on('pageerror', e => console.log('!! PAGEERROR expert: ' + e.message));
   await enter(p1);
-  await login(p1, 'expert@eurex.tn', 'expert1234567');
+  await login(p1, CRED.expert.email, CRED.expert.password);
   ok(await p1.locator('button', { hasText: 'Nouveau dossier' }).count() === 1, 'A1 expert: bouton Nouveau dossier present');
   const addBtn = p1.locator('button', { hasText: 'Échéance' });
   ok(await addBtn.count() === 1, 'A2 expert: bouton ajouter echeance present (' + await addBtn.count() + ')');
@@ -55,7 +56,7 @@ async function login(p, email, pwd) {
   const p2 = await c2.newPage();
   p2.on('pageerror', e => console.log('!! PAGEERROR salim: ' + e.message));
   await enter(p2);
-  await login(p2, 'salim@eurex.tn', 'salim1234567');
+  await login(p2, CRED.salim.email, CRED.salim.password);
   ok(await p2.locator('button', { hasText: 'Nouveau dossier' }).count() === 0, 'B1 salim: aucun bouton Nouveau dossier');
   ok(await p2.locator('button', { hasText: 'Échéance' }).count() === 0, "B2 salim: pas de bouton d'ajout d'echeance globale");
   await p2.waitForSelector('text=salaires & cotisations', { timeout: 15000 });

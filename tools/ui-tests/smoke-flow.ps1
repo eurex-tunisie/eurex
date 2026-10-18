@@ -1,17 +1,18 @@
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
+. "$PSScriptRoot\creds.ps1"
 $B = "https://eurex-api.ezzinesalim21.workers.dev"
 $script:fail = 0
 function OK($cond, $msg) { if ($cond) { "PASS: $msg" } else { $script:fail++; "FAIL: $msg" } }
 function Body($o) { ($o | ConvertTo-Json -Compress) }
 
 # --- logins ---
-$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='expert@eurex.tn';password='expert1234567'}) -ContentType 'application/json'
+$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.expert.email;password=$CRED.expert.password}) -ContentType 'application/json'
 $H = @{ Authorization = 'Bearer ' + $lr.token }
 OK ($null -ne $lr.token) "login expert"
-$lr2 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='samar@eurex.tn';password='samar1234567'}) -ContentType 'application/json'
+$lr2 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.samar.email;password=$CRED.samar.password}) -ContentType 'application/json'
 $HS = @{ Authorization = 'Bearer ' + $lr2.token }
 OK ($null -ne $lr2.token) "login samar (comptable NON assigne)"
-$lr3 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='salim@eurex.tn';password='salim1234567'}) -ContentType 'application/json'
+$lr3 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.salim.email;password=$CRED.salim.password}) -ContentType 'application/json'
 $HL = @{ Authorization = 'Bearer ' + $lr3.token }
 OK ($null -ne $lr3.token) "login salim (comptable assigne)"
 

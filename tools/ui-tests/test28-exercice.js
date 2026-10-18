@@ -1,11 +1,12 @@
 // test28 — Passage automatique au nouvel exercice + selecteur d'exercice au dashboard
+const CRED = require('./creds');
 //   API : rollover (cloture forcee n-1 + ouverture), idempotence, filtres ?exercice=
 //   UI  : selecteur expert (tableau) + selecteur comptable (cartes clients, Mes heures)
 const { chromium } = require('playwright');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
-const EXP = { email: 'expert@eurex.tn', pwd: 'expert1234567' };
-const SAL = { email: 'salim@eurex.tn', pwd: 'salim1234567' };
+const EXP = { email: CRED.expert.email, pwd: CRED.expert.password };
+const SAL = { email: CRED.salim.email, pwd: CRED.salim.password };
 const CUR = new Date().getFullYear();
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let fails = 0;

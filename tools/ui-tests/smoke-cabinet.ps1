@@ -1,4 +1,5 @@
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
+. "$PSScriptRoot\creds.ps1"
 $B = "https://eurex-api.ezzinesalim21.workers.dev"
 $script:fail = 0
 function OK($cond, $msg) { if ($cond) { "PASS: $msg" } else { $script:fail++; "FAIL: $msg" } }
@@ -6,13 +7,13 @@ function Body($o) { ($o | ConvertTo-Json -Compress) }
 function St([scriptblock]$fn) { try { $null = & $fn; -1 } catch { [int]$_.Exception.Response.StatusCode.value__ } }
 
 # --- logins ---
-$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='expert@eurex.tn';password='expert1234567'}) -ContentType 'application/json'
+$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.expert.email;password=$CRED.expert.password}) -ContentType 'application/json'
 $H = @{ Authorization = 'Bearer ' + $lr.token }
 OK ($null -ne $lr.token) "login expert"
-$lr2 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='samar@eurex.tn';password='samar1234567'}) -ContentType 'application/json'
+$lr2 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.samar.email;password=$CRED.samar.password}) -ContentType 'application/json'
 $HS = @{ Authorization = 'Bearer ' + $lr2.token }
 OK ($null -ne $lr2.token) "login samar"
-$lr3 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='salim@eurex.tn';password='salim1234567'}) -ContentType 'application/json'
+$lr3 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.salim.email;password=$CRED.salim.password}) -ContentType 'application/json'
 $HL = @{ Authorization = 'Bearer ' + $lr3.token }
 OK ($null -ne $lr3.token) "login salim"
 $me = Invoke-RestMethod "$B/api/org/auth/me" -Headers $H
@@ -21,7 +22,7 @@ OK ($me.organization -eq 'EUREX') "GET auth/me + organisation"
 # --- 1) creation comptable de test + validations ---
 OK ((St { Invoke-RestMethod "$B/api/org/comptables" -Headers $H -Method Post -Body (Body @{full_name='ZZ';email='zz@eurex.tn'}) -ContentType 'application/json' }) -eq 400) "POST comptable champs manquants -> 400"
 OK ((St { Invoke-RestMethod "$B/api/org/comptables" -Headers $H -Method Post -Body (Body @{full_name='ZZ';email='zz@eurex.tn';password='court'}) -ContentType 'application/json' }) -eq 400) "POST comptable mot de passe <12 -> 400"
-OK ((St { Invoke-RestMethod "$B/api/org/comptables" -Headers $H -Method Post -Body (Body @{full_name='ZZ';email='salim@eurex.tn';password='CabinetTest123456'}) -ContentType 'application/json' }) -eq 409) "POST comptable email duplique -> 409"
+OK ((St { Invoke-RestMethod "$B/api/org/comptables" -Headers $H -Method Post -Body (Body @{full_name='ZZ';email=$CRED.salim.email;password='CabinetTest123456'}) -ContentType 'application/json' }) -eq 409) "POST comptable email duplique -> 409"
 $ncMail = 'zz-cab-test-' + (Get-Random -Minimum 100000 -Maximum 999999) + '@test.eurex.tn'
 $nc = Invoke-RestMethod "$B/api/org/comptables" -Headers $H -Method Post -Body (Body @{full_name='ZZ-CAB-TEST';email=$ncMail;password='CabinetTest123456'}) -ContentType 'application/json'
 OK ($nc.role -eq 'comptable') "POST comptable cree (id=$($nc.id))"
@@ -42,7 +43,7 @@ $HC = @{ Authorization = 'Bearer ' + $lc.token }
 OK ($lc.user.must_change_password -eq 0) "apres change-password: must_change_password=0"
 OK ((St { Invoke-RestMethod "$B/api/org/auth/me" -Headers $HC -Method Patch -Body (Body @{full_name=''}) -ContentType 'application/json' }) -eq 400) "PATCH me nom vide -> 400"
 OK ((St { Invoke-RestMethod "$B/api/org/auth/me" -Headers $HC -Method Patch -Body (Body @{email='pas-un-email'}) -ContentType 'application/json' }) -eq 400) "PATCH me email invalide -> 400"
-OK ((St { Invoke-RestMethod "$B/api/org/auth/me" -Headers $HC -Method Patch -Body (Body @{email='salim@eurex.tn'}) -ContentType 'application/json' }) -eq 409) "PATCH me email duplique -> 409"
+OK ((St { Invoke-RestMethod "$B/api/org/auth/me" -Headers $HC -Method Patch -Body (Body @{email=$CRED.salim.email}) -ContentType 'application/json' }) -eq 409) "PATCH me email duplique -> 409"
 $pm = Invoke-RestMethod "$B/api/org/auth/me" -Headers $HC -Method Patch -Body (Body @{full_name='ZZ-CAB-RENOMME'}) -ContentType 'application/json'
 OK ($pm.full_name -eq 'ZZ-CAB-RENOMME') "PATCH me nom OK"
 
@@ -53,7 +54,7 @@ $list = Invoke-RestMethod "$B/api/org/comptables" -Headers $H
 OK (@($list | Where-Object id -eq $ncId).Count -eq 1) "GET comptables expert contient le nouveau"
 OK ((St { Invoke-RestMethod ("$B/api/org/comptables/" + $ncId) -Headers $H -Method Patch -Body (Body @{password='court'}) -ContentType 'application/json' }) -eq 400) "PATCH comptable mot de passe court -> 400"
 OK ((St { Invoke-RestMethod ("$B/api/org/comptables/" + $ncId) -Headers $H -Method Patch -Body (Body @{email='bad'}) -ContentType 'application/json' }) -eq 400) "PATCH comptable email invalide -> 400"
-OK ((St { Invoke-RestMethod ("$B/api/org/comptables/" + $ncId) -Headers $H -Method Patch -Body (Body @{email='salim@eurex.tn'}) -ContentType 'application/json' }) -eq 409) "PATCH comptable email duplique -> 409"
+OK ((St { Invoke-RestMethod ("$B/api/org/comptables/" + $ncId) -Headers $H -Method Patch -Body (Body @{email=$CRED.salim.email}) -ContentType 'application/json' }) -eq 409) "PATCH comptable email duplique -> 409"
 OK ((St { Invoke-RestMethod ("$B/api/org/comptables/" + $ncId) -Headers $H -Method Patch -Body (Body @{}) -ContentType 'application/json' }) -eq 400) "PATCH comptable sans champ -> 400"
 OK ((St { Invoke-RestMethod "$B/api/org/comptables/comptable_inexistant" -Headers $H -Method Patch -Body (Body @{full_name='X'}) -ContentType 'application/json' }) -eq 404) "PATCH comptable inconnu -> 404"
 OK ((St { Invoke-RestMethod ("$B/api/org/comptables/" + $ncId) -Headers $HL -Method Patch -Body (Body @{full_name='HACK'}) -ContentType 'application/json' }) -eq 403) "PATCH comptable par un comptable -> 403"

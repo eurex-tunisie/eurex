@@ -1,7 +1,8 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
-const SAL = { email: 'salim@eurex.tn', pwd: 'salim1234567' };
+const SAL = { email: CRED.salim.email, pwd: CRED.salim.password };
 const DOSS = 'doss_001'; // ANIMAL CITY — assigne a Salim (user_comp_001)
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };

@@ -1,9 +1,10 @@
 // test25 — minimisation des cartes dashboard : Nouvelles taches / A verifier / Mes heures
+const CRED = require('./creds');
 // Chaque carte a son propre bouton chevron + etat memorise (localStorage), comme Echeances fiscales.
 const { chromium } = require('playwright');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
-const EXP = { email: 'expert@eurex.tn', pwd: 'expert1234567' };
+const EXP = { email: CRED.expert.email, pwd: CRED.expert.password };
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
 async function j(url, opt) {
@@ -27,7 +28,7 @@ const shown = async (loc) => loc.count();
 (async () => {
   const he = await j(API + '/api/org/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EXP.email, password: EXP.pwd }) });
   const HE = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + he.token };
-  const lc = await j(API + '/api/org/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'salim@eurex.tn', password: 'salim1234567' }) });
+  const lc = await j(API + '/api/org/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: CRED.salim.email, password: CRED.salim.password }) });
   const HC = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + lc.token };
   const zz = 'ZZ-CARDSMIN-' + Date.now().toString().slice(-6);
 

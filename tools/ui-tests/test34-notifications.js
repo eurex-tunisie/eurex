@@ -1,10 +1,11 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const { execSync } = require('child_process');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
 const API_DIR = 'C:\\Users\\safa.dhaoui\\Documents\\Default Project\\eurex\\api';
-const EXP = { email: 'omar.bouhlila@eurextunisie.com', pwd: 'expert1234567' };
-const SAL = { email: 'salim.ezzine@eurextunisie.com', pwd: 'salim1234567' };
+const EXP = { email: CRED.expert.email, pwd: CRED.expert.password };
+const SAL = { email: CRED.salim.email, pwd: CRED.salim.password };
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
 async function j(url, opt) {

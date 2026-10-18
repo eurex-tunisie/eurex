@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
 let fails = 0;
@@ -18,7 +19,7 @@ async function j(url, opt) {
 }
 
 (async () => {
-  const EXP = { email: 'expert@eurex.tn', pwd: 'expert1234567' };
+  const EXP = { email: CRED.expert.email, pwd: CRED.expert.password };
   const tnDate = new Date(Date.now() + 3600000).toISOString().slice(0, 10);
   const todayNum = parseInt(tnDate.slice(8, 10), 10);
   const monthNum = parseInt(tnDate.slice(5, 7), 10);
@@ -27,7 +28,7 @@ async function j(url, opt) {
   const le = await j(API + '/api/org/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EXP.email, password: EXP.pwd }) });
   const HE = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + le.token };
   const comps = await j(API + '/api/org/comptables', { headers: HE });
-  const samar = comps.find(c => c.email === 'samar@eurex.tn');
+  const samar = comps.find(c => c.email === CRED.samar.email);
   if (!samar) { console.log('ERREUR: samar introuvable'); process.exit(2); }
 
   // API : les 3 vues des heures de Samar

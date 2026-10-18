@@ -1,9 +1,10 @@
 // test24 — minimisation de la carte "Échéances fiscales" (OrgAlerts)
+const CRED = require('./creds');
 // M1-M8 : bouton chevron, repli sur une seule ligne, persistance localStorage, retour a l'etat etendu.
 const { chromium } = require('playwright');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
-const EXP = { email: 'expert@eurex.tn', pwd: 'expert1234567' }; // le "+" Echance n'existe que pour l'expert
+const EXP = { email: CRED.expert.email, pwd: CRED.expert.password }; // le "+" Echance n'existe que pour l'expert
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
 async function j(url, opt) {

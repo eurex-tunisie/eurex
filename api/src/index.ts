@@ -5115,10 +5115,24 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         };
 
         // Users
-        const expertHash = await makeHash('expert1234567');
-        const managerHash = await makeHash('manager1234567');
-        const comp1Hash = await makeHash('comptable1234567');
-        const comp2Hash = await makeHash('comptable1234567');
+        // Les mots de passe ne sont plus ecrits en dur : le depot est PUBLIC,
+        // et un mot de passe pousse dans l'historique git est perdu pour
+        // toujours. Ils doivent venir de l'environnement (wrangler secret) ;
+        // a defaut la graine est refusee plutot que de creer des comptes
+        // aux identifiants connus de tous.
+        const seedEnv = env as any;
+        const seedExpert = seedEnv.SEED_EXPERT_PASSWORD as string | undefined;
+        const seedManager = seedEnv.SEED_MANAGER_PASSWORD as string | undefined;
+        const seedComp = seedEnv.SEED_COMP_PASSWORD as string | undefined;
+        if (!seedExpert || !seedManager || !seedComp) {
+          return json({
+            error: 'Grainement refuse : SEED_EXPERT_PASSWORD, SEED_MANAGER_PASSWORD et SEED_COMP_PASSWORD doivent etre fournis via "wrangler secret put".',
+          }, 400);
+        }
+        const expertHash = await makeHash(seedExpert);
+        const managerHash = await makeHash(seedManager);
+        const comp1Hash = await makeHash(seedComp);
+        const comp2Hash = await makeHash(seedComp);
 
         await env.DB.prepare('INSERT INTO org_users (id, organization_id, full_name, email, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)').bind('user_expert_001', orgId, 'Omar', 'expert@eurex.tn', expertHash, 'expert').run();
         // Manager : rôle expert stocké (CHECK DB) + role_label 'manager' pour l'affichage
@@ -5212,7 +5226,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           await orgRecalcProgress(env.DB, dd.id);
         }
 
-        return json({ ok: true, msg: 'Seeded', credentials: { expert: 'expert@eurex.tn / expert1234567', manager: 'manager@eurex.tn / manager1234567', comptable1: 'ahmed@eurex.tn / comptable1234567', comptable2: 'fatma@eurex.tn / comptable1234567' } });
+        // Ne renvoie jamais les mots de passe : l'API ne doit pas servir de
+        // canal d'exposition, meme pour un compte cree a l'instant.
+        return json({ ok: true, msg: 'Seeded', note: 'Mots de passe fournis par l environnement, jamais renvoyes.' });
       }
 
       return json({ error: 'Not found: ' + path }, 404);

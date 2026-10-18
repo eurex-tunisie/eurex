@@ -1,9 +1,10 @@
 // test27 — Depots AP 1/2/3 rattaches a juin / septembre / decembre
+const CRED = require('./creds');
 //   API : modeles + validation + futur dossier ; UI : filtres mois du dossier + badge Settings
 const { chromium } = require('playwright');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
-const EXP = { email: 'expert@eurex.tn', pwd: 'expert1234567' };
+const EXP = { email: CRED.expert.email, pwd: CRED.expert.password };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };

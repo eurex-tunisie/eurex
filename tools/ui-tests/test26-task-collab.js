@@ -1,11 +1,12 @@
 // test26 — Collaboration : un comptable tague un autre comptable sur une tache
+const CRED = require('./creds');
 //   => acces AUTO au dossier (renfort) + chacun son chrono (chronos en parallele)
 const { chromium } = require('playwright');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
-const EXP = { email: 'expert@eurex.tn', pwd: 'expert1234567' };
-const A = { email: 'salim@eurex.tn', pwd: 'salim1234567' }; // comptable assigne du dossier
-const B = { email: 'samar@eurex.tn', pwd: 'samar1234567' }; // autre comptable (pas d'acces au depart)
+const EXP = { email: CRED.expert.email, pwd: CRED.expert.password };
+const A = { email: CRED.salim.email, pwd: CRED.salim.password }; // comptable assigne du dossier
+const B = { email: CRED.samar.email, pwd: CRED.samar.password }; // autre comptable (pas d'acces au depart)
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };

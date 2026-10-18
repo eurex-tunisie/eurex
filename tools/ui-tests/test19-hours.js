@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const { createQaComptable, deleteQaComptable } = require('./qa-account');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
@@ -29,7 +30,7 @@ async function loginAs(p, email, pwd) {
 }
 
 (async () => {
-  const EXP = { email: 'expert@eurex.tn', pwd: 'expert1234567' };
+  const EXP = { email: CRED.expert.email, pwd: CRED.expert.password };
 
   // jour TN courant (UTC+1)
   const tnDate = new Date(Date.now() + 3600000).toISOString().slice(0, 10);

@@ -1,9 +1,10 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
-const EXP = { email: 'omar.bouhlila@eurextunisie.com', pwd: 'expert1234567' };
-const SAL = { email: 'salim.ezzine@eurextunisie.com', pwd: 'salim1234567' };
-const SAM = { email: 'samar.daboussi@eurextunisie.com', pwd: 'samar1234567' };
+const EXP = { email: CRED.expert.email, pwd: CRED.expert.password };
+const SAL = { email: CRED.salim.email, pwd: CRED.salim.password };
+const SAM = { email: CRED.samar.email, pwd: CRED.samar.password };
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
 async function j(url, opt) {

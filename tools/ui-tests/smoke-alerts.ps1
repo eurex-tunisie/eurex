@@ -1,4 +1,5 @@
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
+. "$PSScriptRoot\creds.ps1"
 $B = "https://eurex-api.ezzinesalim21.workers.dev"
 $script:fail = 0
 function OK($cond, $msg) { if ($cond) { "PASS: $msg" } else { $script:fail++; "FAIL: $msg" } }
@@ -6,10 +7,10 @@ function Body($o) { ($o | ConvertTo-Json -Compress) }
 function St([scriptblock]$fn) { try { $null = & $fn; -1 } catch { [int]$_.Exception.Response.StatusCode.value__ } }
 
 # --- logins ---
-$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='expert@eurex.tn';password='expert1234567'}) -ContentType 'application/json'
+$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.expert.email;password=$CRED.expert.password}) -ContentType 'application/json'
 $H = @{ Authorization = 'Bearer ' + $lr.token }
 OK ($null -ne $lr.token) "login expert"
-$lr2 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='samar@eurex.tn';password='samar1234567'}) -ContentType 'application/json'
+$lr2 = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.samar.email;password=$CRED.samar.password}) -ContentType 'application/json'
 $H2 = @{ Authorization = 'Bearer ' + $lr2.token }
 OK ($null -ne $lr2.token) "login comptable samar"
 

@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 
 const BASE = 'https://salimezine.github.io/eurex';
 const DOSSIER = 'doss_003'; // TECH SOLUTIONS SARL
@@ -24,8 +25,8 @@ const DOSSIER = 'doss_003'; // TECH SOLUTIONS SARL
 
   // 2) login expert
   await page.waitForSelector('input[name="email"]', { timeout: 20000 });
-  await page.fill('input[name="email"]', 'expert@eurex.tn');
-  await page.fill('input[name="password"]', 'expert1234567');
+  await page.fill('input[name="email"]', CRED.expert.email);
+  await page.fill('input[name="password"]', CRED.expert.password);
   await page.click('button[type="submit"]');
   await page.waitForTimeout(3000);
 

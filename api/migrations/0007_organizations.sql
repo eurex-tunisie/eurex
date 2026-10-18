@@ -164,7 +164,11 @@ CREATE INDEX IF NOT EXISTS idx_org_fiscal_client ON org_fiscal_deadlines(client_
 -- Organization
 INSERT INTO organizations (id, name) VALUES ('org_cabinet_001', 'EUREX');
 
--- Users (passwords: hash of "expert1234567" and "comptable1234567")
+-- Users (password hashes derived from the seed passwords of the first deploy.
+-- The plaintext values are deliberately NOT recorded here: the repository is
+-- public, and a password written once is a password leaked. The accounts have
+-- since been rotated; tests obtain the current values from the local,
+-- gitignored tools/ui-tests/.credentials.json.)
 -- SHA-256 hashes computed at runtime, using placeholder bcrypt-compatible hashes
 INSERT INTO org_users (id, organization_id, full_name, email, password_hash, role) VALUES
   ('user_expert_001', 'org_cabinet_001', 'EUREX', 'expert@eurex.tn', '$argon2id$v=19$m=65536,t=3,p=4$placeholder_expert_hash', 'expert'),
