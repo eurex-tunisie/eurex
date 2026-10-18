@@ -2,7 +2,7 @@
 
 Plateforme web tunisienne (SCE 1996) : cabinet comptable + modules Achats, Etats Financiers, Baud et ScanFlash.
 
-**Site : https://salimezine.github.io/eurex/**
+**Site : https://eurex-tunisie.github.io/eurex/**
 
 ## Architecture
 

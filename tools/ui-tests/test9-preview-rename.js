@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE || 'https://salimezine.github.io/eurex';
+const BASE = process.env.BASE || 'https://eurex-tunisie.github.io/eurex';
 
 (async () => {
   const browser = await chromium.launch();

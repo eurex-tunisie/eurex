@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE || 'https://salimezine.github.io/eurex';
+const BASE = process.env.BASE || 'https://eurex-tunisie.github.io/eurex';
 const RENAMES = [
   { badge: 'ANIMAL', from: 'ANIMAL', to: 'ANIMAL RENAME TEST', link: '/dossier/dossier_animal' },
   { badge: 'SCANFLASH', from: 'SCANFLASH', to: 'SCAN RENAME TEST', link: '/scanflash/dossier/' },
