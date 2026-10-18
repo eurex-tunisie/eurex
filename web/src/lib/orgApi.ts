@@ -62,6 +62,9 @@ export interface OrgDossier {
   progress: number;
   time_entries: any[];
   time_by_user: { user_name: string; seconds: number }[];
+  // Renvoye par /api/org/dossiers (liste) : somme des temps de toutes les
+  // taches du dossier. Absent de la reponse unitaire.
+  total_time_seconds?: number;
   is_granted?: boolean;
   grants?: OrgGrant[];
   running_timers?: OrgRunningTimer[];

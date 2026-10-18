@@ -101,10 +101,10 @@ export default function OrgDashboardExpert() {
     const rows = filteredDossiers.map(d => [
       d.client_name, d.exercice, d.comptable_name || '', d.status === 'cloture' ? 'Clôturé' : 'En cours',
       d.progress || 0, d.task_stats?.fait ?? '', d.task_stats?.total ?? '',
-      d.task_stats?.bloque_client ?? '', unverifiedByDossier[d.id] || 0,
+      d.task_stats?.bloque_client ?? '', unverifiedByDossier[d.id] || 0, fmtHm(d.total_time_seconds),
     ]);
     const csv = buildCsv(
-      ['Client', 'Exercice', 'Comptable', 'Statut', 'Avancement %', 'Tâches faites', 'Tâches total', 'Bloquées client', 'À vérifier'],
+      ['Client', 'Exercice', 'Comptable', 'Statut', 'Avancement %', 'Tâches faites', 'Tâches total', 'Bloquées client', 'À vérifier', 'Temps passé'],
       rows
     );
     orgApi.downloadCsv(csv, `dossiers_cabinet_${exercice || 'tout'}.csv`);
@@ -356,6 +356,19 @@ export default function OrgDashboardExpert() {
     : 0;
   const blockedCount = allDossiers.filter(d => d.task_stats?.bloque_client > 0).length; // used for table badge
 
+  // Synthese du cabinet. Tout est derive des donnees deja chargees : aucune
+  // requete supplementaire, donc aucun cout D1 en plus pour plus de detail.
+  const sumFait = allDossiers.reduce((s, d) => s + (d.task_stats?.fait || 0), 0);
+  const sumTotal = allDossiers.reduce((s, d) => s + (d.task_stats?.total || 0), 0);
+  const sumEnCours = allDossiers.reduce((s, d) => s + (d.task_stats?.en_cours || 0), 0);
+  const sumBloque = allDossiers.reduce((s, d) => s + (d.task_stats?.bloque_client || 0), 0);
+  const sumOverdue = comptables.reduce((s, c) => s + (c.task_stats?.overdue || 0), 0);
+  const sumTime = allDossiers.reduce((s, d) => s + (d.total_time_seconds || 0), 0);
+  const closedDossiers = allDossiers.filter(d => d.status === 'cloture').length;
+  const onlineComptables = comptables.filter(c => c.online).length;
+  const workedTodayAll = comptables.reduce((s, c) => s + (c.worked_today_seconds || 0), 0);
+  const pointingToday = comptables.filter(c => (c.worked_today_seconds || 0) > 0).length;
+
   const filteredDossiers = allDossiers
     .filter(d => filterComptable === 'all' || d.comptable_id === filterComptable)
     .filter(d => !search || d.client_name?.toLowerCase().includes(search.toLowerCase()));
@@ -395,8 +408,8 @@ export default function OrgDashboardExpert() {
 
   if (loading) return (
     <div className="space-y-4">
-      <SkeletonKpiGrid count={4} />
-      <SkeletonRows rows={6} cols={5} />
+      <SkeletonKpiGrid count={8} />
+      <SkeletonRows rows={6} cols={9} />
     </div>
   );
 
@@ -422,19 +435,35 @@ export default function OrgDashboardExpert() {
         </button>
         <ExerciceSelect value={exercice} options={exercices} onChange={setExercice} />
       </div>
-      {/* KPIs — 2 catégories : fait / bloqué client */}
+      {/* KPIs — vue de synthese du cabinet. Les 4 compteurs d'origine sont
+          conserves a l'identique (memes couleurs, meme ordre) ; on leur ajoute
+          une sous-ligne de detail, puis 4 compteurs supplementaires. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Dossiers actifs', value: activeDossiers, icon: '📁', color: 'blue' },
-          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: '📊', color: 'emerald' },
-          { label: 'Bloqué client', value: blockedCount, icon: '🔴', color: 'red' },
-          { label: 'Comptables', value: comptables.length, icon: '👥', color: 'purple' },
+          { label: 'Dossiers actifs', value: activeDossiers, icon: '📁', color: 'blue',
+            sub: `${totalDossiers} au total · ${closedDossiers} clôturé${closedDossiers > 1 ? 's' : ''}` },
+          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: '📊', color: 'emerald',
+            sub: `${sumFait} / ${sumTotal} tâches faites` },
+          { label: 'Bloqué client', value: blockedCount, icon: '🔴', color: 'red',
+            sub: `${sumBloque} tâche${sumBloque > 1 ? 's' : ''} bloquée${sumBloque > 1 ? 's' : ''}` },
+          { label: 'Comptables', value: comptables.length, icon: '👥', color: 'purple',
+            sub: `${onlineComptables} en ligne` },
+          { label: 'Tâches restantes', value: sumTotal - sumFait, icon: '⏳', color: 'gray',
+            sub: `${sumEnCours} en cours · ${sumBloque} bloquée${sumBloque > 1 ? 's' : ''}` },
+          { label: 'En retard', value: sumOverdue, icon: '⏰', color: sumOverdue > 0 ? 'red' : 'gray',
+            sub: sumOverdue > 0 ? 'délais dépassés' : 'aucun retard' },
+          { label: 'À vérifier', value: verifyTasks.length, icon: '✅', color: 'amber',
+            sub: verifyTasks.length > 0 ? 'en attente de validation' : 'rien en attente' },
+          { label: "Pointé aujourd'hui", value: fmtHm(workedTodayAll), icon: '🕒', color: 'indigo',
+            sub: `${pointingToday} comptable${pointingToday > 1 ? 's' : ''} · ${fmtHm(sumTime)} cumulés` },
         ].map((kpi, i) => {
           const bgMap: Record<string, string> = {
             blue: 'bg-blue-50 border-blue-200',
             emerald: 'bg-emerald-50 border-emerald-200',
             red: 'bg-red-50 border-red-200',
             purple: 'bg-purple-50 border-purple-200',
+            amber: 'bg-amber-50 border-amber-200',
+            indigo: 'bg-indigo-50 border-indigo-200',
             gray: 'bg-gray-50 border-gray-200',
           };
           const valMap: Record<string, string> = {
@@ -442,6 +471,8 @@ export default function OrgDashboardExpert() {
             emerald: 'text-emerald-700',
             red: 'text-red-700',
             purple: 'text-purple-700',
+            amber: 'text-amber-700',
+            indigo: 'text-indigo-700',
             gray: 'text-gray-700',
           };
           return (
@@ -451,6 +482,7 @@ export default function OrgDashboardExpert() {
                 <span className="text-xs text-gray-500">{kpi.label}</span>
               </div>
               <p className={`text-2xl font-bold ${valMap[kpi.color] || 'text-gray-800'}`}>{kpi.value}</p>
+              {kpi.sub && <p className="text-[11px] text-gray-500 mt-0.5">{kpi.sub}</p>}
             </div>
           );
         })}
@@ -685,6 +717,13 @@ export default function OrgDashboardExpert() {
                     <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg font-medium">
                       {c.avg_progress}%
                     </span>
+                    <span
+                      className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg font-medium"
+                      data-testid={`card-tasks-${c.id}`}
+                      title={`${c.task_stats.fait} faites · ${c.task_stats.en_cours} en cours · ${c.task_stats.bloque_client} bloquées · ${Math.max(0, c.task_stats.total - c.task_stats.fait - c.task_stats.en_cours - c.task_stats.bloque_client)} à faire`}
+                    >
+                      📋 {c.task_stats.fait}/{c.task_stats.total}
+                    </span>
                     {c.verify_stats?.score != null && (
                       <span
                         className={`px-2 py-1 rounded-lg font-medium ${
@@ -778,6 +817,8 @@ export default function OrgDashboardExpert() {
                   <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Exercice</th>
                   <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Comptable</th>
                   <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Avancement</th>
+                  <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Tâches</th>
+                  <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Temps passé</th>
                   <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Statut</th>
                   <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Bloqué client</th>
                   <th className="text-center px-5 py-3.5 font-semibold text-gray-600">À vérifier</th>
@@ -843,6 +884,18 @@ export default function OrgDashboardExpert() {
                         </div>
                         <span className="text-xs font-bold text-gray-700 w-10 text-right">{d.progress || 0}%</span>
                       </div>
+                    </td>
+                    <td className="px-5 py-4 text-center text-xs whitespace-nowrap">
+                      <span className="font-semibold text-gray-800">{d.task_stats?.fait ?? 0}</span>
+                      <span className="text-gray-400"> / {d.task_stats?.total ?? 0}</span>
+                      {(d.task_stats?.bloque_client || 0) > 0 && (
+                        <span className="ml-1 font-semibold text-red-600" title={`${d.task_stats.bloque_client} tâche(s) bloquée(s) par le client`}>
+                          ({d.task_stats.bloque_client} ⛔)
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-center text-xs text-gray-600 font-mono whitespace-nowrap">
+                      {fmtHm(d.total_time_seconds)}
                     </td>
                     <td className="px-5 py-4 text-center">
                       {d.status === 'cloture' && (
