@@ -114,12 +114,34 @@ function exportScopeKeeps(scopeJson: any, exportStatus: any): boolean {
   return arr.includes(exportStatus || 'non_exportatrice');
 }
 
-// Avancement d'un dossier : seules les taches portees par le client entrent dans le cache
+// --- Perimetre des avancements -------------------------------------------------
+// Mois / annee courants en Tunisie (UTC+1, pas d'heure d'ete).
+function tnMonth(): number { return new Date(Date.now() + 3600000).getUTCMonth() + 1; }
+function tnYear(): number { return new Date(Date.now() + 3600000).getUTCFullYear(); }
+
+// Regle du cabinet : un avancement ne compte que les mois DEJA ECOULES.
+//   - en fevrier -> janvier seul
+//   - en mars    -> janvier + fevrier  (et ainsi de suite)
+// Les taches annuelles (month null : etats financiers, liasse fiscale, PV AGO,
+// RNE...) ne comptent qu'en decembre.
+// Un exercice dont l'annee est passee compte en entier : sinon un exercice
+// cloture resterait bloque a 0 % des le 1er janvier suivant.
+export function monthInScope(month: any, exercice: any, curMonth: number = tnMonth(), curYear: number = tnYear()): boolean {
+  const ex = Number(exercice);
+  if (ex && ex < curYear) return true;
+  if (month === null || month === undefined) return curMonth === 12;
+  return Number(month) < curMonth;
+}
+
+// Avancement d'un dossier : seules les taches portees par le client entrent dans
+// le cache, et seulement celles des mois deja ecoules (monthInScope).
 async function orgRecalcProgress(db: any, dossierId: string) {
-  const { results } = await db.prepare('SELECT t.status, t.export_scope, c.export_status FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(dossierId).all();
+  const { results } = await db.prepare('SELECT t.status, t.export_scope, t.month, c.export_status, d.exercice FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(dossierId).all();
   let total = 0, fait = 0;
+  const cm = tnMonth(), cy = tnYear();
   for (const t of results as any[]) {
     if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
+    if (!monthInScope(t.month, t.exercice, cm, cy)) continue;
     total++; if (t.status === 'fait') fait++;
   }
   const progress = total > 0 ? Math.round(fait / total * 1000) / 10 : 0;
@@ -2810,9 +2832,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
       // Avancement des cartes dashboard : seuls les MOIS ECOULES entrent dans le calcul
       // (mois en cours exclu — en février on ne compte que janvier, en mars janvier+février).
       // Les tâches annuelles (sans mois) ne sont comptées qu'à fin d'année (décembre).
-      const currentMonthTn = new Date(Date.now() + 3600000).getUTCMonth() + 1;
-      const inDashboardScope = (month: any): boolean =>
-        month === null || month === undefined ? currentMonthTn === 12 : Number(month) < currentMonthTn;
+      // Voir monthInScope (portee module) : meme regle pour la Vue globale et le cache.
+      const currentMonthTn = tnMonth();
+      const currentYearTn = tnYear();
+      const inDashboardScope = (month: any, exercice: any = null): boolean =>
+        monthInScope(month, exercice, currentMonthTn, currentYearTn);
 
       // --- ORG: ME ---
       if (path === '/api/org/auth/me' && method === 'GET') {
@@ -2934,7 +2958,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           if (d) {
             for (const t of (tasksByDossier.get(d.id) || []) as any[]) {
               if (!exportScopeKeeps(t.export_scope, c.export_status)) continue;
-              if (!inDashboardScope(t.month)) continue;
+              if (!inDashboardScope(t.month, d.exercice)) continue;
               taskStats.total++; if (t.status === 'fait') taskStats.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') taskStats.en_cours++; else if (t.status === 'bloque_client') taskStats.bloque_client++;
             }
             const ds = docByDossier.get(d.id);
@@ -3184,10 +3208,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!await orgCanAccessClient(user, orgClientDossiersMatch[1])) return json({ error: 'Accès refusé' }, 403);
         const { results } = await env.DB.prepare('SELECT * FROM org_dossiers WHERE client_id = ? ORDER BY exercice DESC').bind(orgClientDossiersMatch[1]).all();
         const enriched = await Promise.all(results.map(async (d: any) => {
-          const { results: tasks } = await env.DB.prepare('SELECT t.status, t.export_scope, c.export_status FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
+          const { results: tasks } = await env.DB.prepare('SELECT t.status, t.export_scope, t.month, c.export_status FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
           const s = { total: 0, fait: 0, en_cours: 0, bloque_client: 0 };
           for (const t of tasks as any[]) {
             if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
+            if (!monthInScope(t.month, d.exercice)) continue;
             s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
           }
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0 };
@@ -4655,7 +4680,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         }
         const tasksByUid = new Map<string, any[]>();
         {
-            const { results: rows } = await pgAll(env, "SELECT " + dossierComp() + " as uid, t.status, t.export_scope, t.month, t.due_date, c.export_status FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE c.organization_id = ? AND c.deleted_at IS NULL AND " + dossierComp() + " IS NOT NULL AND d.status = 'en_cours' AND t.hidden = 0", user.organization_id);
+            const { results: rows } = await pgAll(env, "SELECT " + dossierComp() + " as uid, t.status, t.export_scope, t.month, t.due_date, c.export_status, d.exercice FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE c.organization_id = ? AND c.deleted_at IS NULL AND " + dossierComp() + " IS NOT NULL AND d.status = 'en_cours' AND t.hidden = 0", user.organization_id);
           for (const r of rows as any[]) {
             const list = tasksByUid.get(r.uid);
             if (list) list.push(r); else tasksByUid.set(r.uid, [r]);
@@ -4678,7 +4703,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const s = { total: 0, fait: 0, en_cours: 0, bloque_client: 0, overdue: 0 };
           for (const t of taskStats as any[]) {
             if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
-            if (!inDashboardScope(t.month)) continue;
+            if (!inDashboardScope(t.month, t.exercice)) continue;
             s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
             if (t.status !== 'fait' && t.due_date && String(t.due_date).slice(0, 10) < today) s.overdue++;
           }
@@ -4806,12 +4831,15 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const { results: dossiers } = await env.DB.prepare('SELECT d.*, c.name as client_name FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE ' + dossierComp() + ' = ? AND c.organization_id = ? ORDER BY d.exercice DESC, c.name').bind(compId, user.organization_id).all();
         // Enrich dossiers with task stats
         const enrichedDossiers = await Promise.all(dossiers.map(async (d: any) => {
-          const { results: tasks } = await env.DB.prepare('SELECT t.status, t.export_scope, c.export_status, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
+          const { results: tasks } = await env.DB.prepare('SELECT t.status, t.export_scope, t.month, c.export_status, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
           const s = { total: 0, fait: 0, en_cours: 0, bloque_client: 0 };
           let totalTime = 0;
           for (const t of tasks as any[]) {
             if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
-            s.total++; totalTime += t.total_time || 0; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
+            // Temps passe : toutes periodes confondues ; avancement : mois ecoules
+            totalTime += t.total_time || 0;
+            if (!monthInScope(t.month, d.exercice)) continue;
+            s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
           }
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0, total_time_seconds: totalTime };
         }));
@@ -4870,7 +4898,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         for (const d of results as any[]) tasksByDossier.set(d.id, []);
         for (const chunk of chunkIds(results.map((d: any) => d.id))) {
           const { results: tasks } = await env.DB.prepare(
-            `SELECT t.dossier_id, t.status, t.export_scope, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+            `SELECT t.dossier_id, t.status, t.export_scope, t.month, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
           ).bind(...chunk).all();
           for (const t of tasks as any[]) tasksByDossier.get(t.dossier_id)!.push(t);
         }
@@ -4880,7 +4908,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           let totalTime = 0;
           for (const t of tasks as any[]) {
             if (!exportScopeKeeps(t.export_scope, d.export_status)) continue;
-            s.total++; totalTime += t.total_time || 0; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
+            // Temps passe : mesure reelle du travail, toutes periodes confondues
+            totalTime += t.total_time || 0;
+            // Avancement : seuls les mois deja ecoules comptent (voir monthInScope)
+            if (!monthInScope(t.month, d.exercice, currentMonthTn, currentYearTn)) continue;
+            s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
           }
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0, total_time_seconds: totalTime };
         });
