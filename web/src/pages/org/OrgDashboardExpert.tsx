@@ -19,8 +19,11 @@ import { Users, BarChart3, AlertTriangle, Search, Filter, Plus, X, Pencil, Trash
 type Tab = 'comptables' | 'global';
 
 // L'endpoint /org/comptables renvoie tout le personnel (pour la gestion des roles
-// dans Settings) : le dashboard n'affiche que les comptables.
-const onlyComptables = (cs: OrgComptable[]) => cs.filter(c => c.role === 'comptable');
+// dans Settings) : le dashboard affiche les comptables ET le manager. Un manager a
+// exactement les droits d'un expert dans ce cabinet : il faut donc pouvoir suivre
+// sa presence, ses heures et son taux de validation comme ceux d'un comptable.
+// Sans le manager dans cette liste, il n'apparait nulle part sur le dashboard.
+const dashTeam = (cs: OrgComptable[]) => cs.filter(c => c.role === 'comptable' || c.role === 'manager');
 
 // Export CSV client-side (separateur ';' pour Excel FR, BOM pour UTF-8)
 const csvCell = (v: unknown) => {
@@ -179,7 +182,7 @@ export default function OrgDashboardExpert() {
   // n'est venu.
   const fetchDashboard = async () => {
     const results = await Promise.allSettled([
-      orgApi.getComptables().then(onlyComptables),
+      orgApi.getComptables().then(dashTeam),
       orgApi.getAllDossiers(exercice),
       orgApi.getClients(),
       orgApi.getExercices(),
@@ -219,7 +222,7 @@ export default function OrgDashboardExpert() {
 
   // Presence en direct : rafraichit statut connecte + heures du jour toutes les 60s (pausé si onglet cache)
   useEffect(() => {
-    const tick = () => { if (!document.hidden) orgApi.getComptables().then(cs => setComptables(onlyComptables(cs))).catch(() => {}); };
+    const tick = () => { if (!document.hidden) orgApi.getComptables().then(cs => setComptables(dashTeam(cs))).catch(() => {}); };
     const iv = setInterval(tick, 60000);
     document.addEventListener('visibilitychange', tick);
     return () => { clearInterval(iv); document.removeEventListener('visibilitychange', tick); };

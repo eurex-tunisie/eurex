@@ -50,6 +50,12 @@ describe('carte comptable (dashboard expert)', () => {
     const flexRows = expertPage.split('flex-wrap items-center').length - 1;
     expect(flexRows).toBeGreaterThanOrEqual(2);
   });
+
+  test('le manager est affiche comme les comptables (il a partout les droits d un expert)', () => {
+    expect(expertPage).toContain("cs.filter(c => c.role === 'comptable' || c.role === 'manager')");
+    expect(expertPage).not.toContain("cs.filter(c => c.role === 'comptable');");
+    expect(expertPage).toContain('orgApi.getComptables().then(dashTeam)');
+  });
 });
 
 describe('carte « En attente de validation » (dashboard comptable)', () => {
