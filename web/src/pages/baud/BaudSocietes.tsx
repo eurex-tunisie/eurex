@@ -64,8 +64,8 @@ export default function BaudSocietes() {
       {showNew && (
         <div className="card p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <input placeholder="Nom de la societe" value={nom} onChange={e => setNom(e.target.value)} className="border rounded px-3 py-2 text-sm" />
-            <select value={formeJuridique} onChange={e => setFormeJuridique(e.target.value)} className="border rounded px-3 py-2 text-sm">
+            <input placeholder="Nom de la societe" value={nom} onChange={e => setNom(e.target.value)} className="input-field text-sm" />
+            <select value={formeJuridique} onChange={e => setFormeJuridique(e.target.value)} className="input-field text-sm">
               <option value="SARL">SARL</option>
               <option value="SA">SA</option>
               <option value="SNC">SNC</option>
@@ -98,8 +98,8 @@ export default function BaudSocietes() {
           <div className="flex items-center justify-between mb-3">
             {editingSoc === selected.id ? (
               <div className="flex items-center gap-2 flex-1">
-                <input value={editNom} onChange={e => setEditNom(e.target.value)} className="border rounded px-2 py-1 text-sm" placeholder="Nom" />
-                <input value={editMF} onChange={e => setEditMF(e.target.value)} className="border rounded px-2 py-1 text-sm w-40" placeholder="Matricule fiscal" />
+                <input value={editNom} onChange={e => setEditNom(e.target.value)} className="input-sm" placeholder="Nom" />
+                <input value={editMF} onChange={e => setEditMF(e.target.value)} className="input-sm w-40" placeholder="Matricule fiscal" />
                 <button onClick={() => saveSociete(selected.id)} className="px-2 py-1 bg-green-600 text-white rounded text-xs">Sauver</button>
                 <button onClick={() => setEditingSoc(null)} className="px-2 py-1 bg-gray-200 rounded text-xs">Annuler</button>
               </div>

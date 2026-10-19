@@ -146,13 +146,13 @@ export default function BaudParametres() {
         <Field label="Taux annuel" value={config.revalorisation_taux} onChange={v => update('revalorisation_taux', v)} suffix="%" step={0.01} defaultVal={defaults.revalorisation_taux} />
         <div className="flex items-center gap-2 mb-1">
           <label className="text-xs text-gray-500 w-48">Début d'application</label>
-          <select value={config.revalorisation_debut_mois} onChange={e => update('revalorisation_debut_mois', Number(e.target.value))} className="px-2 py-1 border rounded text-sm">
+          <select value={config.revalorisation_debut_mois} onChange={e => update('revalorisation_debut_mois', Number(e.target.value))} className="input-sm">
             <option value={1}>Janvier</option><option value={2}>Février</option><option value={3}>Mars</option>
             <option value={4}>Avril</option><option value={5}>Mai</option><option value={6}>Juin</option>
             <option value={7}>Juillet</option><option value={8}>Août</option><option value={9}>Septembre</option>
             <option value={10}>Octobre</option><option value={11}>Novembre</option><option value={12}>Décembre</option>
           </select>
-          <input type="number" value={config.revalorisation_debut_annee} onChange={e => update('revalorisation_debut_annee', Number(e.target.value))} className="w-20 px-2 py-1 border rounded text-sm" step={1} />
+          <input type="number" value={config.revalorisation_debut_annee} onChange={e => update('revalorisation_debut_annee', Number(e.target.value))} className="w-20 input-sm" step={1} />
         </div>
       </Section>
 
@@ -205,7 +205,7 @@ export default function BaudParametres() {
         {config.anciennete_bareme.map((b, i) => (
           <div key={i} className="flex items-center gap-2 mb-1">
             <span className="text-xs text-gray-500 w-32">≥ {b.min_years} ans</span>
-            <input type="number" value={b.taux} onChange={e => updateBareme('anciennete_bareme', i, 'taux', e.target.value)} className="w-20 px-2 py-1 border rounded text-sm" step={1} />
+            <input type="number" value={b.taux} onChange={e => updateBareme('anciennete_bareme', i, 'taux', e.target.value)} className="w-20 input-sm" step={1} />
             <span className="text-xs text-gray-400">% (défaut: {defaults.anciennete_bareme[i]?.taux})</span>
           </div>
         ))}
@@ -215,11 +215,11 @@ export default function BaudParametres() {
       <Section title="Barème IRPP annuel (LF 2025 art. 36)">
         {config.irpp_barème.map((b, i) => (
           <div key={i} className="flex items-center gap-2 mb-1">
-            <input type="number" value={b.min} onChange={e => updateBareme('irpp_barème', i, 'min', e.target.value)} className="w-20 px-2 py-1 border rounded text-sm" step={1000} />
+            <input type="number" value={b.min} onChange={e => updateBareme('irpp_barème', i, 'min', e.target.value)} className="w-20 input-sm" step={1000} />
             <span className="text-xs text-gray-400">→</span>
-            <input type="text" value={b.max === Infinity ? '∞' : b.max} onChange={e => updateBareme('irpp_barème', i, 'max', e.target.value)} className="w-20 px-2 py-1 border rounded text-sm" disabled={b.max === Infinity} />
+            <input type="text" value={b.max === Infinity ? '∞' : b.max} onChange={e => updateBareme('irpp_barème', i, 'max', e.target.value)} className="w-20 input-sm" disabled={b.max === Infinity} />
             <span className="text-xs text-gray-400">:</span>
-            <input type="number" value={b.taux * 100} onChange={e => updateBareme('irpp_barème', i, 'taux', Number(e.target.value) / 100)} className="w-16 px-2 py-1 border rounded text-sm" step={1} />
+            <input type="number" value={b.taux * 100} onChange={e => updateBareme('irpp_barème', i, 'taux', Number(e.target.value) / 100)} className="w-16 input-sm" step={1} />
             <span className="text-xs text-gray-400">% (défaut: {(defaults.irpp_barème[i]?.taux ?? 0) * 100}%)</span>
           </div>
         ))}

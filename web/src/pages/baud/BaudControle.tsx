@@ -60,7 +60,7 @@ export default function BaudControle() {
         </div>
         <div>
           <label className="text-xs text-gray-500">Dossier</label>
-          <select value={dossierId} onChange={e => setDossierId(e.target.value)} className="w-full border rounded px-3 py-2 text-sm mt-1">
+          <select value={dossierId} onChange={e => setDossierId(e.target.value)} className="input-field text-sm mt-1">
             <option value="">— Choisir —</option>
             {dossiers.map((d: any) => <option key={d.id} value={d.id}>{String(d.mois).padStart(2, '0')}/{d.annee}</option>)}
           </select>
@@ -78,7 +78,7 @@ export default function BaudControle() {
             </tr></thead>
             <tbody className="divide-y">
               {lignes.map((l: any) => (
-                <tr key={l.id} className="hover:bg-gray-50">
+                <tr key={l.id} className="row-hover">
                   {(['matricule','nom_prenom','type_ligne','rubrique_code','zone','valeur'] as const).map(f => (
                     <td key={f} className="p-2 cursor-pointer hover:bg-blue-50"
                       onClick={() => startEdit(l.id, f, l[f])}>

@@ -178,7 +178,7 @@ Reponds en 3 lignes max: cause de l'ecart (oui/non) et correction si necessaire.
               </tr></thead>
               <tbody className="divide-y divide-gray-100">
                 {checks.map(c => (
-                  <tr key={c.pieceRef} className={c.ok ? 'hover:bg-gray-50' : 'bg-red-50'}>
+                  <tr key={c.pieceRef} className={c.ok ? 'row-hover' : 'bg-red-50'}>
                     <td className="px-4 py-2 font-mono text-xs">{c.pieceRef}</td>
                     <td className="px-4 py-2 text-xs">{c.date}</td>
                     <td className="px-4 py-2 text-right font-mono">{c.ht.toFixed(3)}</td>
@@ -603,7 +603,7 @@ export default function DossierPage() {
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {ecrituresFiltered.map(e => (
-                      <tr key={e.id} className="hover:bg-gray-50">
+                      <tr key={e.id} className="row-hover">
                         <td className="px-4 py-2">{e.date_operation}</td>
                         <td className="px-4 py-2 font-mono text-xs">{e.numero_doc || '-'}</td>
                         <td className="px-4 py-2">{e.libelle}</td>
@@ -645,13 +645,13 @@ export default function DossierPage() {
             </div>
             {ocrProgress && <p className="text-xs text-blue-600 mb-2">{ocrProgress}</p>}
             <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
-              <div><label className="block text-xs text-gray-500 mb-1">Date</label><input type="date" className="w-full border rounded-lg px-3 py-2 text-sm" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
-              <div><label className="block text-xs text-gray-500 mb-1">N Facture</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={fNum} onChange={e => setFNum(e.target.value)} placeholder="2026/408" /></div>
-              <div><label className="block text-xs text-gray-500 mb-1">Client</label><input className="w-full border rounded-lg px-3 py-2 text-sm" value={fClient} onChange={e => setFClient(e.target.value)} placeholder="HBMI CONSULTING" /></div>
-              <div><label className="block text-xs text-gray-500 mb-1">HT 0%</label><input type="number" step="0.001" className="w-full border rounded-lg px-3 py-2 text-sm" value={fHt0} onChange={e => setFHt0(e.target.value)} placeholder="0.000" /></div>
-              <div><label className="block text-xs text-gray-500 mb-1">HT 19%</label><input type="number" step="0.001" className="w-full border rounded-lg px-3 py-2 text-sm" value={fHt19} onChange={e => setFHt19(e.target.value)} placeholder="0.000" /></div>
-              <div><label className="block text-xs text-gray-500 mb-1">TVA 19%</label><input type="number" step="0.001" className="w-full border rounded-lg px-3 py-2 text-sm" value={fTva} onChange={e => setFTva(e.target.value)} placeholder="0.000" /></div>
-              <div><label className="block text-xs text-gray-500 mb-1">Net TTC</label><input type="number" step="0.001" className="w-full border rounded-lg px-3 py-2 text-sm" value={fTtc} onChange={e => setFTtc(e.target.value)} placeholder="0.000" /></div>
+              <div><label className="block text-xs text-gray-500 mb-1">Date</label><input type="date" className="input-field text-sm" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
+              <div><label className="block text-xs text-gray-500 mb-1">N Facture</label><input className="input-field text-sm" value={fNum} onChange={e => setFNum(e.target.value)} placeholder="2026/408" /></div>
+              <div><label className="block text-xs text-gray-500 mb-1">Client</label><input className="input-field text-sm" value={fClient} onChange={e => setFClient(e.target.value)} placeholder="HBMI CONSULTING" /></div>
+              <div><label className="block text-xs text-gray-500 mb-1">HT 0%</label><input type="number" step="0.001" className="input-field text-sm" value={fHt0} onChange={e => setFHt0(e.target.value)} placeholder="0.000" /></div>
+              <div><label className="block text-xs text-gray-500 mb-1">HT 19%</label><input type="number" step="0.001" className="input-field text-sm" value={fHt19} onChange={e => setFHt19(e.target.value)} placeholder="0.000" /></div>
+              <div><label className="block text-xs text-gray-500 mb-1">TVA 19%</label><input type="number" step="0.001" className="input-field text-sm" value={fTva} onChange={e => setFTva(e.target.value)} placeholder="0.000" /></div>
+              <div><label className="block text-xs text-gray-500 mb-1">Net TTC</label><input type="number" step="0.001" className="input-field text-sm" value={fTtc} onChange={e => setFTtc(e.target.value)} placeholder="0.000" /></div>
             </div>
             <div className="flex items-center gap-3 mt-3">
               <button onClick={addFacture} disabled={!fNum || !fDate} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1">
@@ -669,7 +669,7 @@ export default function DossierPage() {
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
                   {factures.map(f => (
-                    <tr key={f.id} className="hover:bg-gray-50">
+                    <tr key={f.id} className="row-hover">
                       <td className="px-4 py-2">{f.date_facture}</td>
                       <td className="px-4 py-2 font-mono text-xs">{f.numero_facture}</td>
                       <td className="px-4 py-2">{f.client || '-'}</td>
@@ -727,7 +727,7 @@ export default function DossierPage() {
                   <th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Espece</th><th className="px-3 py-2 text-right">Cheque</th><th className="px-3 py-2 text-right">Carte</th><th className="px-3 py-2 text-right">Bons+Avoir</th><th className="px-3 py-2 text-right">Credit</th>
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">{rapport.map((r: any) => (
-                  <tr key={r.date_jour} className="hover:bg-gray-50">
+                  <tr key={r.date_jour} className="row-hover">
                     <td className="px-3 py-2 font-mono text-xs">{r.date_jour}</td>
                     <td className="px-3 py-2 text-right font-mono">{r.especes.toFixed(2)}</td>
                     <td className="px-3 py-2 text-right font-mono">{r.cheques.toFixed(2)}</td>
@@ -763,7 +763,7 @@ export default function DossierPage() {
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {ecrituresFiltered.map(e => (
-                      <tr key={e.id} className="hover:bg-gray-50">
+                      <tr key={e.id} className="row-hover">
                         <td className="px-4 py-2">{e.date_operation}</td>
                         <td className="px-4 py-2 font-mono text-xs">{e.numero_doc || '-'}</td>
                         <td className="px-4 py-2">{e.libelle}</td>
@@ -831,7 +831,7 @@ export default function DossierPage() {
                         <div>
                           <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Factures :</h4>
                           <table className="w-full text-xs">
-                            <thead><tr className="text-gray-400"><th className="text-left">Num</th><th className="text-left">Client</th><th className="text-right">HT0</th><th className="text-right">HT19</th><th className="text-right">TVA</th><th className="text-right">TTC</th></tr></thead>
+                            <thead><tr className="table-header"><th className="text-left">Num</th><th className="text-left">Client</th><th className="text-right">HT0</th><th className="text-right">HT19</th><th className="text-right">TVA</th><th className="text-right">TTC</th></tr></thead>
                             <tbody className="divide-y divide-gray-100">{a.factures.map((f: any, i: number) => <tr key={i}><td className="font-mono">{f.num}</td><td>{f.client}</td><td className="text-right font-mono">{f.ht0.toFixed(3)}</td><td className="text-right font-mono">{f.ht19.toFixed(3)}</td><td className="text-right font-mono">{f.tva.toFixed(3)}</td><td className="text-right font-mono font-medium">{f.ttc.toFixed(3)}</td></tr>)}</tbody>
                           </table>
                         </div>
@@ -839,7 +839,7 @@ export default function DossierPage() {
                           <div>
                             <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Ecritures proposees :</h4>
                             <table className="w-full text-xs">
-                              <thead><tr className="text-gray-400"><th className="text-left">Compte</th><th className="text-left">Sens</th><th className="text-right">Montant</th><th className="text-left">Libelle</th></tr></thead>
+                              <thead><tr className="table-header"><th className="text-left">Compte</th><th className="text-left">Sens</th><th className="text-right">Montant</th><th className="text-left">Libelle</th></tr></thead>
                               <tbody className="divide-y divide-gray-100">{a.proposedEcritures.map((l: any, i: number) => <tr key={i}><td className="font-mono">{l.compte}</td><td className={l.sens === 'D' ? 'text-emerald-600 font-bold' : 'text-blue-600 font-bold'}>{l.sens}</td><td className="text-right font-mono">{l.montant.toFixed(3)}</td><td>{l.libelle || '-'}</td></tr>)}</tbody>
                             </table>
                           </div>
@@ -856,7 +856,7 @@ export default function DossierPage() {
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {analyse.map((a: any) => (
-                      <tr key={a.date} className={Math.abs(a.ecart) > 3 ? 'bg-red-50' : 'hover:bg-gray-50'}>
+                      <tr key={a.date} className={Math.abs(a.ecart) > 3 ? 'bg-red-50' : 'row-hover'}>
                         <td className="px-3 py-2 font-mono text-xs">{a.date}</td>
                         <td className="px-3 py-2 text-right font-mono">{a.totalFactures.toFixed(2)}</td>
                         <td className="px-3 py-2 text-right font-mono">{a.totalModes.toFixed(2)}</td>

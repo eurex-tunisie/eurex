@@ -49,7 +49,7 @@ export default function BaudExport() {
         </div>
         <div>
           <label className="text-xs text-gray-500">Dossier</label>
-          <select value={dossierId} onChange={e => setDossierId(e.target.value)} className="w-full border rounded px-3 py-2 text-sm mt-1">
+          <select value={dossierId} onChange={e => setDossierId(e.target.value)} className="input-field text-sm mt-1">
             <option value="">— Choisir —</option>
             {dossiers.map((d: any) => <option key={d.id} value={d.id}>{String(d.mois).padStart(2, '0')}/{d.annee}</option>)}
           </select>

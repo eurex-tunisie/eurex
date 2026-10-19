@@ -72,8 +72,8 @@ export default function ScanSocietes() {
       <div className="card p-4">
         <h2 className="font-semibold text-gray-700 mb-3">Nouvelle societe</h2>
         <div className="flex gap-3 items-end">
-          <input value={newNom} onChange={e => setNewNom(e.target.value)} placeholder="Raison sociale" className="flex-1 border rounded px-3 py-2 text-sm" />
-          <input value={newMF} onChange={e => setNewMF(e.target.value)} placeholder="Matricule fiscal" className="w-48 border rounded px-3 py-2 text-sm" />
+          <input value={newNom} onChange={e => setNewNom(e.target.value)} placeholder="Raison sociale" className="flex-1 input-field text-sm" />
+          <input value={newMF} onChange={e => setNewMF(e.target.value)} placeholder="Matricule fiscal" className="!w-48 input-field text-sm" />
           <button onClick={handleCreate} disabled={creating || !newNom.trim()} className="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 disabled:opacity-50">
             <Plus size={16} className="inline mr-1" /> Ajouter
           </button>

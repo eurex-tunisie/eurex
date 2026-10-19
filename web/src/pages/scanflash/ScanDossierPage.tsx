@@ -518,9 +518,9 @@ export default function ScanDossierPage() {
           <div className="card p-4">
             <h3 className="font-semibold text-gray-700 mb-3 text-sm">Mapping Code Client → Compte 411XXX</h3>
             <div className="flex gap-2 items-end mb-2">
-              <input placeholder="Code client (ex: CLT0626-1187)" value={newClientCode} onChange={e => setNewClientCode(e.target.value)} className="flex-1 border rounded px-2 py-1.5 text-sm" />
-              <input placeholder="Compte 411XXX" value={newClientAccount} onChange={e => setNewClientAccount(e.target.value)} className="w-32 border rounded px-2 py-1.5 text-sm" />
-              <input placeholder="Nom (optionnel)" value={newClientName} onChange={e => setNewClientName(e.target.value)} className="flex-1 border rounded px-2 py-1.5 text-sm" />
+              <input placeholder="Code client (ex: CLT0626-1187)" value={newClientCode} onChange={e => setNewClientCode(e.target.value)} className="flex-1 input-sm" />
+              <input placeholder="Compte 411XXX" value={newClientAccount} onChange={e => setNewClientAccount(e.target.value)} className="w-32 input-sm" />
+              <input placeholder="Nom (optionnel)" value={newClientName} onChange={e => setNewClientName(e.target.value)} className="flex-1 input-sm" />
               <button onClick={() => {
                 if (!newClientCode.trim() || !newClientAccount.trim()) return;
                 saveClientMap({ ...clientMap, [newClientCode.trim()]: newClientAccount.trim() });
@@ -543,16 +543,16 @@ export default function ScanDossierPage() {
           <div className="card p-4">
             <h3 className="font-semibold text-gray-700 mb-3 text-sm">Ajouter manuellement</h3>
             <div className="grid grid-cols-4 gap-2 text-sm">
-              <input placeholder="N° FAC" value={form.numero} onChange={e => setForm({...form, numero: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input type="date" value={form.date_facture} onChange={e => setForm({...form, date_facture: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input placeholder="Client" value={form.client} onChange={e => setForm({...form, client: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input placeholder="Compte 411XXX" value={form.compte_client} onChange={e => setForm({...form, compte_client: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input placeholder="HT 0%" type="number" step="0.001" value={form.total_ht_0} onChange={e => setForm({...form, total_ht_0: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input placeholder="HT 19%" type="number" step="0.001" value={form.total_ht_19} onChange={e => setForm({...form, total_ht_19: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input placeholder="TVA 19%" type="number" step="0.001" value={form.tva_19} onChange={e => setForm({...form, tva_19: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input placeholder="FODEC" type="number" step="0.001" value={form.fodec} onChange={e => setForm({...form, fodec: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input placeholder="Timbre" type="number" step="0.001" value={form.timbre} onChange={e => setForm({...form, timbre: e.target.value})} className="border rounded px-2 py-1.5" />
-              <input placeholder="TTC" type="number" step="0.001" value={form.total_ttc} onChange={e => setForm({...form, total_ttc: e.target.value})} className="border rounded px-2 py-1.5" />
+              <input placeholder="N° FAC" value={form.numero} onChange={e => setForm({...form, numero: e.target.value})} className="input-sm" />
+              <input type="date" value={form.date_facture} onChange={e => setForm({...form, date_facture: e.target.value})} className="input-sm" />
+              <input placeholder="Client" value={form.client} onChange={e => setForm({...form, client: e.target.value})} className="input-sm" />
+              <input placeholder="Compte 411XXX" value={form.compte_client} onChange={e => setForm({...form, compte_client: e.target.value})} className="input-sm" />
+              <input placeholder="HT 0%" type="number" step="0.001" value={form.total_ht_0} onChange={e => setForm({...form, total_ht_0: e.target.value})} className="input-sm" />
+              <input placeholder="HT 19%" type="number" step="0.001" value={form.total_ht_19} onChange={e => setForm({...form, total_ht_19: e.target.value})} className="input-sm" />
+              <input placeholder="TVA 19%" type="number" step="0.001" value={form.tva_19} onChange={e => setForm({...form, tva_19: e.target.value})} className="input-sm" />
+              <input placeholder="FODEC" type="number" step="0.001" value={form.fodec} onChange={e => setForm({...form, fodec: e.target.value})} className="input-sm" />
+              <input placeholder="Timbre" type="number" step="0.001" value={form.timbre} onChange={e => setForm({...form, timbre: e.target.value})} className="input-sm" />
+              <input placeholder="TTC" type="number" step="0.001" value={form.total_ttc} onChange={e => setForm({...form, total_ttc: e.target.value})} className="input-sm" />
               <button onClick={handleAddFacture} className="bg-emerald-500 text-white rounded px-3 py-1.5 hover:bg-emerald-600">+</button>
             </div>
           </div>
@@ -576,7 +576,7 @@ export default function ScanDossierPage() {
               </thead>
               <tbody>
                 {localFactures.map(f => (
-                  <tr key={f.id} className="border-t hover:bg-gray-50">
+                  <tr key={f.id} className="row-hover">
                     <td className="px-3 py-1.5 font-mono text-xs">
                       {f.is_avoir ? <span className="text-red-600 font-bold">AVR</span> : 'FAC'} {f.numero}
                     </td>
@@ -630,15 +630,15 @@ export default function ScanDossierPage() {
           <div className="card p-4">
             <h3 className="font-semibold text-gray-700 mb-3 text-sm">Ajouter une ecriture</h3>
             <div className="grid grid-cols-6 gap-2 text-sm">
-              <input type="date" id="ecr-date" className="border rounded px-2 py-1.5" defaultValue={dossier?.mois ? `${dossier.annee}-${String(dossier.mois).padStart(2,'0')}-01` : ''} />
-              <input placeholder="N° Piece" id="ecr-piece" className="border rounded px-2 py-1.5" />
-              <input placeholder="Compte" id="ecr-compte" className="border rounded px-2 py-1.5" />
-              <input placeholder="Libelle" id="ecr-libelle" className="border rounded px-2 py-1.5" />
-              <select id="ecr-sens" className="border rounded px-2 py-1.5">
+              <input type="date" id="ecr-date" className="input-sm" defaultValue={dossier?.mois ? `${dossier.annee}-${String(dossier.mois).padStart(2,'0')}-01` : ''} />
+              <input placeholder="N° Piece" id="ecr-piece" className="input-sm" />
+              <input placeholder="Compte" id="ecr-compte" className="input-sm" />
+              <input placeholder="Libelle" id="ecr-libelle" className="input-sm" />
+              <select id="ecr-sens" className="input-sm">
                 <option value="D">Debit</option>
                 <option value="C">Credit</option>
               </select>
-              <input placeholder="Montant" type="number" step="0.001" id="ecr-montant" className="border rounded px-2 py-1.5" />
+              <input placeholder="Montant" type="number" step="0.001" id="ecr-montant" className="input-sm" />
               <button onClick={() => {
                 const date = (document.getElementById('ecr-date') as HTMLInputElement).value;
                 const piece = (document.getElementById('ecr-piece') as HTMLInputElement).value;
@@ -670,7 +670,7 @@ export default function ScanDossierPage() {
               </thead>
               <tbody>
                 {localEcritures.map(e => (
-                  <tr key={e.id} className="border-t hover:bg-gray-50">
+                  <tr key={e.id} className="row-hover">
                     <td className="px-3 py-1.5 text-xs">{e.date_operation}</td>
                     <td className="px-3 py-1.5 text-xs font-mono">{e.journal_code}</td>
                     <td className="px-3 py-1.5 text-xs font-mono">{e.numero_doc}</td>
@@ -733,7 +733,7 @@ export default function ScanDossierPage() {
                 {verifyResult.checks && (
                   <div className="max-h-64 overflow-auto">
                     <table className="w-full text-xs">
-                      <thead><tr className="text-gray-500"><th className="text-left pr-2">Piece</th><th className="text-left pr-2">Type</th><th className="text-left pr-2">Client</th><th className="text-left">Check</th></tr></thead>
+                      <thead><tr className="table-header"><th className="text-left pr-2">Piece</th><th className="text-left pr-2">Type</th><th className="text-left pr-2">Client</th><th className="text-left">Check</th></tr></thead>
                       <tbody>
                         {verifyResult.checks.map((c: any, i: number) =>
                           c.checks?.map((ch: any, j: number) => (
@@ -757,7 +757,7 @@ export default function ScanDossierPage() {
             {localEcritures.length > 0 && (
               <div className="bg-gray-50 rounded p-3 text-xs text-gray-600 max-h-48 overflow-auto">
                 <table className="w-full">
-                  <thead><tr className="text-gray-500"><th className="text-left pr-3">Date</th><th className="text-left pr-3">Piece</th><th className="text-left pr-3">Compte</th><th className="text-right pr-3">D</th><th className="text-right">C</th></tr></thead>
+                  <thead><tr className="table-header"><th className="text-left pr-3">Date</th><th className="text-left pr-3">Piece</th><th className="text-left pr-3">Compte</th><th className="text-right pr-3">D</th><th className="text-right">C</th></tr></thead>
                   <tbody>
                     {localEcritures.slice(0, 30).map(e => (
                       <tr key={e.id} className="border-t border-gray-200">

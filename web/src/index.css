@@ -162,6 +162,26 @@ input[inputmode="numeric"],
     box-shadow: 0 0 0 3px var(--accent-soft);
   }
 
+  /* Compact inline field (rename, small filters) */
+  .input-sm {
+    @apply rounded-lg px-2 py-1.5 text-sm bg-white outline-none transition-all;
+    border: 1px solid var(--separator-strong);
+    color: var(--label);
+  }
+  .input-sm:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  /* Table row: hairline separator + quiet hover */
+  .row-hover {
+    border-color: var(--separator);
+    transition: background-color 0.15s ease;
+  }
+  .row-hover:hover {
+    background: rgba(60, 60, 67, 0.045);
+  }
+
   /* Table header: quiet, uppercase, hairline bottom */
   .table-header {
     @apply text-left text-xs font-semibold uppercase tracking-wider;

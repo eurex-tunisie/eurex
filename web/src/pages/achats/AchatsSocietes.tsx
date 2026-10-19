@@ -234,11 +234,11 @@ export default function AchatsSocietes() {
           <div className="flex gap-3 flex-wrap items-end">
             <div>
               <label className="text-xs text-gray-500 block mb-1">Mois/Année</label>
-              <input type="month" value={newDossierMonth} onChange={e => { setNewDossierMonth(e.target.value); setDossierErr(''); }} className="border rounded px-3 py-2 text-sm" />
+              <input type="month" value={newDossierMonth} onChange={e => { setNewDossierMonth(e.target.value); setDossierErr(''); }} className="input-field text-sm" />
             </div>
             <div className="flex-1 min-w-[180px]">
               <label className="text-xs text-gray-500 block mb-1">Nom du dossier</label>
-              <input value={newDossierNom} onChange={e => setNewDossierNom(e.target.value)} placeholder={`${selectedSociete.nom} 10/2026`} className="border rounded px-3 py-2 text-sm w-full" />
+              <input value={newDossierNom} onChange={e => setNewDossierNom(e.target.value)} placeholder={`${selectedSociete.nom} 10/2026`} className="input-field text-sm" />
             </div>
             <button onClick={createDossier} className="bg-orange-500 text-white px-3 py-2 rounded text-sm hover:bg-orange-600 flex items-center gap-1">
               <Plus size={14} /> Nouveau dossier

@@ -1146,20 +1146,20 @@ export default function OrgDashboardExpert() {
 
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Nom du client *</label>
-              <input value={ecName} onChange={e => setEcName(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+              <input value={ecName} onChange={e => setEcName(e.target.value)} className="input-field text-sm" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Matricule fiscal</label>
-              <input value={ecMF} onChange={e => setEcMF(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+              <input value={ecMF} onChange={e => setEcMF(e.target.value)} className="input-field text-sm" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Email</label>
-                <input type="email" value={ecEmail} onChange={e => setEcEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+                <input type="email" value={ecEmail} onChange={e => setEcEmail(e.target.value)} className="input-field text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Téléphone</label>
-                <input value={ecPhone} onChange={e => setEcPhone(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none" />
+                <input value={ecPhone} onChange={e => setEcPhone(e.target.value)} className="input-field text-sm" />
               </div>
             </div>
 

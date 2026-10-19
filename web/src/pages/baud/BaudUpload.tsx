@@ -65,20 +65,20 @@ export default function BaudUpload() {
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="text-xs text-gray-500">Societe</label>
-            <select value={societeId} onChange={e => setSocieteId(e.target.value)} className="w-full border rounded px-3 py-2 text-sm mt-1">
+            <select value={societeId} onChange={e => setSocieteId(e.target.value)} className="input-field text-sm mt-1">
               <option value="">— Choisir —</option>
               {societes.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-gray-500">Mois</label>
-            <select value={mois} onChange={e => setMois(Number(e.target.value))} className="w-full border rounded px-3 py-2 text-sm mt-1">
+            <select value={mois} onChange={e => setMois(Number(e.target.value))} className="input-field text-sm mt-1">
               {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-gray-500">Annee</label>
-            <select value={annee} onChange={e => setAnnee(Number(e.target.value))} className="w-full border rounded px-3 py-2 text-sm mt-1">
+            <select value={annee} onChange={e => setAnnee(Number(e.target.value))} className="input-field text-sm mt-1">
               {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>

@@ -1228,7 +1228,7 @@ export default function EtatsFinanciers() {
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className={`${r.isSection ? 'bg-blue-50 font-bold' : r.bold ? 'bg-gray-50 font-bold' : 'hover:bg-gray-50'} border-t border-gray-100`}>
+            <tr key={i} className={`${r.isSection ? 'bg-blue-50 font-bold' : r.bold ? 'bg-gray-50 font-bold' : 'row-hover'} border-t border-gray-100`}>
               <td className={`px-3 py-1.5 ${r.indent ? `pl-${r.indent * 4}` : ''}`}>{r.label}</td>
               {r.vals.map((v, j) => (
                 <td key={j} className="px-3 py-1.5 text-right font-mono text-xs">
@@ -1289,7 +1289,7 @@ export default function EtatsFinanciers() {
                   { code: '', label: "Autres produits d'exploitation", n: resultat.autresProduitsExploit, n1: 0 },
                   { code: '', label: 'Transfert de charges', n: resultat.transfertCharges, n1: 0 },
                 ].map((p, i) => (
-                  <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
+                  <tr key={i} className="row-hover">
                     <td className="px-3 py-1.5 font-mono text-xs text-blue-600">{p.code}</td>
                     <td className="px-3 py-1.5">{p.label}</td>
                     <td className="px-3 py-1.5 text-right"><NumInput value={p.n} onChange={v => {}} /></td>
@@ -1324,7 +1324,7 @@ export default function EtatsFinanciers() {
                   { code: '', label: 'Dotations aux amortissements', n: resultat.dotationsAmort },
                   { code: '', label: "Autres charges d'exploitation", n: resultat.autresChargesExploit },
                 ].map((c, i) => (
-                  <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
+                  <tr key={i} className="row-hover">
                     <td className="px-3 py-1.5 font-mono text-xs text-blue-600">{c.code}</td>
                     <td className="px-3 py-1.5">{c.label}</td>
                     <td className="px-3 py-1.5 text-right"><NumInput value={c.n} onChange={v => {}} /></td>

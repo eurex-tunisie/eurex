@@ -547,20 +547,20 @@ export default function BaudDossierPage() {
                   </tr></thead>
                   <tbody className="divide-y">
                     {employees.map((emp, idx) => (
-                      <tr key={emp.matricule || `emp-${idx}`} className="hover:bg-gray-50">
+                      <tr key={emp.matricule || `emp-${idx}`} className="row-hover">
                         {editingEmployeeIdx === idx ? (
                           <>
-                            <td className="p-1"><input value={editValues.matricule} onChange={e => setEditValues({...editValues, matricule: e.target.value})} className="w-20 text-xs border rounded px-1" /></td>
-                            <td className="p-1"><input value={editValues.nom} onChange={e => setEditValues({...editValues, nom: e.target.value})} className="w-24 text-xs border rounded px-1" /></td>
-                            <td className="p-1"><input value={editValues.prenom} onChange={e => setEditValues({...editValues, prenom: e.target.value})} className="w-24 text-xs border rounded px-1" /></td>
-                            <td className="p-1"><input value={editValues.cin} onChange={e => setEditValues({...editValues, cin: e.target.value})} className="w-20 text-xs border rounded px-1" /></td>
-                            <td className="p-1"><input value={editValues.numero_cnss} onChange={e => setEditValues({...editValues, numero_cnss: e.target.value})} className="w-20 text-xs border rounded px-1" /></td>
-                            <td className="p-1"><select value={editValues.situation_fam} onChange={e => setEditValues({...editValues, situation_fam: e.target.value})} className="text-xs border rounded px-1"><option value="C">C</option><option value="M">M</option><option value="D">D</option><option value="V">V</option></select></td>
-                            <td className="p-1"><input type="number" value={editValues.nombre_enfants} onChange={e => setEditValues({...editValues, nombre_enfants: parseInt(e.target.value) || 0})} className="w-12 text-xs border rounded px-1" /></td>
-                            <td className="p-1"><input value={editValues.fonction} onChange={e => setEditValues({...editValues, fonction: e.target.value})} className="w-24 text-xs border rounded px-1" /></td>
-                            <td className="p-1"><input value={editValues.type_contrat} onChange={e => setEditValues({...editValues, type_contrat: e.target.value})} className="w-16 text-xs border rounded px-1" /></td>
-                            <td className="p-1"><input value={editValues.date_recrutement || ''} onChange={e => setEditValues({...editValues, date_recrutement: e.target.value})} className="w-20 text-xs border rounded px-1" placeholder="YYYY-MM-DD" /></td>
-                            <td className="p-1"><input type="number" step="0.001" value={editValues.salaire_brut} onChange={e => setEditValues({...editValues, salaire_brut: parseFloat(e.target.value) || 0})} className="w-24 text-xs border rounded px-1 text-right" /></td>
+                            <td className="p-1"><input value={editValues.matricule} onChange={e => setEditValues({...editValues, matricule: e.target.value})} className="w-20 input-sm text-xs px-1" /></td>
+                            <td className="p-1"><input value={editValues.nom} onChange={e => setEditValues({...editValues, nom: e.target.value})} className="w-24 input-sm text-xs px-1" /></td>
+                            <td className="p-1"><input value={editValues.prenom} onChange={e => setEditValues({...editValues, prenom: e.target.value})} className="w-24 input-sm text-xs px-1" /></td>
+                            <td className="p-1"><input value={editValues.cin} onChange={e => setEditValues({...editValues, cin: e.target.value})} className="w-20 input-sm text-xs px-1" /></td>
+                            <td className="p-1"><input value={editValues.numero_cnss} onChange={e => setEditValues({...editValues, numero_cnss: e.target.value})} className="w-20 input-sm text-xs px-1" /></td>
+                            <td className="p-1"><select value={editValues.situation_fam} onChange={e => setEditValues({...editValues, situation_fam: e.target.value})} className="input-sm text-xs px-1"><option value="C">C</option><option value="M">M</option><option value="D">D</option><option value="V">V</option></select></td>
+                            <td className="p-1"><input type="number" value={editValues.nombre_enfants} onChange={e => setEditValues({...editValues, nombre_enfants: parseInt(e.target.value) || 0})} className="w-12 input-sm text-xs px-1" /></td>
+                            <td className="p-1"><input value={editValues.fonction} onChange={e => setEditValues({...editValues, fonction: e.target.value})} className="w-24 input-sm text-xs px-1" /></td>
+                            <td className="p-1"><input value={editValues.type_contrat} onChange={e => setEditValues({...editValues, type_contrat: e.target.value})} className="w-16 input-sm text-xs px-1" /></td>
+                            <td className="p-1"><input value={editValues.date_recrutement || ''} onChange={e => setEditValues({...editValues, date_recrutement: e.target.value})} className="w-20 input-sm text-xs px-1" placeholder="YYYY-MM-DD" /></td>
+                            <td className="p-1"><input type="number" step="0.001" value={editValues.salaire_brut} onChange={e => setEditValues({...editValues, salaire_brut: parseFloat(e.target.value) || 0})} className="w-24 input-sm text-xs px-1 text-right" /></td>
                             <td className="p-1 flex gap-1">
                               <button onClick={saveEditEmployee} className="p-1 text-green-600 hover:text-green-800"><Save size={14} /></button>
                               <button onClick={() => setEditingEmployeeIdx(null)} className="p-1 text-gray-400 hover:text-gray-600"><X size={14} /></button>
@@ -711,7 +711,7 @@ export default function BaudDossierPage() {
                   </tr></thead>
                   <tbody className="divide-y">
                     {buildSalaryKeys(employees).map((key, idx) => { const r = salaryResults.get(key); const emp = employees[idx]; if (!r) return null; return (
-                      <tr key={key} className="hover:bg-gray-50">
+                      <tr key={key} className="row-hover">
                         <td className="p-2 font-mono text-xs">{emp.matricule}</td><td className="p-2 text-xs">{emp.nom} {emp.prenom}</td>
                         <td className="p-2 text-right font-mono text-xs">{r.salaire_de_base.toFixed(3)}</td>
                         <td className="p-2 text-right font-mono text-xs text-purple-600">{r.prime_anciennete > 0 ? `${r.prime_anciennete.toFixed(3)} (${r.taux_anciennete}%)` : '-'}</td>

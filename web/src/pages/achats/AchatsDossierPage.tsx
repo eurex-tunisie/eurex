@@ -429,16 +429,16 @@ export default function AchatsDossierPage() {
               </thead>
               <tbody>
                 {factures.map(f => (
-                  <tr key={f.id} className="border-t hover:bg-gray-50">
-                    <td className="px-2 py-1"><input value={f.numero} onChange={e => updateFacture(f.id, 'numero', e.target.value)} className="w-24 text-xs border rounded px-1 py-0.5" /></td>
-                    <td className="px-2 py-1"><input type="date" value={f.date} onChange={e => updateFacture(f.id, 'date', e.target.value)} className="w-32 text-xs border rounded px-1 py-0.5" /></td>
-                    <td className="px-2 py-1"><input value={f.fournisseur} onChange={e => updateFacture(f.id, 'fournisseur', e.target.value)} className="w-32 text-xs border rounded px-1 py-0.5" /></td>
-                    <td className="px-2 py-1"><input value={f.description} onChange={e => updateFacture(f.id, 'description', e.target.value)} className="w-40 text-xs border rounded px-1 py-0.5" /></td>
-                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.ht0} onChange={e => updateFacture(f.id, 'ht0', parseFloat(e.target.value) || 0)} className="w-20 text-xs border rounded px-1 py-0.5 text-right" /></td>
-                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.ht19} onChange={e => updateFacture(f.id, 'ht19', parseFloat(e.target.value) || 0)} className="w-20 text-xs border rounded px-1 py-0.5 text-right" /></td>
-                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.tva19} onChange={e => updateFacture(f.id, 'tva19', parseFloat(e.target.value) || 0)} className="w-20 text-xs border rounded px-1 py-0.5 text-right" /></td>
-                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.timbre} onChange={e => updateFacture(f.id, 'timbre', parseFloat(e.target.value) || 0)} className="w-16 text-xs border rounded px-1 py-0.5 text-right" /></td>
-                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.remise} onChange={e => updateFacture(f.id, 'remise', parseFloat(e.target.value) || 0)} className="w-16 text-xs border rounded px-1 py-0.5 text-right" /></td>
+                  <tr key={f.id} className="row-hover">
+                    <td className="px-2 py-1"><input value={f.numero} onChange={e => updateFacture(f.id, 'numero', e.target.value)} className="w-24 input-sm text-xs px-1 py-0.5" /></td>
+                    <td className="px-2 py-1"><input type="date" value={f.date} onChange={e => updateFacture(f.id, 'date', e.target.value)} className="w-32 input-sm text-xs px-1 py-0.5" /></td>
+                    <td className="px-2 py-1"><input value={f.fournisseur} onChange={e => updateFacture(f.id, 'fournisseur', e.target.value)} className="w-32 input-sm text-xs px-1 py-0.5" /></td>
+                    <td className="px-2 py-1"><input value={f.description} onChange={e => updateFacture(f.id, 'description', e.target.value)} className="w-40 input-sm text-xs px-1 py-0.5" /></td>
+                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.ht0} onChange={e => updateFacture(f.id, 'ht0', parseFloat(e.target.value) || 0)} className="w-20 input-sm text-xs px-1 py-0.5 text-right" /></td>
+                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.ht19} onChange={e => updateFacture(f.id, 'ht19', parseFloat(e.target.value) || 0)} className="w-20 input-sm text-xs px-1 py-0.5 text-right" /></td>
+                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.tva19} onChange={e => updateFacture(f.id, 'tva19', parseFloat(e.target.value) || 0)} className="w-20 input-sm text-xs px-1 py-0.5 text-right" /></td>
+                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.timbre} onChange={e => updateFacture(f.id, 'timbre', parseFloat(e.target.value) || 0)} className="w-16 input-sm text-xs px-1 py-0.5 text-right" /></td>
+                    <td className="px-2 py-1"><input type="number" step="0.001" value={f.remise} onChange={e => updateFacture(f.id, 'remise', parseFloat(e.target.value) || 0)} className="w-16 input-sm text-xs px-1 py-0.5 text-right" /></td>
                     <td className="px-2 py-1 font-mono text-xs font-semibold text-right">{f.ttc.toFixed(3)}</td>
                     <td className="px-2 py-1 text-center">
                       {f.is_handwritten ? <span className="text-amber-600 text-xs" title={f.raw_text}>OCR</span> : <span className="text-green-600 text-xs">TXT</span>}
@@ -495,13 +495,13 @@ export default function AchatsDossierPage() {
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search size={14} className="absolute left-3 top-2.5 text-gray-400" />
-                <input value={planSearch} onChange={e => handlePlanSearch(e.target.value)} placeholder="Rechercher un compte (code ou libellé)..." className="w-full border rounded pl-8 pr-3 py-2 text-sm" />
+                <input value={planSearch} onChange={e => handlePlanSearch(e.target.value)} placeholder="Rechercher un compte (code ou libellé)..." className="input-field pl-8 text-sm" />
               </div>
             </div>
             {planSearchResults.length > 0 && (
               <div className="mt-2 bg-gray-50 rounded border max-h-64 overflow-y-auto">
                 <table className="w-full text-xs">
-                  <thead><tr className="text-gray-500 border-b"><th className="p-2 text-left">Code</th><th className="p-2 text-left">Libellé</th><th className="p-2 text-center">Sens</th></tr></thead>
+                  <thead><tr className="table-header"><th className="p-2 text-left">Code</th><th className="p-2 text-left">Libellé</th><th className="p-2 text-center">Sens</th></tr></thead>
                   <tbody>
                     {planSearchResults.map(c => (
                       <tr key={c.code} className="border-b hover:bg-white"><td className="p-2 font-mono">{c.code}</td><td className="p-2">{c.libelle}</td><td className="p-2 text-center">{c.sens}</td></tr>
@@ -516,10 +516,10 @@ export default function AchatsDossierPage() {
               <h3 className="font-semibold text-gray-700 mb-3 text-sm">Comptes d'achats (6xxx)</h3>
               <div className="max-h-96 overflow-y-auto">
                 <table className="w-full text-xs">
-                  <thead><tr className="text-gray-500 border-b"><th className="p-2 text-left">Code</th><th className="p-2 text-left">Libellé</th><th className="p-2 text-center">Sens</th></tr></thead>
+                  <thead><tr className="table-header"><th className="p-2 text-left">Code</th><th className="p-2 text-left">Libellé</th><th className="p-2 text-center">Sens</th></tr></thead>
                   <tbody>
                     {plan.achats.map(c => (
-                      <tr key={c.code} className="border-b hover:bg-gray-50"><td className="p-2 font-mono">{c.code}</td><td className="p-2">{c.libelle}</td><td className="p-2 text-center">{c.sens}</td></tr>
+                      <tr key={c.code} className="border-b row-hover"><td className="p-2 font-mono">{c.code}</td><td className="p-2">{c.libelle}</td><td className="p-2 text-center">{c.sens}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -602,19 +602,19 @@ export default function AchatsDossierPage() {
               </thead>
               <tbody>
                 {ecritures.map(e => (
-                  <tr key={e.id} className="border-t hover:bg-gray-50">
-                    <td className="px-1 py-1"><input type="date" value={e.date_operation} onChange={ev => updateEcriture(e.id, 'date_operation', ev.target.value)} className="w-28 text-xs border rounded px-1 py-0.5" /></td>
+                  <tr key={e.id} className="row-hover">
+                    <td className="px-1 py-1"><input type="date" value={e.date_operation} onChange={ev => updateEcriture(e.id, 'date_operation', ev.target.value)} className="w-28 input-sm text-xs px-1 py-0.5" /></td>
                     <td className="px-2 py-1 text-xs font-mono">{e.journal_code}</td>
-                    <td className="px-1 py-1"><input value={e.numero_doc} onChange={ev => updateEcriture(e.id, 'numero_doc', ev.target.value)} className="w-24 text-xs border rounded px-1 py-0.5" /></td>
-                    <td className="px-1 py-1"><input value={e.compte} onChange={ev => updateEcriture(e.id, 'compte', ev.target.value)} className="w-16 text-xs border rounded px-1 py-0.5 font-mono" /></td>
-                    <td className="px-1 py-1"><input value={e.libelle} onChange={ev => updateEcriture(e.id, 'libelle', ev.target.value)} className="w-40 text-xs border rounded px-1 py-0.5" /></td>
+                    <td className="px-1 py-1"><input value={e.numero_doc} onChange={ev => updateEcriture(e.id, 'numero_doc', ev.target.value)} className="w-24 input-sm text-xs px-1 py-0.5" /></td>
+                    <td className="px-1 py-1"><input value={e.compte} onChange={ev => updateEcriture(e.id, 'compte', ev.target.value)} className="w-16 input-sm text-xs px-1 py-0.5 font-mono" /></td>
+                    <td className="px-1 py-1"><input value={e.libelle} onChange={ev => updateEcriture(e.id, 'libelle', ev.target.value)} className="w-40 input-sm text-xs px-1 py-0.5" /></td>
                     <td className="px-2 py-1 text-center">
-                      <select value={e.sens} onChange={ev => updateEcriture(e.id, 'sens', ev.target.value)} className="text-xs border rounded px-1 py-0.5">
+                      <select value={e.sens} onChange={ev => updateEcriture(e.id, 'sens', ev.target.value)} className="input-sm text-xs px-1 py-0.5">
                         <option value="D">D</option><option value="C">C</option>
                       </select>
                     </td>
-                    <td className="px-1 py-1"><input type="number" step="0.001" value={e.sens === 'D' ? e.montant : ''} onChange={ev => { const v = parseFloat(ev.target.value) || 0; updateEcriture(e.id, 'montant', v); updateEcriture(e.id, 'sens', 'D'); }} className="w-24 text-xs border rounded px-1 py-0.5 text-right font-mono" placeholder="0.000" /></td>
-                    <td className="px-1 py-1"><input type="number" step="0.001" value={e.sens === 'C' ? e.montant : ''} onChange={ev => { const v = parseFloat(ev.target.value) || 0; updateEcriture(e.id, 'montant', v); updateEcriture(e.id, 'sens', 'C'); }} className="w-24 text-xs border rounded px-1 py-0.5 text-right font-mono" placeholder="0.000" /></td>
+                    <td className="px-1 py-1"><input type="number" step="0.001" value={e.sens === 'D' ? e.montant : ''} onChange={ev => { const v = parseFloat(ev.target.value) || 0; updateEcriture(e.id, 'montant', v); updateEcriture(e.id, 'sens', 'D'); }} className="w-24 input-sm text-xs px-1 py-0.5 text-right font-mono" placeholder="0.000" /></td>
+                    <td className="px-1 py-1"><input type="number" step="0.001" value={e.sens === 'C' ? e.montant : ''} onChange={ev => { const v = parseFloat(ev.target.value) || 0; updateEcriture(e.id, 'montant', v); updateEcriture(e.id, 'sens', 'C'); }} className="w-24 input-sm text-xs px-1 py-0.5 text-right font-mono" placeholder="0.000" /></td>
                     <td className="px-1"><button onClick={() => deleteEcriture(e.id)} className="text-red-400 hover:text-red-600"><Trash2 size={12} /></button></td>
                   </tr>
                 ))}

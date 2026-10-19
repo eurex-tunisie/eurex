@@ -149,7 +149,7 @@ export default function OrgReport() {
                     <tr><td colSpan={7} className="px-4 py-4 text-gray-400 text-center">Aucun dossier pour cet exercice</td></tr>
                   )}
                   {data.dossiers.map((d: any) => (
-                    <tr key={d.id} data-testid="report-dossier-row" className="border-b border-gray-50 last:border-0 hover:bg-purple-50/40">
+                    <tr key={d.id} data-testid="report-dossier-row" className="border-b last:border-0 border-[rgba(60,60,67,0.12)] hover:bg-purple-50/40">
                       <td className="px-4 py-2 font-semibold text-gray-900">{d.client_name}</td>
                       <td className="px-2 py-2">{d.status === 'clos' ? '🔒' : '🔵'} {statusLabel[d.status] || d.status}</td>
                       <td className="px-2 py-2">
@@ -177,7 +177,7 @@ export default function OrgReport() {
                 <tbody>
                   {data.hours_by_user.length === 0 && <tr><td colSpan={3} className="px-4 py-4 text-gray-400 text-center">Aucune heure pointée sur le mois</td></tr>}
                   {data.hours_by_user.map((u: any) => (
-                    <tr key={u.user_id} data-testid="report-hours-row" className="border-b border-gray-50 last:border-0">
+                    <tr key={u.user_id} data-testid="report-hours-row" className="border-b last:border-0 border-[rgba(60,60,67,0.12)]">
                       <td className="px-4 py-2 font-semibold text-gray-900">{u.full_name}</td>
                       <td className="px-2 py-2 text-gray-600">{u.entries}</td>
                       <td className="px-4 py-2 text-right font-bold text-gray-900">{fmtH(u.seconds)}</td>
@@ -194,7 +194,7 @@ export default function OrgReport() {
                 <tbody>
                   {data.alerts.length === 0 && <tr><td colSpan={3} className="px-4 py-4 text-gray-400 text-center">Aucune échéance ce mois-ci</td></tr>}
                   {data.alerts.map((a: any) => (
-                    <tr key={a.id + a.due_date} data-testid="report-alert-row" className="border-b border-gray-50 last:border-0">
+                    <tr key={a.id + a.due_date} data-testid="report-alert-row" className="border-b last:border-0 border-[rgba(60,60,67,0.12)]">
                       <td className="px-4 py-2 whitespace-nowrap text-gray-700">{fmtDate(a.due_date)}</td>
                       <td className="px-2 py-2"><span className="font-semibold text-gray-900">{a.title}</span>{a.dossier_label && <span className="block text-[11px] text-gray-400">{a.dossier_label}</span>}</td>
                       <td className="px-4 py-2">{a.done ? <span className="text-emerald-600 font-bold">✓ Fait</span> : <span className="text-amber-600 font-bold">À faire</span>}</td>
@@ -211,7 +211,7 @@ export default function OrgReport() {
               <tbody>
                 {data.late_tasks.length === 0 && <tr><td className="px-4 py-4 text-gray-400 text-center">Aucune tâche en retard 🎉</td></tr>}
                 {data.late_tasks.map((l: any, i: number) => (
-                  <tr key={i} data-testid="report-late-row" className="border-b border-gray-50 last:border-0">
+                  <tr key={i} data-testid="report-late-row" className="border-b last:border-0 border-[rgba(60,60,67,0.12)]">
                     <td className="px-4 py-2 w-28 whitespace-nowrap text-rose-600 font-semibold">{fmtDate(l.due_date)}</td>
                     <td className="px-2 py-2 font-semibold text-gray-900">{l.label}</td>
                     <td className="px-4 py-2 text-gray-500">{l.dossier_label}</td>
