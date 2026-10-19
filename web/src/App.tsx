@@ -29,28 +29,28 @@ function GlobalNav({ path }: { path: string }) {
   const cabUser = onCabinet && state.user && !state.user.must_change_password ? state.user : null;
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <nav className="vibrancy sticky top-0 z-50 border-b" style={{ borderColor: 'var(--separator)' }}>
       <div className="max-w-7xl mx-auto px-4 flex items-center h-14 gap-1">
         <Link to="/" className="flex items-center gap-2 mr-4">
-          <span className="text-lg font-bold">EUREX</span>
+          <span className="text-lg font-bold tracking-tight">EUREX</span>
         </Link>
-        <div className="flex gap-1 border-l pl-4">
-          <Link to="/" className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${path === '/' ? 'bg-gray-100 text-gray-800' : 'text-gray-600 hover:bg-gray-50'}`}>
+        <div className="flex gap-1 border-l pl-4" style={{ borderColor: 'var(--separator)' }}>
+          <Link to="/" className={`nav-link ${path === '/' ? 'active' : ''}`}>
             Dossiers
           </Link>
-          <Link to="/achats" className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${path.startsWith('/achats') ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+          <Link to="/achats" className={`nav-link ${path.startsWith('/achats') ? 'active' : ''}`}>
             ACHATS
           </Link>
-          <Link to="/ef" className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${path.startsWith('/ef') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+          <Link to="/ef" className={`nav-link ${path.startsWith('/ef') ? 'active' : ''}`}>
             EF
           </Link>
-          <Link to="/baud/societes" className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${path.startsWith('/baud') ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+          <Link to="/baud/societes" className={`nav-link ${path.startsWith('/baud') ? 'active' : ''}`}>
             BAUD
           </Link>
-          <Link to="/scanflash" className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${path.startsWith('/scanflash') ? 'bg-emerald-50 text-emerald-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+          <Link to="/scanflash" className={`nav-link ${path.startsWith('/scanflash') ? 'active' : ''}`}>
             SCANFLASH
           </Link>
-          <Link to="/cabinet" className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${onCabinet ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}>
+          <Link to="/cabinet" className={`nav-link ${onCabinet ? 'active' : ''}`}>
             <Building2 size={14} />
             CABINET
           </Link>
@@ -60,17 +60,17 @@ function GlobalNav({ path }: { path: string }) {
             <>
               <Link
                 to="/cabinet"
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${path === '/cabinet' ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                className={`nav-link ${path === '/cabinet' ? 'active' : ''}`}
               >
-                <LayoutDashboard size={14} className="inline mr-1.5" />
+                <LayoutDashboard size={14} />
                 {cabUser.role === 'expert' || cabUser.role === 'manager' ? 'Dashboard' : t('dash.my_clients')}
               </Link>
               {(cabUser.role === 'expert' || cabUser.role === 'manager') && (
                 <Link
                   to="/cabinet/settings"
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${path.includes('/settings') ? 'bg-purple-50 text-purple-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                  className={`nav-link ${path.includes('/settings') ? 'active' : ''}`}
                 >
-                  <Settings size={14} className="inline mr-1.5" />
+                  <Settings size={14} />
                   {t('nav.settings')}
                 </Link>
               )}
@@ -81,21 +81,21 @@ function GlobalNav({ path }: { path: string }) {
 
         {/* Infos utilisateur + langue + déconnexion (une seule fois, nav globale) */}
         {cabUser && (
-          <div className="flex items-center gap-2 pl-3 border-l ml-2">
+          <div className="flex items-center gap-2 pl-3 border-l ml-2" style={{ borderColor: 'var(--separator)' }}>
             <button
               onClick={() => setLang(lang === 'fr' ? 'ar' : 'fr')}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="icon-btn"
               title={lang === 'fr' ? 'العربية' : 'Français'}
             >
               <Globe size={16} />
             </button>
             <div className="text-right">
-              <p className="text-xs font-semibold text-gray-700">{cabUser.full_name}</p>
-              <p className="text-[10px] text-gray-400">{cabUser.organization || cabUser.role}</p>
+              <p className="text-xs font-semibold" style={{ color: 'var(--label)' }}>{cabUser.full_name}</p>
+              <p className="text-[10px]" style={{ color: 'var(--label-3)' }}>{cabUser.organization || cabUser.role}</p>
             </div>
             <button
               onClick={logout}
-              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+              className="icon-btn icon-btn-danger"
               title={t('nav.logout')}
             >
               <LogOut size={16} />
@@ -141,8 +141,8 @@ export default function App() {
           </Routes>
         </main>
         {!onPortail && (
-          <footer className="border-t border-gray-200 mt-10">
-            <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between text-xs text-gray-400">
+          <footer className="border-t mt-10" style={{ borderColor: 'var(--separator)' }}>
+            <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between text-xs" style={{ color: 'var(--label-3)' }}>
               <span>EUREX — Générateur d'Écritures Comptables IA</span>
               <span>Created by med salim ezzine</span>
             </div>

@@ -108,7 +108,7 @@ export default function AccessGate({ onAuthorized }: AccessGateProps) {
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-modal animate-rise p-8 w-full max-w-md">
         <div className="flex items-center gap-3 mb-6">
           <span className="bg-blue-100 text-blue-700 rounded-lg p-2"><ShieldCheck size={22} /></span>
           <div>

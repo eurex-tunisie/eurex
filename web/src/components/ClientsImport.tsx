@@ -172,8 +172,8 @@ export default function ClientsImport({ comptables, onImported }: { comptables: 
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" data-testid="import-modal">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay" data-testid="import-modal">
+          <div className="bg-white rounded-2xl shadow-modal animate-rise w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-800">Importer des clients (CSV)</h3>
               <button onClick={close} data-testid="import-close" className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">✕</button>

@@ -54,7 +54,7 @@ export default function SplitPdfTool({ onClose }: Props) {
   return (
     <>
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { if (!busy) onClose(); }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-modal animate-rise w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2.5">
             <span className="bg-indigo-100 text-indigo-700 rounded-lg p-2"><Scissors size={18} /></span>

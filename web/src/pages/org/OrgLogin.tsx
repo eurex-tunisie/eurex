@@ -25,7 +25,7 @@ export default function OrgLogin() {
 
   return (
     <div className="flex-1 bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-modal animate-rise p-8 w-full max-w-md">
         <div className="flex items-center gap-3 mb-6">
           <span className="bg-purple-100 text-purple-700 rounded-lg p-2">
             <Building2 size={22} />

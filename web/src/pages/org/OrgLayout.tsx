@@ -119,7 +119,7 @@ function ChangePasswordScreen() {
 
   return (
     <div className="flex-1 bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-modal animate-rise p-8 w-full max-w-md">
         <h2 className="text-xl font-bold text-gray-900 mb-2">{t('auth.change_password')}</h2>
         <p className="text-sm text-gray-500 mb-6">Vous devez changer votre mot de passe par défaut.</p>
         <form onSubmit={submit}>

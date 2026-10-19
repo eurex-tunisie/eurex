@@ -603,8 +603,8 @@ export default function OrgDashboardExpert() {
 
       {/* Modal retour en correction motivé */}
       {returnModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" data-testid="return-modal">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+        <div className="modal-overlay" data-testid="return-modal">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-md">
             <h3 className="font-bold text-gray-800 mb-1">↩ Renvoyer en correction</h3>
             <p className="text-xs text-gray-500 mb-3">
               « {returnModal.label} » — {returnModal.client_name} · Exercice {returnModal.exercice}
@@ -987,8 +987,8 @@ export default function OrgDashboardExpert() {
 
       {/* Modal: Nouveau dossier */}
       {showNewDossier && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+        <div className="modal-overlay">
+          <div className="bg-white rounded-2xl shadow-modal animate-rise w-full max-w-md p-6 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                 <Plus size={20} className="text-purple-600" />
@@ -1131,8 +1131,8 @@ export default function OrgDashboardExpert() {
 
       {/* Modal: Modifier un client (expert + manager) */}
       {editClient && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div className="modal-overlay">
+          <div className="bg-white rounded-2xl shadow-modal animate-rise w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                 <Pencil size={20} className="text-purple-600" />
@@ -1184,8 +1184,8 @@ export default function OrgDashboardExpert() {
 
       {/* Modal: Nouvelle tâche globale (choix du dossier) */}
       {showNewTask && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div className="modal-overlay">
+          <div className="bg-white rounded-2xl shadow-modal animate-rise w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                 <Plus size={20} className="text-purple-600" />
@@ -1258,8 +1258,8 @@ export default function OrgDashboardExpert() {
 
       {/* Modal: Rollover exercice (duplique les checklists vers l'annee cible) */}
       {showRollover && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div className="modal-overlay">
+          <div className="bg-white rounded-2xl shadow-modal animate-rise w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-800">🔄 Passage au nouvel exercice</h3>
               <button onClick={() => setShowRollover(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">

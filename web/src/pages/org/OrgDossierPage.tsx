@@ -1974,8 +1974,8 @@ export default function OrgDossierPage() {
 
       {/* Close Modal */}
       {showCloseModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+        <div className="modal-overlay">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-md">
             <h3 className="font-bold text-gray-800 mb-3">
               {dossier.can_close ? t('dossier.close') : 'Clôture forcée'}
             </h3>
@@ -2017,8 +2017,8 @@ export default function OrgDossierPage() {
 
       {/* New Dossier Modal */}
       {showNewDossierModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+        <div className="modal-overlay">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-sm">
             <h3 className="font-bold text-gray-800 mb-3">{t('dossier.open_next')}</h3>
             <label className="block text-xs font-semibold text-gray-700 mb-1">Exercice</label>
             <input
@@ -2054,8 +2054,8 @@ export default function OrgDossierPage() {
 
       {/* Modal: Dupliquer la checklist vers un autre exercice */}
       {showDup && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+        <div className="modal-overlay">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-sm">
             <h3 className="font-bold text-gray-800 mb-1">📋 Dupliquer la checklist</h3>
             <p className="text-xs text-gray-500 mb-3">
               Copie toutes les tâches (statuts remis à zéro) et les pièces attendues (non reçues) vers l'exercice choisi pour ce client.
@@ -2087,8 +2087,8 @@ export default function OrgDossierPage() {
 
       {/* Modal: Transférer le client a un autre comptable */}
       {showTransfer && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+        <div className="modal-overlay">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-sm">
             <h3 className="font-bold text-gray-800 mb-1">🔀 Transférer le dossier</h3>
             <p className="text-xs text-gray-500 mb-3">
               <strong>{dossier.client_name} ({dossier.exercice})</strong> passe au comptable choisi. Les autres dossiers du client restent inchangés.
