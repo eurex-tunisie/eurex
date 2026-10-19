@@ -68,7 +68,7 @@ export default function MesHeures({ userId, title, exercice }: { userId?: string
   if (!hours) return null;
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-2xl ${min ? 'px-3 py-1.5' : 'p-4'}`} data-testid="mes-heures">
+    <div className={`card rounded-2xl ${min ? 'px-3 py-1.5' : 'p-4'}`} data-testid="mes-heures">
       <div className={`flex items-center justify-between flex-wrap gap-2 ${min ? '' : 'mb-3'}`}>
         <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
           ⏱ {title || 'Mes heures'}

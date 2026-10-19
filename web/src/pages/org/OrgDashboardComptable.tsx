@@ -12,7 +12,7 @@ import { EXPORT_LABELS } from '../../lib/orgAlerts';
 import { verifyRate } from '../../lib/orgVerify';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
-import { FolderOpen, AlertTriangle, Clock, ArrowUpDown, Search } from 'lucide-react';
+import { FolderOpen, AlertTriangle, Clock, ArrowUpDown, Search, Users, BarChart3, Hourglass, AlertCircle, FileText, CheckCircle2, Wrench } from 'lucide-react';
 
 type SortKey = 'name' | 'progress' | 'blocked';
 
@@ -130,28 +130,28 @@ export default function OrgDashboardComptable() {
           aucun compteur : on ne voyait le retard qu'en parcourant les cartes. */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
-          { label: 'Mes clients', value: clients.length, icon: '📁', color: 'blue',
+          { label: 'Mes clients', value: clients.length, icon: <Users size={16} />, color: 'blue',
             sub: `${closedClients} clôturé${closedClients > 1 ? 's' : ''} · ${filtered.length} affiché${filtered.length > 1 ? 's' : ''}` },
-          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: '📊', color: 'emerald',
+          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: <BarChart3 size={16} />, color: 'emerald',
             sub: `${sumFait} / ${sumTotal} tâches faites` },
-          { label: 'Tâches restantes', value: sumTotal - sumFait, icon: '⏳', color: 'gray',
+          { label: 'Tâches restantes', value: sumTotal - sumFait, icon: <Hourglass size={16} />, color: 'gray',
             sub: `sur ${sumTotal} tâches au total` },
-          { label: 'Bloqué client', value: sumBloque, icon: '🔴', color: sumBloque > 0 ? 'red' : 'gray',
+          { label: 'Bloqué client', value: sumBloque, icon: <AlertCircle size={16} />, color: sumBloque > 0 ? 'red' : 'gray',
             sub: `${blockedClients} client${blockedClients > 1 ? 's' : ''} concerné${blockedClients > 1 ? 's' : ''}` },
-          { label: 'Documents manquants', value: docsMissing, icon: '📄', color: docsMissing > 0 ? 'orange' : 'gray',
+          { label: 'Documents manquants', value: docsMissing, icon: <FileText size={16} />, color: docsMissing > 0 ? 'orange' : 'gray',
             sub: `${docsRecus} / ${docsTotal} reçus` },
-          { label: 'Clients clôturés', value: closedClients, icon: '✅', color: 'emerald',
+          { label: 'Clients clôturés', value: closedClients, icon: <CheckCircle2 size={16} />, color: 'emerald',
             sub: `sur ${clients.length} au total` },
-          { label: 'En attente de validation', value: sumPending, icon: '🔍', color: sumPending > 0 ? 'amber' : 'gray',
+          { label: 'En attente de validation', value: sumPending, icon: <Clock size={16} />, color: sumPending > 0 ? 'amber' : 'gray',
             sub: validationRate == null ? 'rien encore passé en validation' : `${validationRate}% validé · ${sumValidated} validée${sumValidated > 1 ? 's' : ''}` },
         ].map((kpi, i) => {
           const bgMap: Record<string, string> = {
-            blue: 'bg-blue-50 border-blue-200',
-            emerald: 'bg-emerald-50 border-emerald-200',
-            red: 'bg-red-50 border-red-200',
-            amber: 'bg-amber-50 border-amber-200',
-            orange: 'bg-orange-50 border-orange-200',
-            gray: 'bg-gray-50 border-gray-200',
+            blue: 'bg-blue-50',
+            emerald: 'bg-emerald-50',
+            red: 'bg-red-50',
+            amber: 'bg-amber-50',
+            orange: 'bg-orange-50',
+            gray: 'bg-white',
           };
           const valMap: Record<string, string> = {
             blue: 'text-blue-700',
@@ -162,13 +162,13 @@ export default function OrgDashboardComptable() {
             gray: 'text-gray-700',
           };
           return (
-            <div key={i} className={`${bgMap[kpi.color] || 'bg-white border-gray-200'} border rounded-xl p-4`}>
+            <div key={i} className={`${bgMap[kpi.color] || 'bg-white'} shadow-card rounded-xl p-4`}>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">{kpi.icon}</span>
-                <span className="text-xs text-gray-500">{kpi.label}</span>
+                <span className={`${valMap[kpi.color] || 'text-gray-700'}`}>{kpi.icon}</span>
+                <span className="text-xs" style={{ color: 'var(--label-2)' }}>{kpi.label}</span>
               </div>
-              <p className={`text-2xl font-bold ${valMap[kpi.color] || 'text-gray-800'}`}>{kpi.value}</p>
-              {kpi.sub && <p className="text-[11px] text-gray-500 mt-0.5">{kpi.sub}</p>}
+              <p className={`text-2xl font-bold tracking-tight ${valMap[kpi.color] || 'text-gray-800'}`}>{kpi.value}</p>
+              {kpi.sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--label-3)' }}>{kpi.sub}</p>}
             </div>
           );
         })}
@@ -187,7 +187,8 @@ export default function OrgDashboardComptable() {
       {grantsVisible.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 mb-2">
-            🔧 Dossiers en renfort
+            <Wrench size={14} />
+            Dossiers en renfort
             <span className="text-gray-400 font-normal">— accès temporaire ouvert par l'expert</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -195,11 +196,11 @@ export default function OrgDashboardComptable() {
               <Link
                 key={g.id}
                 to={`/cabinet/dossier/${g.dossier_id}`}
-                className="bg-amber-50 border border-amber-200 rounded-xl p-4 hover:shadow-md hover:border-amber-300 transition-all group"
+                className="bg-amber-50 shadow-card rounded-xl p-4 card-hover group"
               >
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <h4 className="font-bold text-sm text-gray-800 group-hover:text-amber-700 truncate">{g.client_name}</h4>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">🔧 Renfort</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap"><Wrench size={10} /> Renfort</span>
                 </div>
                 <p className="text-[11px] text-gray-500">
                   Exercice {g.exercice} · {g.days === 0 ? 'accès à vie' : `expire le ${String(g.expires_at).slice(0, 16)}`}
@@ -220,7 +221,7 @@ export default function OrgDashboardComptable() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Rechercher un client..."
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            className="input-field pl-9 py-2"
           />
         </div>
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
@@ -244,7 +245,7 @@ export default function OrgDashboardComptable() {
 
       {/* Client cards */}
       {filtered.length === 0 && (
-        <div className="bg-white border rounded-xl p-8 text-center text-gray-400 text-sm">
+        <div className="card p-8 text-center text-sm" style={{ color: 'var(--label-3)' }}>
           {t('dash.no_clients')}
         </div>
       )}
@@ -260,8 +261,8 @@ export default function OrgDashboardComptable() {
               key={client.id}
               data-testid="client-card"
               to={`/cabinet/dossier/${d?.id || ''}`}
-              className={`group bg-white border rounded-2xl p-5 transition-all duration-300 hover:shadow-xl hover:shadow-purple-100/50 hover:-translate-y-1 relative overflow-hidden ${
-                hasBlocked ? 'border-red-200 bg-red-50/30 hover:border-red-300' : 'border-gray-200 hover:border-purple-300'
+              className={`group card card-hover rounded-2xl p-5 relative overflow-hidden ${
+                hasBlocked ? 'bg-red-50/40' : ''
               }`}
             >
               {/* Badges */}

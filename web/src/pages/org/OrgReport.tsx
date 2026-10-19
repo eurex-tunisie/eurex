@@ -85,7 +85,7 @@ export default function OrgReport() {
 
   const t = data?.totals;
   const kpi = (key: string, label: string, value: string, sub?: string) => (
-    <div key={key} data-testid={`report-kpi-${key}`} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+    <div key={key} data-testid={`report-kpi-${key}`} className="card p-3 shadow-sm">
       <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</div>
       <div className="text-xl font-extrabold text-gray-900 mt-0.5">{value}</div>
       {sub && <div className="text-[11px] text-gray-500">{sub}</div>}
@@ -134,7 +134,7 @@ export default function OrgReport() {
             {kpi('quality', 'Qualité', t.verify_score != null ? `${t.verify_score}%` : '—', t.verify_returned != null ? `${t.verify_done} vérifs · ${t.verify_returned} renvois` : 'vérifications du mois')}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5 shadow-sm">
+          <div className="card overflow-hidden mb-5 shadow-sm">
             <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">📁 Dossiers de l'exercice</div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -170,7 +170,7 @@ export default function OrgReport() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-5">
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="card overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">⏱ Heures par collaborateur</div>
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-[11px] uppercase text-gray-400 border-b border-gray-100"><th className="px-4 py-2">Collaborateur</th><th className="px-2 py-2">Saisies</th><th className="px-4 py-2 text-right">Heures</th></tr></thead>
@@ -187,7 +187,7 @@ export default function OrgReport() {
               </table>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="card overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">⏰ Échéances du mois</div>
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-[11px] uppercase text-gray-400 border-b border-gray-100"><th className="px-4 py-2">Date</th><th className="px-2 py-2">Échéance</th><th className="px-4 py-2">État</th></tr></thead>
@@ -205,7 +205,7 @@ export default function OrgReport() {
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mt-5 shadow-sm">
+          <div className="card overflow-hidden mt-5 shadow-sm">
             <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">🔴 Tâches en retard</div>
             <table className="w-full text-sm">
               <tbody>

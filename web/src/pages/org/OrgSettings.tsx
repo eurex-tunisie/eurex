@@ -247,7 +247,7 @@ export default function OrgSettings() {
       {/* Tab: Templates */}
       {tab === 'templates' && (
         <div className="space-y-3">
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="card p-4">
             <h3 className="font-semibold text-sm text-gray-700 mb-3">{t('templates.add')}</h3>
             <div className="flex items-end gap-3">
               <div className="flex-1">
@@ -324,7 +324,7 @@ export default function OrgSettings() {
           </div>
 
           {templates.map(tmpl => (
-            <div key={tmpl.id} data-testid="template-row" className="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+            <div key={tmpl.id} data-testid="template-row" className="card p-3 flex items-center gap-3">
               <span className="text-gray-300 text-sm">#{tmpl.order_index}</span>
               <span className="flex-1 text-sm font-medium text-gray-700">
                 {tmpl.label}
@@ -423,7 +423,7 @@ export default function OrgSettings() {
       {/* Tab: Comptables */}
       {tab === 'comptables' && (
         <div className="space-y-3">
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="card p-4">
             <h3 className="font-semibold text-sm text-gray-700 mb-3">Ajouter un comptable</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
               <input
@@ -467,7 +467,7 @@ export default function OrgSettings() {
           </div>
 
           {comptables.map(c => (
-            <div key={c.id} className={`bg-white border rounded-xl p-4 flex items-center gap-4 ${c.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'}`}>
+            <div key={c.id} className={`card p-4 flex items-center gap-4 ${c.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'}`}>
               {editCompId === c.id ? (
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2">
                   <input
@@ -571,12 +571,12 @@ export default function OrgSettings() {
           {trashLoading ? (
             <SkeletonSection />
           ) : trash.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+            <div className="card p-8 text-center text-sm text-gray-400">
               🗑 Corbeille vide
             </div>
           ) : (
             trash.map(c => (
-              <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3" data-testid="trash-row">
+              <div key={c.id} className="card px-4 py-3 flex items-center gap-3" data-testid="trash-row">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800">{c.name}</p>
                   <p className="text-xs text-gray-400">

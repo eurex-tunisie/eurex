@@ -137,7 +137,7 @@ export default function OrgAlerts({ dossierId, personType, exportStatus }: Props
   };
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-xl space-y-3 ${min ? 'px-3 py-1.5' : 'p-4'}`} data-testid="org-alerts">
+    <div className={`card space-y-3 ${min ? 'px-3 py-1.5' : 'p-4'}`} data-testid="org-alerts">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
           <Bell size={14} className="text-amber-500" />

@@ -15,6 +15,7 @@ import OrgNotifications from '../../components/OrgNotifications';
 import OrgPlanning from './OrgPlanning';
 import OrgReport from './OrgReport';
 import OrgMesTaches from './OrgMesTaches';
+import { CheckSquare, CalendarDays, BarChart3 } from 'lucide-react';
 
 function OrgInner() {
   const { state } = useOrgAuth();
@@ -52,31 +53,28 @@ function OrgInner() {
             onClick={() => navigate('/cabinet/mes-taches')}
             data-testid="mes-taches-nav"
             title="Toutes mes tâches (filtres : statut, retard, assignation)"
-            className={`mb-4 shrink-0 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all ${location.pathname.startsWith('/cabinet/mes-taches')
-              ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-200'
-              : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-700'}`}
+            className={`btn-tab mb-4 shrink-0 ${location.pathname.startsWith('/cabinet/mes-taches') ? 'active' : ''}`}
           >
-            ✅ Mes tâches
+            <CheckSquare size={15} />
+            Mes tâches
           </button>
           <button
             onClick={() => navigate('/cabinet/planning')}
             data-testid="planning-nav"
             title="Planning des échéances et tâches par date"
-            className={`mb-4 shrink-0 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all ${onPlanning
-              ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-200'
-              : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-700'}`}
+            className={`btn-tab mb-4 shrink-0 ${onPlanning ? 'active' : ''}`}
           >
-            📅 Planning
+            <CalendarDays size={15} />
+            Planning
           </button>
           <button
             onClick={() => navigate('/cabinet/report')}
             data-testid="report-nav"
             title="Rapport mensuel (PDF / Excel)"
-            className={`mb-4 shrink-0 px-3 py-2.5 rounded-xl text-sm font-semibold border transition-all ${location.pathname.startsWith('/cabinet/report')
-              ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-200'
-              : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-700'}`}
+            className={`btn-tab mb-4 shrink-0 ${location.pathname.startsWith('/cabinet/report') ? 'active' : ''}`}
           >
-            📊 Rapport
+            <BarChart3 size={15} />
+            Rapport
           </button>
           <OrgNotifications />
         </div>
@@ -134,7 +132,7 @@ function ChangePasswordScreen() {
 
           {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
-          <button type="submit" disabled={loading} className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 text-sm">
+          <button type="submit" disabled={loading} className="btn btn-accent w-full py-2.5 font-semibold">
             {loading ? '...' : 'Changer'}
           </button>
         </form>

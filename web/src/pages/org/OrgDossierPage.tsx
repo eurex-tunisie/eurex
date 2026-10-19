@@ -737,7 +737,7 @@ export default function OrgDossierPage() {
             ) : null}
           </div>
         </div>
-        <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-2xl px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-4 card rounded-2xl px-4 py-3 shadow-sm">
           <ProgressDonut
             key={String(monthFilter)}
             fait={scopeStats.fait}
@@ -1013,7 +1013,7 @@ export default function OrgDossierPage() {
               ] as const).map(col => {
                 const list = filterTasksByMonth(dossier.tasks, monthFilter).filter(t => t.status === col.key);
                 return (
-                  <div key={col.key} className={`bg-white border rounded-xl p-2.5 ${col.cls}`} data-testid={`kanban-col-${col.key}`}>
+                  <div key={col.key} className={`card p-2.5 ${col.cls}`} data-testid={`kanban-col-${col.key}`}>
                     <h4 className="text-[11px] font-bold text-gray-600 uppercase tracking-wide flex items-center gap-1.5 mb-2">
                       <span className={`inline-block w-2 h-2 rounded-full ${col.dot}`} />
                       {col.title}
@@ -1099,7 +1099,7 @@ export default function OrgDossierPage() {
                 key={task.id}
                 id={`task-${task.id}`}
                 data-testid="task-row"
-                className={`bg-white border rounded-xl overflow-hidden transition-all ${
+                className={`card overflow-hidden transition-all ${
                   isBlocked ? 'border-red-200' : 'border-gray-200'
                 } ${highlightTaskId === task.id ? 'border-red-500 ring-2 ring-red-400 shadow-lg shadow-red-100' : ''}`}
               >
@@ -1727,7 +1727,7 @@ export default function OrgDossierPage() {
                 <button
                   key={String(group.month)}
                   onClick={() => { setMonthFilter(group.month ?? 'annuel'); setTab('checklist'); }}
-                  className={`bg-white border rounded-xl p-3 text-left transition-all ${
+                  className={`card p-3 text-left transition-all ${
                     group.stats.total === 0
                       ? 'border-dashed border-gray-200 opacity-50'
                       : 'border-gray-200 hover:border-purple-300 hover:shadow-sm'
@@ -1765,7 +1765,7 @@ export default function OrgDossierPage() {
           {dossier.documents.map(doc => {
             const kind = docOpenKind(doc);
             return (
-            <div key={doc.id} className={`bg-white border rounded-xl p-3 flex items-center gap-3 ${
+            <div key={doc.id} className={`card p-3 flex items-center gap-3 ${
               doc.received ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200'
             }`}>
               <span className="text-lg leading-none">{docIcon(doc)}</span>
@@ -1845,7 +1845,7 @@ export default function OrgDossierPage() {
       {tab === 'notes' && (
         <div className="space-y-3">
           {/* Add note */}
-          <div className="bg-white border border-gray-200 rounded-xl p-3">
+          <div className="card p-3">
             <textarea
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
@@ -1870,7 +1870,7 @@ export default function OrgDossierPage() {
             const canModify = note.user_id === state.user?.id || isExpert;
             const editing = editingNoteId === note.id;
             return (
-              <div key={note.id} className="bg-white border border-gray-200 rounded-xl p-3">
+              <div key={note.id} className="card p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <MessageSquare size={14} className="text-purple-500" />
                   <span className="text-xs font-semibold text-gray-700">{note.user_name}</span>

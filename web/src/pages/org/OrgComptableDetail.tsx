@@ -180,7 +180,7 @@ export default function OrgComptableDetail() {
       {tab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Dossiers summary */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          <div className="card p-4 space-y-3">
             <h3 className="text-sm font-semibold text-gray-700">{t('comp.all_dossiers')}</h3>
             {dossiers.length === 0 && <p className="text-xs text-gray-400">Aucun dossier assigné</p>}
             {dossiers.map((d: any) => (
@@ -200,7 +200,7 @@ export default function OrgComptableDetail() {
           </div>
 
           {/* Time summary */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          <div className="card p-4 space-y-3">
             <h3 className="text-sm font-semibold text-gray-700">{t('comp.time_by_dossier')}</h3>
             {time_by_dossier.length === 0 && <p className="text-xs text-gray-400">Aucun temps enregistré</p>}
             {time_by_dossier.map((td: any, i: number) => {
@@ -221,7 +221,7 @@ export default function OrgComptableDetail() {
           </div>
 
           {/* Recent tasks */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+          <div className="card p-4 space-y-2">
             <h3 className="text-sm font-semibold text-gray-700">{t('comp.recent_tasks')} (5 dernières)</h3>
             {recent_tasks.slice(0, 5).map((task: any) => {
               const Icon = STATUS_ICONS[task.status] || Circle;
@@ -239,7 +239,7 @@ export default function OrgComptableDetail() {
           </div>
 
           {/* Recent notes */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+          <div className="card p-4 space-y-2">
             <h3 className="text-sm font-semibold text-gray-700">{t('comp.recent_notes')} (5 dernières)</h3>
             {recent_notes.slice(0, 5).map((note: any) => (
               <div key={note.id} className="p-2 bg-gray-50 rounded-lg">
@@ -256,7 +256,7 @@ export default function OrgComptableDetail() {
         <div className="space-y-2">
           {dossiers.length === 0 && <p className="text-center text-gray-400 py-8">Aucun dossier assigné</p>}
           {dossiers.map((d: any) => (
-            <div key={d.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate(`/cabinet/dossier/${d.id}`)}>
+            <div key={d.id} className="card p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate(`/cabinet/dossier/${d.id}`)}>
                 <ProgressDonut fait={d.task_stats.fait} enCours={d.task_stats.en_cours} bloqueClient={d.task_stats.bloque_client} size={80} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-800">{d.client_name}</p>
@@ -280,7 +280,7 @@ export default function OrgComptableDetail() {
           {recent_tasks.map((task: any) => {
             const Icon = STATUS_ICONS[task.status] || Circle;
             return (
-              <div key={task.id} className="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/cabinet/dossier/${task.dossier_id}`)}>
+              <div key={task.id} className="card p-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/cabinet/dossier/${task.dossier_id}`)}>
                 <Icon size={18} className={STATUS_COLORS[task.status]?.split(' ')[0]} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800">
@@ -307,7 +307,7 @@ export default function OrgComptableDetail() {
         <div className="space-y-2">
           {recent_notes.length === 0 && <p className="text-center text-gray-400 py-8">Aucune note rédigée</p>}
           {recent_notes.map((note: any) => (
-            <div key={note.id} className="bg-white border border-gray-200 rounded-xl p-3">
+            <div key={note.id} className="card p-3">
               <p className="text-sm text-gray-700">{note.content}</p>
               <div className="flex items-center justify-between mt-2">
                 <span className="text-[11px] text-gray-400">{note.client_name} (ex. {note.exercice})</span>
@@ -325,7 +325,7 @@ export default function OrgComptableDetail() {
           <MesHeures userId={id} title={`Heures de ${c.full_name}`} />
           {time_entries.length === 0 && <p className="text-center text-gray-400 py-8">Aucune entrée temps</p>}
           {time_entries.map((te: any) => (
-            <div key={te.id} className="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+            <div key={te.id} className="card p-3 flex items-center gap-3">
               <Timer size={16} className={te.stopped_at ? 'text-gray-400' : 'text-red-500 animate-pulse'} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800">{te.task_label}</p>
@@ -366,7 +366,7 @@ export default function OrgComptableDetail() {
             let details: any;
             try { details = JSON.parse(log.details || '{}'); } catch { details = {}; }
             return (
-              <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-3 flex items-start gap-3">
+              <div key={log.id} className="card p-3 flex items-start gap-3">
                 <div className="text-lg mt-0.5">{(actionLabels[log.action] || log.action).split(' ')[0]}</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-700">{(actionLabels[log.action] || log.action).split(' ').slice(1).join(' ')}</p>

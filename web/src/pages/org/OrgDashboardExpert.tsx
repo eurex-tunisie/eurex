@@ -14,7 +14,7 @@ import { useCardMin } from '../../lib/useCardMin';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
 import ClientsImport from '../../components/ClientsImport';
-import { Users, BarChart3, AlertTriangle, Search, Filter, Plus, X, Pencil, Trash2, Save, ChevronUp, ChevronDown } from 'lucide-react';
+import { Users, BarChart3, AlertTriangle, Search, Filter, Plus, X, Pencil, Trash2, Save, ChevronUp, ChevronDown, Hourglass, Clock, CheckCircle2, Timer, Folder, User, Download } from 'lucide-react';
 
 type Tab = 'comptables' | 'global';
 
@@ -467,9 +467,9 @@ export default function OrgDashboardExpert() {
           disabled={exportingCsv}
           data-testid="export-heures-cabinet"
           title="Exporter toutes les heures du cabinet en CSV (Excel : séparateur « ; »)"
-          className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 hover:text-purple-700 disabled:opacity-50 transition-colors"
+          className="px-3 py-1.5 rounded-lg text-xs font-medium shadow-card text-gray-600 hover:text-purple-700 disabled:opacity-50 transition-colors"
         >
-          {exportingCsv ? '…' : '⬇ Export heures'}
+          {exportingCsv ? '…' : <> <Download size={12} className="inline -mt-0.5" /> Export heures</>}
         </button>
         <ExerciceSelect value={exercice} options={exercices} onChange={setExercice} />
       </div>
@@ -478,31 +478,31 @@ export default function OrgDashboardExpert() {
           une sous-ligne de detail, puis 4 compteurs supplementaires. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Dossiers actifs', value: activeDossiers, icon: '📁', color: 'blue',
+          { label: 'Dossiers actifs', value: activeDossiers, icon: <Folder size={16} />, color: 'blue',
             sub: `${totalDossiers} au total · ${closedDossiers} clôturé${closedDossiers > 1 ? 's' : ''}` },
-          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: '📊', color: 'emerald',
+          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: <BarChart3 size={16} />, color: 'emerald',
             sub: `${sumFait} / ${sumTotal} tâches faites` },
-          { label: 'Bloqué client', value: blockedCount, icon: '🔴', color: 'red',
+          { label: 'Bloqué client', value: blockedCount, icon: <AlertTriangle size={16} />, color: 'red',
             sub: `${sumBloque} tâche${sumBloque > 1 ? 's' : ''} bloquée${sumBloque > 1 ? 's' : ''}` },
-          { label: 'Comptables', value: comptables.length, icon: '👥', color: 'purple',
+          { label: 'Comptables', value: comptables.length, icon: <Users size={16} />, color: 'purple',
             sub: `${onlineComptables} en ligne` },
-          { label: 'Tâches restantes', value: sumTotal - sumFait, icon: '⏳', color: 'gray',
+          { label: 'Tâches restantes', value: sumTotal - sumFait, icon: <Hourglass size={16} />, color: 'gray',
             sub: `${sumEnCours} en cours · ${sumBloque} bloquée${sumBloque > 1 ? 's' : ''}` },
-          { label: 'En retard', value: sumOverdue, icon: '⏰', color: sumOverdue > 0 ? 'red' : 'gray',
+          { label: 'En retard', value: sumOverdue, icon: <Clock size={16} />, color: sumOverdue > 0 ? 'red' : 'gray',
             sub: sumOverdue > 0 ? 'délais dépassés' : 'aucun retard' },
-          { label: 'À vérifier', value: verifyTasks.length, icon: '✅', color: 'amber',
+          { label: 'À vérifier', value: verifyTasks.length, icon: <CheckCircle2 size={16} />, color: 'amber',
             sub: verifyTasks.length > 0 ? 'en attente de validation' : 'rien en attente' },
-          { label: "Pointé aujourd'hui", value: fmtHm(workedTodayAll), icon: '🕒', color: 'indigo',
+          { label: "Pointé aujourd'hui", value: fmtHm(workedTodayAll), icon: <Timer size={16} />, color: 'indigo',
             sub: `${pointingToday} comptable${pointingToday > 1 ? 's' : ''} · ${fmtHm(sumTime)} cumulés` },
         ].map((kpi, i) => {
           const bgMap: Record<string, string> = {
-            blue: 'bg-blue-50 border-blue-200',
-            emerald: 'bg-emerald-50 border-emerald-200',
-            red: 'bg-red-50 border-red-200',
-            purple: 'bg-purple-50 border-purple-200',
-            amber: 'bg-amber-50 border-amber-200',
-            indigo: 'bg-indigo-50 border-indigo-200',
-            gray: 'bg-gray-50 border-gray-200',
+            blue: 'bg-blue-50',
+            emerald: 'bg-emerald-50',
+            red: 'bg-red-50',
+            purple: 'bg-purple-50',
+            amber: 'bg-amber-50',
+            indigo: 'bg-indigo-50',
+            gray: 'bg-white',
           };
           const valMap: Record<string, string> = {
             blue: 'text-blue-700',
@@ -514,13 +514,13 @@ export default function OrgDashboardExpert() {
             gray: 'text-gray-700',
           };
           return (
-            <div key={i} className={`${bgMap[kpi.color] || 'bg-white border-gray-200'} border rounded-xl p-4`}>
+            <div key={i} className={`${bgMap[kpi.color] || 'bg-white'} shadow-card rounded-xl p-4`}>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">{kpi.icon}</span>
-                <span className="text-xs text-gray-500">{kpi.label}</span>
+                <span className={valMap[kpi.color] || 'text-gray-700'}>{kpi.icon}</span>
+                <span className="text-xs" style={{ color: 'var(--label-2)' }}>{kpi.label}</span>
               </div>
-              <p className={`text-2xl font-bold ${valMap[kpi.color] || 'text-gray-800'}`}>{kpi.value}</p>
-              {kpi.sub && <p className="text-[11px] text-gray-500 mt-0.5">{kpi.sub}</p>}
+              <p className={`text-2xl font-bold tracking-tight ${valMap[kpi.color] || 'text-gray-800'}`}>{kpi.value}</p>
+              {kpi.sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--label-3)' }}>{kpi.sub}</p>}
             </div>
           );
         })}
@@ -533,7 +533,8 @@ export default function OrgDashboardExpert() {
       {verifyTasks.length > 0 && (
         <div data-testid="a-verifier">
           <h3 className="text-[13px] font-semibold text-gray-700 flex items-center gap-1.5 mb-1.5">
-            ✅ À vérifier
+            <CheckCircle2 size={15} className="text-amber-500" />
+            À vérifier
             {!verifyMin && (
               <span className="text-gray-400 font-normal">— tâches terminées par les comptables, en attente de votre validation</span>
             )}
@@ -560,7 +561,7 @@ export default function OrgDashboardExpert() {
             {verifyTasks.map(vt => {
               const badge = verifyBadge(vt.verify_left_hours);
               return (
-                <div key={vt.id} data-testid="verify-task-card" className="bg-white border border-amber-200 rounded-lg px-3 py-2 hover:shadow-md hover:border-amber-300 transition-all">
+                <div key={vt.id} data-testid="verify-task-card" className="shadow-card rounded-lg px-3 py-2 card-hover">
                   <div className="flex items-start justify-between gap-2 mb-0.5">
                     <h4 className="font-bold text-[13px] leading-tight text-gray-800 truncate" data-testid="verify-task-label">{vt.label}</h4>
                     <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${badge.cls}`} data-testid="verify-task-delay">{badge.label}</span>
@@ -570,10 +571,10 @@ export default function OrgDashboardExpert() {
                     className="block text-[10px] text-gray-500 truncate hover:text-amber-700"
                     data-testid="verify-task-dossier"
                   >
-                    📁 {vt.client_name} · Exercice {vt.exercice}
+                    <Folder size={10} className="inline -mt-0.5" /> {vt.client_name} · Exercice {vt.exercice}
                   </Link>
-                  <p className="mt-1 text-[10px] text-purple-600 font-medium" data-testid="verify-task-doneby">
-                    👤 Travaillé par {vt.done_by_name || '—'}
+                  <p className="mt-1 text-[10px] text-purple-600 font-medium flex items-center gap-1" data-testid="verify-task-doneby">
+                    <User size={10} /> Travaillé par {vt.done_by_name || '—'}
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-1.5">
                     <button
@@ -678,7 +679,7 @@ export default function OrgDashboardExpert() {
           </button>
           <button
             onClick={() => setShowNewTask(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold btn btn-soft"
             data-testid="btn-new-task-global"
           >
             <Plus size={16} />
@@ -686,7 +687,7 @@ export default function OrgDashboardExpert() {
           </button>
           <button
             onClick={() => setShowNewDossier(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200 transition-all hover:shadow-purple-300 hover:-translate-y-0.5"
+            className="btn btn-accent flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
           >
             <Plus size={16} />
             Nouveau dossier
@@ -701,7 +702,7 @@ export default function OrgDashboardExpert() {
             <div
               key={c.id}
               onClick={() => navigate(`/cabinet/comptable/${c.id}`)}
-              className={`group bg-white border rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-purple-100/50 hover:border-purple-300 hover:-translate-y-1 ${c.is_active ? 'border-gray-200' : 'border-gray-100 opacity-50'}`}
+              className={`group card card-hover rounded-2xl p-6 cursor-pointer ${c.is_active ? '' : 'opacity-50'}`}
             >
               <div className="flex items-start gap-5">
                 <div className="relative">
@@ -862,7 +863,7 @@ export default function OrgDashboardExpert() {
           </div>
 
           {/* Dossier list */}
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="card rounded-2xl overflow-hidden shadow-sm">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">

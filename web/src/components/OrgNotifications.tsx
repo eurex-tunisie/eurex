@@ -90,7 +90,7 @@ export default function OrgNotifications() {
       {open && (
         <div
           data-testid="notif-list"
-          className="absolute right-0 z-50 mt-1 w-80 max-h-96 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden flex flex-col"
+          className="absolute right-0 z-50 mt-1 w-80 max-h-96 card shadow-xl overflow-hidden flex flex-col"
         >
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50">
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Notifications</span>

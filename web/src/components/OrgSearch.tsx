@@ -112,7 +112,7 @@ export default function OrgSearch() {
         {busy && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">…</span>}
       </div>
       {open && (
-        <div className="absolute z-40 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-y-auto max-h-96" data-testid="search-results">
+        <div className="absolute z-40 left-0 right-0 mt-1 card shadow-xl overflow-y-auto max-h-96" data-testid="search-results">
           {total === 0 ? (
             <div className="px-3 py-4 text-sm text-gray-400 text-center">Aucun résultat pour « {q.trim()} »</div>
           ) : (

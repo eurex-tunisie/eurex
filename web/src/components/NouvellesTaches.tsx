@@ -126,7 +126,7 @@ export default function NouvellesTaches({ exercice }: { exercice?: number | null
               key={rt.id}
               to={`/cabinet/dossier/${rt.dossier_id}?task=${rt.id}`}
               data-testid="recent-task-card"
-              className={`bg-white border rounded-lg px-3 py-2 hover:shadow-md transition-all group ${
+              className={`card rounded-lg px-3 py-2 hover:shadow-md transition-all group ${
                 fresh ? 'border-red-300 shadow-sm shadow-red-100' : 'border-indigo-200 hover:border-indigo-300'
               }`}
             >

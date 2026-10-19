@@ -36,7 +36,7 @@ export default function OrgPortailClient() {
         </div>
 
         {loading && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center text-sm text-gray-400">
+          <div className="card rounded-2xl p-8 text-center text-sm text-gray-400">
             Chargement...
           </div>
         )}
@@ -50,7 +50,7 @@ export default function OrgPortailClient() {
         )}
 
         {data && (
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="card rounded-2xl shadow-sm overflow-hidden">
             <div className="bg-purple-600 text-white px-6 py-5">
               <p className="text-xs uppercase tracking-wide opacity-80">Client</p>
               <h2 className="text-xl font-bold">{data.client_name}</h2>
