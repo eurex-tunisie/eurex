@@ -83,7 +83,7 @@ export default function BaudUpload() {
             </select>
           </div>
         </div>
-        <button onClick={loadOrCreateDossier} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Charger le dossier</button>
+        <button onClick={loadOrCreateDossier} className="px-4 py-2 btn btn-blue rounded text-sm hover:bg-blue-700">Charger le dossier</button>
       </div>
 
       {dossier && (

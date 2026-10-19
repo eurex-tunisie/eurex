@@ -20,9 +20,7 @@ export default function ExerciceSelect({ value, options, onChange }: {
         data-testid="dash-exercice"
         value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className={`px-2 py-1.5 border rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer ${
-          isCurrent ? 'bg-white border-gray-200 text-gray-800' : 'bg-amber-50 border-amber-300 text-amber-800'
-        }`}
+        className={`input-sm px-2 py-1.5 text-sm font-bold cursor-pointer ${ isCurrent ? 'bg-white text-gray-800' : 'bg-amber-50 border-amber-300 text-amber-800' }`}
       >
         {years.map(y => (
           <option key={y} value={y} data-testid={`dash-exercice-${y}`}>{y}</option>

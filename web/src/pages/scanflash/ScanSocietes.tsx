@@ -74,7 +74,7 @@ export default function ScanSocietes() {
         <div className="flex gap-3 items-end">
           <input value={newNom} onChange={e => setNewNom(e.target.value)} placeholder="Raison sociale" className="flex-1 input-field text-sm" />
           <input value={newMF} onChange={e => setNewMF(e.target.value)} placeholder="Matricule fiscal" className="!w-48 input-field text-sm" />
-          <button onClick={handleCreate} disabled={creating || !newNom.trim()} className="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 disabled:opacity-50">
+          <button onClick={handleCreate} disabled={creating || !newNom.trim()} className="btn btn-emerald px-4 py-2 rounded text-sm hover:bg-emerald-700 disabled:opacity-50">
             <Plus size={16} className="inline mr-1" /> Ajouter
           </button>
         </div>
@@ -100,7 +100,7 @@ export default function ScanSocietes() {
                   setNewDossierMonth(prev => ({ ...prev, [s.id]: `${m}/${y}` }));
                 }} className="border rounded px-3 py-2 text-sm ml-2" />
               </div>
-              <button onClick={() => handleCreateDossier(s.id)} className="bg-emerald-500 text-white px-3 py-2 rounded text-sm hover:bg-emerald-600">
+              <button onClick={() => handleCreateDossier(s.id)} className="btn btn-emerald px-3 py-2 rounded text-sm hover:bg-emerald-600">
                 <Plus size={14} className="inline mr-1" /> Nouveau dossier
               </button>
             </div>

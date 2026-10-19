@@ -166,7 +166,7 @@ export default function ClientsImport({ comptables, onImported }: { comptables: 
         onClick={() => setOpen(true)}
         data-testid="import-clients"
         title="Importer une liste de clients depuis un fichier CSV"
-        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-purple-300 hover:text-purple-700 transition-all"
+        className="btn btn-outline flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700"
       >
         📄 Importer CSV
       </button>
@@ -205,7 +205,7 @@ export default function ClientsImport({ comptables, onImported }: { comptables: 
               data-testid="import-textarea"
               rows={6}
               placeholder={'name;matricule_fiscal;comptable;export_status\nSARL Alpha;12345678/A/M/000;salim.ezzine@eurextunisie.com;exportatrice'}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-purple-500 outline-none"
+              className="input-field w-full px-3 py-2 text-sm font-mono"
             />
 
             <div className="flex items-center justify-between gap-3">
@@ -251,7 +251,7 @@ export default function ClientsImport({ comptables, onImported }: { comptables: 
                 onClick={runImport}
                 disabled={busy || okRows.length === 0}
                 data-testid="import-confirm"
-                className="w-full px-4 py-2.5 rounded-xl text-sm font-semibold bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                className="w-full px-4 py-2.5 rounded-xl text-sm font-semibold btn btn-accent hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
                 {busy ? 'Import en cours…' : `Importer ${okRows.length} client(s)${createDossier ? ' + dossiers' : ''}`}
               </button>

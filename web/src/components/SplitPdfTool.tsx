@@ -113,7 +113,7 @@ export default function SplitPdfTool({ onClose }: Props) {
                         onChange={e => updateResult(r.page, { supplier: e.target.value })}
                         placeholder="Fournisseur introuvable"
                         title="Cliquer pour corriger le fournisseur"
-                        className="w-full bg-transparent border border-transparent hover:border-gray-200 focus:border-indigo-400 rounded px-1.5 py-0.5 text-sm font-medium text-gray-800 focus:outline-none focus:bg-indigo-50/40"
+                        className="input-field w-full bg-transparent border-transparent hover:border-gray-200 px-1.5 py-0.5 text-sm font-medium text-gray-800"
                       />
                       <div className="flex items-center gap-2 min-w-0">
                         <input
@@ -121,7 +121,7 @@ export default function SplitPdfTool({ onClose }: Props) {
                           value={r.date === '(pas de date)' ? '' : r.date}
                           onChange={e => updateResult(r.page, { date: e.target.value })}
                           title="Cliquer pour corriger la date"
-                          className="bg-transparent border border-transparent hover:border-gray-200 focus:border-indigo-400 rounded px-1.5 py-0.5 text-xs text-gray-500 focus:outline-none focus:bg-indigo-50/40 shrink-0"
+                          className="input-sm bg-transparent border-transparent hover:border-gray-200 px-1.5 py-0.5 text-xs text-gray-500 shrink-0"
                         />
                         <span className="text-[11px] font-mono text-gray-400 truncate" title={r.name}>{r.name}</span>
                       </div>
@@ -142,7 +142,7 @@ export default function SplitPdfTool({ onClose }: Props) {
         {results.length > 0 && (
           <div className="px-6 py-4 border-t flex items-center justify-between">
             <button onClick={() => { setResults([]); setError(''); }} className="text-sm text-gray-500 hover:text-gray-700">Nouveau PDF</button>
-            <button onClick={downloadZip} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2">
+            <button onClick={downloadZip} className="btn btn-indigo hover:bg-indigo-700 text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2">
               <FileArchive size={16} /> Tout telecharger (ZIP)
             </button>
           </div>

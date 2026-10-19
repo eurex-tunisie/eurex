@@ -256,7 +256,7 @@ export default function OrgSettings() {
                   value={newLabel}
                   onChange={e => setNewLabel(e.target.value)}
                   placeholder="Libellé de la tâche"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                  className="input-field text-sm"
                   onKeyDown={e => e.key === 'Enter' && addTemplate()}
                 />
               </div>
@@ -273,7 +273,7 @@ export default function OrgSettings() {
                 data-testid="template-freq-new"
                 value={newFrequency}
                 onChange={e => setNewFrequency(e.target.value as OrgFrequency)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-sm text-sm"
                 title={t('templates.frequency')}
               >
                 <option value="annuelle">{t('templates.freq_annual')}</option>
@@ -284,7 +284,7 @@ export default function OrgSettings() {
                 data-testid="template-month-new"
                 value={newMonth}
                 onChange={e => setNewMonth(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-sm text-sm"
                 title="Mois précis de la tâche (optionnel)"
               >
                 <option value="">Mois : — (selon fréquence)</option>
@@ -296,7 +296,7 @@ export default function OrgSettings() {
                 data-testid="template-client-new"
                 value={newClientId}
                 onChange={e => setNewClientId(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none max-w-[180px]"
+                className="input-field text-sm max-w-[180px]"
                 title="Client cible (optionnel)"
               >
                 <option value="">Client : tous les dossiers</option>
@@ -307,7 +307,7 @@ export default function OrgSettings() {
               <select
                 value={newAssignedComp}
                 onChange={e => setNewAssignedComp(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-sm text-sm"
               >
                 <option value="">Comptable : —</option>
                 {comps.filter(c => c.is_active).map(c => (
@@ -316,7 +316,7 @@ export default function OrgSettings() {
               </select>              <button
                 onClick={addTemplate}
                 disabled={!newLabel.trim()}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5"
+                className="px-4 py-2 rounded-lg text-sm font-medium btn btn-accent hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5"
               >
                 <Plus size={14} /> Ajouter
               </button>
@@ -352,7 +352,7 @@ export default function OrgSettings() {
                 value={tmpl.month || ''}
                 onChange={e => changeMonth(tmpl.id, e.target.value ? Number(e.target.value) : null)}
                 onClick={e => e.stopPropagation()}
-                className="border border-gray-200 rounded-lg px-2 py-1 text-[11px] focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-sm px-2 py-1 text-[11px]"
                 title="Mois précis de la tâche (— = selon fréquence)"
               >
                 <option value="">Mois : auto</option>
@@ -364,13 +364,7 @@ export default function OrgSettings() {
                 value={tmpl.frequency || 'annuelle'}
                 onChange={e => changeFrequency(tmpl.id, e.target.value as OrgFrequency)}
                 onClick={e => e.stopPropagation()}
-                className={`border rounded-lg px-2 py-1 text-[11px] font-medium focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer ${
-                  tmpl.frequency === 'mensuelle'
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : tmpl.frequency === 'trimestrielle'
-                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-gray-200 bg-gray-50 text-gray-600'
-                }`}
+                className={`input-sm px-2 py-1 text-[11px] font-medium cursor-pointer ${ tmpl.frequency === 'mensuelle' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : tmpl.frequency === 'trimestrielle' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-600' }`}
                 title={t('templates.frequency')}
               >
                 <option value="mensuelle">{t('templates.freq_monthly')}</option>
@@ -393,7 +387,7 @@ export default function OrgSettings() {
                 value={tmpl.assigned_comptable_id || ''}
                 onChange={e => assignTemplate(tmpl.id, e.target.value || null)}
                 onClick={e => e.stopPropagation()}
-                className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-purple-500 outline-none max-w-[160px]"
+                className="input-sm px-2 py-1 text-xs max-w-[160px]"
                 title="Comptable assigné par défaut"
               >
                 <option value="">Comptable : —</option>
@@ -431,25 +425,25 @@ export default function OrgSettings() {
                 value={newCompName}
                 onChange={e => setNewCompName(e.target.value)}
                 placeholder="Nom complet"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
               />
               <input
                 type="email"
                 value={newCompEmail}
                 onChange={e => setNewCompEmail(e.target.value)}
                 placeholder="Email"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
               />
               <PwdField
                 value={newCompPassword}
                 onChange={setNewCompPassword}
                 placeholder="Mot de passe (12+ car.)"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
               />
               <select
                 value={newCompRole}
                 onChange={e => setNewCompRole(e.target.value as Role)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
                 title="Rôle du compte"
               >
                 <option value="comptable">Rôle : Comptable</option>
@@ -460,7 +454,7 @@ export default function OrgSettings() {
             <button
               onClick={addComptable}
               disabled={!newCompName.trim() || !newCompEmail.trim() || newCompPassword.length < 12}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5"
+              className="px-4 py-2 rounded-lg text-sm font-medium btn btn-accent hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5"
             >
               <Plus size={14} /> Créer le compte
             </button>
@@ -475,25 +469,25 @@ export default function OrgSettings() {
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                     placeholder="Nom complet"
-                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                    className="input-field py-1.5 text-sm"
                   />
                   <input
                     type="email"
                     value={editEmail}
                     onChange={e => setEditEmail(e.target.value)}
                     placeholder="Email"
-                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                    className="input-field py-1.5 text-sm"
                   />
                   <PwdField
                     value={editPwd}
                     onChange={setEditPwd}
                     placeholder="Nouveau mdp (vide = inchangǸ)"
-                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                    className="input-field py-1.5 text-sm"
                   />
                   <select
                     value={editRole}
                     onChange={e => setEditRole(e.target.value as Role)}
-                    className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                    className="input-field py-1.5 text-sm"
                     title="Rôle du compte"
                   >
                     <option value="comptable">Comptable</option>

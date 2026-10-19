@@ -492,18 +492,18 @@ export default function ScanDossierPage() {
           {/* Upload */}
           <div className="card p-4">
             <div className="flex items-center gap-3">
-              <label className="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 cursor-pointer">
+              <label className="btn btn-emerald px-4 py-2 rounded text-sm hover:bg-emerald-700 cursor-pointer">
                 <Upload size={15} className="inline mr-1" />
                 {uploading ? 'Extraction...' : 'Importer PDF(s)'}
                 <input type="file" accept=".pdf" multiple className="hidden" onChange={e => e.target.files && handleUploadPDF(e.target.files)} />
               </label>
               {localFactures.length > 0 && (
-                <button onClick={handleSaveToDB} className="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700">
+                <button onClick={handleSaveToDB} className="btn btn-accent px-4 py-2 rounded text-sm hover:bg-purple-700">
                   <Database size={15} className="inline mr-1" /> Sauver en base
                 </button>
               )}
               {localFactures.length > 0 && (
-                <button onClick={handleGenerate} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                <button onClick={handleGenerate} className="btn btn-blue px-4 py-2 rounded text-sm hover:bg-blue-700">
                   <Zap size={15} className="inline mr-1" /> Generer VT
                 </button>
               )}
@@ -525,7 +525,7 @@ export default function ScanDossierPage() {
                 if (!newClientCode.trim() || !newClientAccount.trim()) return;
                 saveClientMap({ ...clientMap, [newClientCode.trim()]: newClientAccount.trim() });
                 setNewClientCode(''); setNewClientAccount(''); setNewClientName('');
-              }} className="bg-emerald-500 text-white px-3 py-1.5 rounded text-sm hover:bg-emerald-600">+</button>
+              }} className="btn btn-emerald px-3 py-1.5 rounded text-sm hover:bg-emerald-600">+</button>
             </div>
             {Object.keys(clientMap).length > 0 && (
               <div className="flex flex-wrap gap-1">
@@ -553,7 +553,7 @@ export default function ScanDossierPage() {
               <input placeholder="FODEC" type="number" step="0.001" value={form.fodec} onChange={e => setForm({...form, fodec: e.target.value})} className="input-sm" />
               <input placeholder="Timbre" type="number" step="0.001" value={form.timbre} onChange={e => setForm({...form, timbre: e.target.value})} className="input-sm" />
               <input placeholder="TTC" type="number" step="0.001" value={form.total_ttc} onChange={e => setForm({...form, total_ttc: e.target.value})} className="input-sm" />
-              <button onClick={handleAddFacture} className="bg-emerald-500 text-white rounded px-3 py-1.5 hover:bg-emerald-600">+</button>
+              <button onClick={handleAddFacture} className="btn btn-emerald rounded px-3 py-1.5 hover:bg-emerald-600">+</button>
             </div>
           </div>
 
@@ -600,7 +600,7 @@ export default function ScanDossierPage() {
           {factures.length > 0 && (
             <div className="flex justify-center">
               <button onClick={handleGenerate} disabled={generating}
-                className="bg-emerald-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2">
+                className="btn btn-emerald px-6 py-3 rounded-lg font-semibold disabled:opacity-50 flex items-center gap-2">
                 <Zap size={18} />
                 {generating ? 'Generation...' : `Generer VT (${factures.length} factures)`}
               </button>
@@ -613,10 +613,10 @@ export default function ScanDossierPage() {
       {tab === 'ecritures' && (
         <div className="space-y-4">
           <div className="flex gap-2 flex-wrap">
-            <button onClick={() => handleExportCSV()} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm hover:bg-emerald-700">
+            <button onClick={() => handleExportCSV()} className="btn btn-emerald px-3 py-1.5 rounded text-sm hover:bg-emerald-700">
               <Download size={14} className="inline mr-1" /> Export CSV VT
             </button>
-            <button onClick={handleExportXLSX} className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700">
+            <button onClick={handleExportXLSX} className="btn btn-blue px-3 py-1.5 rounded text-sm hover:bg-blue-700">
               <Download size={14} className="inline mr-1" /> Export XLSX VT
             </button>
             {localEcritures.length > 0 && (
@@ -649,7 +649,7 @@ export default function ScanDossierPage() {
                 if (!date || !compte || montant <= 0) return alert('Remplir tous les champs');
                 setLocalEcritures(prev => [...prev, { id: crypto.randomUUID(), numero_doc: piece, date_operation: date, journal_code: 'VT', compte, libelle, sens, montant }]);
                 (document.getElementById('ecr-montant') as HTMLInputElement).value = '';
-              }} className="bg-emerald-500 text-white rounded px-3 py-1.5 hover:bg-emerald-600">+</button>
+              }} className="btn btn-emerald rounded px-3 py-1.5 hover:bg-emerald-600">+</button>
             </div>
           </div>
 
@@ -700,13 +700,13 @@ export default function ScanDossierPage() {
             <h3 className="font-semibold text-gray-700">Export CSV / Axeane</h3>
             <p className="text-sm text-gray-500">Format: N° piece | Date | Journal | Libelle | Compte | Libelle tresorerie | Debit | Credit</p>
             <div className="flex gap-3 items-center flex-wrap">
-              <button onClick={() => handleExportCSV()} disabled={localEcritures.length === 0} className="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 disabled:opacity-50">
+              <button onClick={() => handleExportCSV()} disabled={localEcritures.length === 0} className="btn btn-emerald px-4 py-2 rounded text-sm hover:bg-emerald-700 disabled:opacity-50">
                 <Download size={15} className="inline mr-1" /> Export CSV
               </button>
-              <button onClick={handleExportXLSX} disabled={localEcritures.length === 0} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={handleExportXLSX} disabled={localEcritures.length === 0} className="btn btn-blue px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
                 <Download size={15} className="inline mr-1" /> Export XLSX
               </button>
-              <button onClick={handleVerify} disabled={localFactures.length === 0} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+              <button onClick={handleVerify} disabled={localFactures.length === 0} className="btn btn-blue px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
                 <ShieldCheck size={15} className="inline mr-1" /> Verifier TVA 19%
               </button>
               {verifyResult && verifyResult.errors > 0 && (

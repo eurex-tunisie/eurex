@@ -64,7 +64,7 @@ export default function OrgAccountButton() {
     <>
       <button
         onClick={openModal}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm bg-white border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all"
+        className="btn btn-outline flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
         title={t('account.title')}
       >
         <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center justify-center">
@@ -88,19 +88,19 @@ export default function OrgAccountButton() {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Nom complet"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
               />
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="Email"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
               />
               <button
                 onClick={saveProfile}
                 disabled={busy}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-medium btn btn-accent hover:bg-purple-700 disabled:opacity-50"
               >
                 {t('account.save')}
               </button>
@@ -117,7 +117,7 @@ export default function OrgAccountButton() {
                 name="current-password"
                 autoComplete="current-password"
                 placeholder={t('account.current_password')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
               />
               <PwdField
                 value={pwd}
@@ -125,7 +125,7 @@ export default function OrgAccountButton() {
                 name="new-password"
                 autoComplete="new-password"
                 placeholder={t('account.new_password_hint')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
               />
               <PwdField
                 value={pwd2}
@@ -133,12 +133,12 @@ export default function OrgAccountButton() {
                 name="confirm-password"
                 autoComplete="new-password"
                 placeholder={t('account.confirm_password')}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field text-sm"
               />
               <button
                 type="submit"
                 disabled={busy}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-medium btn btn-emerald hover:bg-emerald-700 disabled:opacity-50"
               >
                 {t('account.save')}
               </button>

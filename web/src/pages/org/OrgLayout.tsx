@@ -116,19 +116,19 @@ function ChangePasswordScreen() {
   };
 
   return (
-    <div className="flex-1 bg-gray-900 flex items-center justify-center p-4">
+    <div className="flex-1 flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
       <div className="bg-white rounded-2xl shadow-modal animate-rise p-8 w-full max-w-md">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">{t('auth.change_password')}</h2>
+        <h2 className="text-xl font-bold tracking-tight text-gray-900 mb-2">{t('auth.change_password')}</h2>
         <p className="text-sm text-gray-500 mb-6">Vous devez changer votre mot de passe par défaut.</p>
         <form onSubmit={submit}>
           <label className="block text-xs font-semibold text-gray-700 mb-1">Mot de passe actuel</label>
-          <PwdField value={current} onChange={setCurrent} name="current-password" autoComplete="current-password" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm mb-4 focus:ring-2 focus:ring-purple-500 outline-none" />
+          <PwdField value={current} onChange={setCurrent} name="current-password" autoComplete="current-password" className="input-field mb-4 text-sm" />
 
           <label className="block text-xs font-semibold text-gray-700 mb-1">{t('auth.new_password')}</label>
-          <PwdField value={newPwd} onChange={setNewPwd} name="new-password" autoComplete="new-password" placeholder="12 caractères minimum" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm mb-4 focus:ring-2 focus:ring-purple-500 outline-none" />
+          <PwdField value={newPwd} onChange={setNewPwd} name="new-password" autoComplete="new-password" placeholder="12 caractères minimum" className="input-field mb-4 text-sm" />
 
           <label className="block text-xs font-semibold text-gray-700 mb-1">Confirmer</label>
-          <PwdField value={confirm} onChange={setConfirm} name="confirm-password" autoComplete="new-password" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm mb-4 focus:ring-2 focus:ring-purple-500 outline-none" />
+          <PwdField value={confirm} onChange={setConfirm} name="confirm-password" autoComplete="new-password" className="input-field mb-4 text-sm" />
 
           {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 

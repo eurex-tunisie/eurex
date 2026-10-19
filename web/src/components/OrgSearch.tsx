@@ -107,7 +107,7 @@ export default function OrgSearch() {
           placeholder="Rechercher un client, dossier, tâche, document ou note…"
           aria-label="Recherche globale"
           data-testid="search-input"
-          className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-sm focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none"
+          className="input-field w-full pl-9 pr-3 py-2.5 text-sm"
         />
         {busy && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">…</span>}
       </div>

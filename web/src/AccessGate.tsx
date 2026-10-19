@@ -107,12 +107,12 @@ export default function AccessGate({ onAuthorized }: AccessGateProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
       <div className="bg-white rounded-2xl shadow-modal animate-rise p-8 w-full max-w-md">
         <div className="flex items-center gap-3 mb-6">
-          <span className="bg-blue-100 text-blue-700 rounded-lg p-2"><ShieldCheck size={22} /></span>
+          <span className="rounded-xl p-2" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}><ShieldCheck size={22} /></span>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">EUREX</h1>
+            <h1 className="text-xl font-bold tracking-tight text-gray-900">EUREX</h1>
             <p className="text-xs text-gray-500">Espace protégé — saisissez votre code d'accès</p>
           </div>
         </div>
@@ -126,7 +126,7 @@ export default function AccessGate({ onAuthorized }: AccessGateProps) {
             autoComplete="current-password"
             placeholder="••••••••"
             autoFocus
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="input-field mb-4 text-sm"
           />
 
           {TURNSTILE_SITE_KEY && (
@@ -138,7 +138,7 @@ export default function AccessGate({ onAuthorized }: AccessGateProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 text-sm flex items-center justify-center gap-2"
+            className="w-full btn btn-blue hover:bg-blue-700 disabled:opacity-50 font-semibold rounded-lg py-2.5 text-sm flex items-center justify-center gap-2"
           >
             {loading ? <RefreshCw size={15} className="animate-spin" /> : 'Entrer'}
           </button>

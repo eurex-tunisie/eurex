@@ -111,7 +111,7 @@ export default function MesHeures({ userId, title, exercice }: { userId?: string
             disabled={exporting}
             data-testid="heures-export"
             title="Exporter les heures en CSV (séparateur « ; », ouvrable dans Excel)"
-            className="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-500 border border-gray-200 hover:bg-gray-50 hover:text-purple-700 disabled:opacity-50 transition-colors"
+            className="btn btn-outline px-2.5 py-1 rounded-lg text-xs font-medium text-gray-500 disabled:opacity-50"
           >
             {exporting ? '…' : '⬇ CSV'}
           </button>

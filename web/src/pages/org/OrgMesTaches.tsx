@@ -76,7 +76,7 @@ export default function OrgMesTaches() {
           onChange={e => setQ(e.target.value)}
           placeholder="Rechercher tâche ou client…"
           data-testid="mes-taches-search"
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-56 focus:ring-2 focus:ring-purple-500 outline-none"
+          className="input-sm px-3 py-2 text-sm w-56"
         />
       </div>
 
@@ -104,11 +104,11 @@ export default function OrgMesTaches() {
       {loading ? (
         <p className="text-sm text-gray-400">Chargement…</p>
       ) : tasks.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
+        <div className="card p-8 text-center text-sm text-gray-400">
           Aucune tâche pour ce filtre.
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+        <div className="card divide-y divide-gray-100 overflow-hidden">
           {tasks.map(t => {
             const meta = STATUS_META[t.status] || { label: t.status, cls: 'bg-gray-100 text-gray-600' };
             const late = t.days_left !== null && t.days_left < 0 && t.status !== 'fait';

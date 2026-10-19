@@ -279,7 +279,7 @@ export default function OrgAlerts({ dossierId, personType, exportStatus }: Props
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 placeholder="Ex : Déclaration TVA, Avis d'imposition IS…"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                className="input-field w-full px-3 py-2 text-sm"
                 autoFocus
               />
               <div className="grid grid-cols-3 gap-2">
@@ -289,7 +289,7 @@ export default function OrgAlerts({ dossierId, personType, exportStatus }: Props
                     type="date"
                     value={dueDate}
                     onChange={e => setDueDate(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    className="input-field w-full px-3 py-2 text-sm"
                   />
                 </div>
                 <div>
@@ -297,7 +297,7 @@ export default function OrgAlerts({ dossierId, personType, exportStatus }: Props
                   <select
                     value={category}
                     onChange={e => setCategory(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    className="input-field w-full px-3 py-2 text-sm"
                   >
                     <option value="">— {t('alerts.cat_none')}</option>
                     <option value="morale">🏢 {t('alerts.cat_morale')}</option>
@@ -309,7 +309,7 @@ export default function OrgAlerts({ dossierId, personType, exportStatus }: Props
                   <select
                     value={lead}
                     onChange={e => setLead(Number(e.target.value))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                    className="input-field w-full px-3 py-2 text-sm"
                   >
                     {[0, 1, 3, 7, 14, 30].map(n => (
                       <option key={n} value={n}>{n} {t('alerts.days_before')}</option>
@@ -322,7 +322,7 @@ export default function OrgAlerts({ dossierId, personType, exportStatus }: Props
                 <select
                   value={recurrence}
                   onChange={e => setRecurrence(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="input-field w-full px-3 py-2 text-sm"
                 >
                   <option value="once">{t('alerts.once')}</option>
                   <option value="mensuelle">{t('alerts.monthly')}</option>
@@ -355,7 +355,7 @@ export default function OrgAlerts({ dossierId, personType, exportStatus }: Props
                 onChange={e => setNote(e.target.value)}
                 placeholder={t('alerts.note')}
                 rows={2}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none resize-none"
+                className="input-field w-full px-3 py-2 text-sm resize-none"
               />
               {dossierId && (
                 <p className="text-[11px] text-gray-400">📎 {t('alerts.for_dossier')}</p>

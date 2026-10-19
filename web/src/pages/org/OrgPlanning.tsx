@@ -103,9 +103,9 @@ export default function OrgPlanning() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => shift(-1)} data-testid="planning-prev" className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm">◀</button>
-          <button onClick={goToday} data-testid="planning-today" className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm font-medium">Aujourd'hui</button>
-          <button onClick={() => shift(1)} data-testid="planning-next" className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm">▶</button>
+          <button onClick={() => shift(-1)} data-testid="planning-prev" className="btn btn-outline px-3 py-1.5 rounded-lg text-sm">◀</button>
+          <button onClick={goToday} data-testid="planning-today" className="btn btn-outline px-3 py-1.5 rounded-lg text-sm font-medium">Aujourd'hui</button>
+          <button onClick={() => shift(1)} data-testid="planning-next" className="btn btn-outline px-3 py-1.5 rounded-lg text-sm">▶</button>
         </div>
       </div>
 

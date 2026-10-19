@@ -622,7 +622,7 @@ export default function OrgDossierPage() {
       <p className="text-sm text-gray-500 max-w-md mx-auto">
         Ce dossier n'est pas assigné à votre compte. Demandez un renfort à l'expert/manager pour y accéder temporairement.
       </p>
-      <button onClick={() => navigate('/cabinet')} className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
+      <button onClick={() => navigate('/cabinet')} className="mt-4 px-4 py-2 btn btn-accent rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
         Retour au tableau de bord
       </button>
     </div>
@@ -700,7 +700,7 @@ export default function OrgDossierPage() {
                   } catch (err: any) { alert(err.message); }
                 }}
                 title={t('alerts.client_type')}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-0.5 focus:ring-2 focus:ring-amber-500 outline-none bg-white"
+                className="input-sm text-xs px-2 py-0.5"
               >
                 <option value="">— {t('alerts.cat_none')}</option>
                 <option value="morale">🏢 {t('alerts.cat_morale')}</option>
@@ -767,7 +767,7 @@ export default function OrgDossierPage() {
             <select
               value={grantComp}
               onChange={e => setGrantComp(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+              className="input-field px-3 py-2 text-sm"
               title="Comptable bénéficiaire"
             >
               <option value="">Comptable : —</option>
@@ -778,7 +778,7 @@ export default function OrgDossierPage() {
             <select
               value={grantDays}
               onChange={e => setGrantDays(Number(e.target.value))}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+              className="input-field px-3 py-2 text-sm"
               title="Durée du renfort"
             >
               <option value={1}>1 jour</option>
@@ -793,7 +793,7 @@ export default function OrgDossierPage() {
               value={grantReason}
               onChange={e => setGrantReason(e.target.value)}
               placeholder="Motif du renfort"
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+              className="input-field px-3 py-2 text-sm"
               onKeyDown={e => e.key === 'Enter' && openGrant()}
             />
             <button
@@ -856,7 +856,7 @@ export default function OrgDossierPage() {
         {isExpert && dossier.status === 'cloture' && (
           <button
             onClick={() => { setNewDossierComp(dossier?.client_comptable_id || ''); setShowNewDossierModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium btn btn-accent hover:bg-purple-700 transition-all"
           >
             {t('dossier.open_next')}
           </button>
@@ -1316,7 +1316,7 @@ export default function OrgDossierPage() {
                         <button
                           onClick={() => openCollab(task.id)}
                           data-testid="task-collab-add"
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-all"
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium btn btn-indigo hover:bg-indigo-700 transition-all"
                         >
                           + Taguer un comptable
                         </button>
@@ -1351,7 +1351,7 @@ export default function OrgDossierPage() {
                             onClick={() => submitCollab(task.id)}
                             disabled={!collabUser || collabBusy}
                             data-testid="task-collab-confirm"
-                            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            className="px-2.5 py-1 rounded-lg text-xs font-medium btn btn-indigo hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                           >
                             {collabBusy ? '…' : '✓ Taguer'}
                           </button>
@@ -1429,7 +1429,7 @@ export default function OrgDossierPage() {
                         />
                         <button
                           onClick={() => addManualTime(task.id)}
-                          className="ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-700 transition-all"
+                          className="ml-auto px-3 py-1.5 rounded-lg text-xs font-medium btn btn-accent hover:bg-purple-700 transition-all"
                         >
                           ✓ Ajouter
                         </button>
@@ -1496,7 +1496,7 @@ export default function OrgDossierPage() {
                           <select
                             value={task.assigned_comptable_id || ''}
                             onChange={e => assignTask(task.id, e.target.value || null)}
-                            className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:ring-2 focus:ring-purple-500 outline-none max-w-[150px]"
+                            className="input-sm px-2 py-1 text-xs max-w-[150px]"
                           >
                             <option value="">Aucun comptable</option>
                             {comptables.filter(c => c.is_active).map(c => (
@@ -1587,7 +1587,7 @@ export default function OrgDossierPage() {
                               if (e.key === 'Escape') setShowAddDocFor(null);
                             }}
                             placeholder={t('dossier.doc_label')}
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="input-field w-full px-2.5 py-1.5 text-xs"
                           />
                           <div className="flex gap-2">
                             <input
@@ -1598,12 +1598,12 @@ export default function OrgDossierPage() {
                                 if (e.key === 'Escape') setShowAddDocFor(null);
                               }}
                               placeholder={t('dossier.doc_url')}
-                              className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                              className="input-field flex-1 min-w-0 px-2.5 py-1.5 text-xs"
                             />
                             <button
                               onClick={() => addDocument(task.id)}
                               disabled={!newDocLabel.trim()}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-all whitespace-nowrap"
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium btn btn-blue hover:bg-blue-700 disabled:opacity-50 transition-all whitespace-nowrap"
                             >
                               {t('dossier.save')}
                             </button>
@@ -1681,7 +1681,7 @@ export default function OrgDossierPage() {
                     onChange={e => setNewTaskLabel(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && newTaskLabel.trim()) addTask(); if (e.key === 'Escape') { setShowAddTask(false); setNewTaskLabel(''); } }}
                     placeholder="Libellé de la nouvelle tâche..."
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                    className="input-field flex-1 px-3 py-2 text-sm"
                   />
                   <span className="text-[11px] text-gray-500 whitespace-nowrap bg-gray-50 px-2 py-1.5 rounded-lg">
                     {typeof monthFilter === 'number' ? `📅 ${monthLabel(monthFilter)}` : `📆 ${t('dossier.filter_annual')}`}
@@ -1689,7 +1689,7 @@ export default function OrgDossierPage() {
                   <button
                     onClick={addTask}
                     disabled={!newTaskLabel.trim()}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-all"
+                    className="px-4 py-2 rounded-lg text-sm font-medium btn btn-accent hover:bg-purple-700 disabled:opacity-50 transition-all"
                   >
                     Ajouter
                   </button>
@@ -1851,13 +1851,13 @@ export default function OrgDossierPage() {
               onChange={e => setNoteText(e.target.value)}
               placeholder={t('dossier.add_note')}
               rows={2}
-              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+              className="input-field w-full p-2.5 text-sm resize-none"
             />
             <div className="flex justify-end mt-2">
               <button
                 onClick={addNote}
                 disabled={!noteText.trim()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium btn btn-accent hover:bg-purple-700 disabled:opacity-50 transition-all"
               >
                 <Send size={12} />
                 Envoyer
@@ -1904,7 +1904,7 @@ export default function OrgDossierPage() {
                       value={editNoteText}
                       onChange={e => setEditNoteText(e.target.value)}
                       rows={3}
-                      className="w-full border border-gray-200 rounded-lg p-2 text-sm resize-none focus:ring-2 focus:ring-purple-500 outline-none"
+                      className="input-field w-full p-2 text-sm resize-none"
                       data-testid="note-edit-textarea"
                     />
                     <div className="flex justify-end gap-1 mt-1">
@@ -1944,11 +1944,11 @@ export default function OrgDossierPage() {
       {tab === 'audit' && (
         <div>
           {auditLog.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
+            <div className="card p-8 text-center text-sm text-gray-400">
               Aucune entrée d'audit pour ce dossier.
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden" data-testid="audit-list">
+            <div className="card divide-y divide-gray-100 overflow-hidden" data-testid="audit-list">
               {auditLog.map(a => {
                 const summary = auditDetailsSummary(a.details);
                 return (
@@ -1994,7 +1994,7 @@ export default function OrgDossierPage() {
                   value={closeJustification}
                   onChange={e => setCloseJustification(e.target.value)}
                   rows={3}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 text-sm resize-none focus:ring-2 focus:ring-purple-500 outline-none"
+                  className="input-field w-full p-2.5 text-sm resize-none"
                   placeholder="Expliquez la raison de la clôture..."
                 />
               </div>
@@ -2006,7 +2006,7 @@ export default function OrgDossierPage() {
               <button
                 onClick={() => closeDossier(!dossier.can_close)}
                 disabled={!dossier.can_close && !closeJustification.trim()}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-medium btn btn-emerald hover:bg-emerald-700 disabled:opacity-50"
               >
                 Confirmer
               </button>
@@ -2025,7 +2025,7 @@ export default function OrgDossierPage() {
               type="number"
               value={newExercice}
               onChange={e => setNewExercice(parseInt(e.target.value) || new Date().getFullYear())}
-              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+              className="input-field w-full p-2.5 text-sm"
             />
             <label className="block text-xs font-semibold text-gray-700 mb-1 mt-3">
               Comptable <span className="text-red-500">*</span>
@@ -2033,7 +2033,7 @@ export default function OrgDossierPage() {
             <select
               value={newDossierComp}
               onChange={e => setNewDossierComp(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white"
+              className="input-field w-full p-2.5 text-sm"
             >
               <option value="">— Sélectionner un comptable —</option>
               {comptables.filter(c => c.is_active).map(c => (
@@ -2044,7 +2044,7 @@ export default function OrgDossierPage() {
               <button onClick={() => setShowNewDossierModal(false)} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600">
                 Annuler
               </button>
-              <button onClick={openNextExercice} className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700">
+              <button onClick={openNextExercice} className="px-4 py-2 rounded-lg text-sm font-medium btn btn-accent hover:bg-purple-700">
                 Créer
               </button>
             </div>
@@ -2065,7 +2065,7 @@ export default function OrgDossierPage() {
               type="number"
               value={dupYear}
               onChange={e => setDupYear(parseInt(e.target.value) || dossier.exercice + 1)}
-              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+              className="input-field w-full p-2.5 text-sm"
               data-testid="dup-year"
             />
             <div className="flex gap-2 justify-end mt-4">
@@ -2075,7 +2075,7 @@ export default function OrgDossierPage() {
               <button
                 onClick={runDuplicate}
                 disabled={dupBusy || dupYear === dossier.exercice}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-medium btn btn-accent hover:bg-purple-700 disabled:opacity-50"
                 data-testid="dup-submit"
               >
                 {dupBusy ? 'Copie...' : 'Dupliquer'}
@@ -2097,7 +2097,7 @@ export default function OrgDossierPage() {
             <select
               value={transferComp}
               onChange={e => setTransferComp(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white"
+              className="input-field w-full p-2.5 text-sm"
               data-testid="transfer-comp"
             >
               <option value="">— Suivre le comptable du client ({dossier.client_comptable_id ? comptables.find(c => c.id === dossier.client_comptable_id)?.full_name || 'client' : 'aucun'}) —</option>

@@ -195,7 +195,7 @@ Reponds en 3 lignes max: cause de l'ecart (oui/non) et correction si necessaire.
                             {aiLoading === c.pieceRef ? 'Analyse...' : 'Verifier IA'}
                           </button>
                           <button onClick={() => fixTVA(c)} disabled={fixLoading === c.pieceRef || aiLoading === c.pieceRef}
-                            className="px-3 py-1 bg-emerald-600 text-white rounded text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1">
+                            className="px-3 py-1 btn btn-emerald rounded text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1">
                             {fixLoading === c.pieceRef ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Corriger'}
                           </button>
                         </div>
@@ -504,7 +504,7 @@ export default function DossierPage() {
                 <p className="text-xs text-gray-500">Un PDF multi-pages &rarr; une facture par page, nommee fournisseur_date.pdf (OCR)</p>
               </div>
             </div>
-            <button onClick={() => setSplitOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg shrink-0">
+            <button onClick={() => setSplitOpen(true)} className="btn btn-indigo hover:bg-indigo-700 text-sm font-medium px-4 py-2 rounded-lg shrink-0">
               Choisir un PDF
             </button>
           </div>
@@ -534,7 +534,7 @@ export default function DossierPage() {
             <span className="text-sm text-gray-500">{isFISC ? `${ecrituresFiltered.length} ecriture(s)` : `${ecrituresFiltered.length} ecriture(s) | ${factures.length} facture(s) | ${rapport.length} jour(s) rapport`}</span>
           </div>
           <div className="flex gap-2">
-            <button onClick={exportCSV} disabled={!ecrituresFiltered.length} className="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
+            <button onClick={exportCSV} disabled={!ecrituresFiltered.length} className="btn btn-blue px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
             <button onClick={exportXLSX} disabled={!ecrituresFiltered.length} className={`${isFISC ? 'bg-amber-600 hover:bg-amber-700' : isVTJC ? 'bg-violet-600 hover:bg-violet-700' : 'bg-teal-600 hover:bg-teal-700'} text-white px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-50 flex items-center gap-1`}><FileSpreadsheet className="w-3 h-3" /> XLSX</button>
           </div>
         </div>
@@ -564,9 +564,9 @@ export default function DossierPage() {
             {ocrProgress && <p className="text-xs text-amber-700 mb-2">{ocrProgress}</p>}
           </div>
           <div className="flex gap-2 justify-end items-center">
-            <button onClick={exportCSV} disabled={!ecrituresFiltered.length} className="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
+            <button onClick={exportCSV} disabled={!ecrituresFiltered.length} className="btn btn-blue px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
             <button onClick={exportXLSX} disabled={!ecrituresFiltered.length} className="bg-amber-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-amber-700 disabled:opacity-50 flex items-center gap-1"><FileSpreadsheet className="w-3 h-3" /> XLSX</button>
-            <button onClick={verifyAI} disabled={aiLoading} className="bg-purple-600 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1">
+            <button onClick={verifyAI} disabled={aiLoading} className="btn btn-accent px-3 py-2 rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1">
               {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />} {aiLoading ? 'Analyse IA...' : 'Verifier IA'}
             </button>
           </div>
@@ -639,7 +639,7 @@ export default function DossierPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold">Ajouter une facture</h2>
               <input ref={fileRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={e => handleUpload(e.target.files)} />
-              <button onClick={() => fileRef.current?.click()} disabled={uploading} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+              <button onClick={() => fileRef.current?.click()} disabled={uploading} className="btn btn-blue px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
                 <Upload className="w-3 h-3" /> {uploading ? 'Extraction...' : 'Upload PDF(s)'}
               </button>
             </div>
@@ -654,7 +654,7 @@ export default function DossierPage() {
               <div><label className="block text-xs text-gray-500 mb-1">Net TTC</label><input type="number" step="0.001" className="input-field text-sm" value={fTtc} onChange={e => setFTtc(e.target.value)} placeholder="0.000" /></div>
             </div>
             <div className="flex items-center gap-3 mt-3">
-              <button onClick={addFacture} disabled={!fNum || !fDate} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1">
+              <button onClick={addFacture} disabled={!fNum || !fDate} className="btn btn-emerald px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1">
                 <Plus className="w-4 h-4" /> Ajouter
               </button>
               {factures.length > 0 && <button onClick={delAllFactures} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 flex items-center gap-1"><Trash2 className="w-4 h-4" /> Supprimer tout</button>}

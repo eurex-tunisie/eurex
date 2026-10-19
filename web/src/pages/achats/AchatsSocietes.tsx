@@ -240,7 +240,7 @@ export default function AchatsSocietes() {
               <label className="text-xs text-gray-500 block mb-1">Nom du dossier</label>
               <input value={newDossierNom} onChange={e => setNewDossierNom(e.target.value)} placeholder={`${selectedSociete.nom} 10/2026`} className="input-field text-sm" />
             </div>
-            <button onClick={createDossier} className="bg-orange-500 text-white px-3 py-2 rounded text-sm hover:bg-orange-600 flex items-center gap-1">
+            <button onClick={createDossier} className="btn btn-orange px-3 py-2 rounded text-sm hover:bg-orange-600 flex items-center gap-1">
               <Plus size={14} /> Nouveau dossier
             </button>
           </div>

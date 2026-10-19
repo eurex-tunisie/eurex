@@ -57,7 +57,7 @@ export default function BaudSocietes() {
         <h2 className="text-xl font-semibold">Societes</h2>
         <div className="flex items-center gap-2">
           <Link to="/baud/parametres" className="text-gray-400 hover:text-gray-600" title="Paramètres"><Settings size={18} /></Link>
-          <button onClick={() => setShowNew(!showNew)} className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">+ Nouvelle</button>
+          <button onClick={() => setShowNew(!showNew)} className="px-3 py-1.5 btn btn-accent rounded text-sm hover:bg-purple-700">+ Nouvelle</button>
         </div>
       </div>
 
@@ -113,7 +113,7 @@ export default function BaudSocietes() {
             )}
             <div className="flex gap-2 items-end">
               <button onClick={createDossier}
-                className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 flex items-center gap-1">
+                className="px-3 py-1 btn btn-accent rounded text-xs hover:bg-purple-700 flex items-center gap-1">
                 <Plus size={12} />Nouveau dossier
               </button>
             </div>

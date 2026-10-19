@@ -56,7 +56,7 @@ export default function BaudExport() {
         </div>
         {dossierId && (
           <button onClick={generate} disabled={generating}
-            className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50">
+            className="px-4 py-2 btn btn-accent rounded text-sm hover:bg-purple-700 disabled:opacity-50">
             {generating ? 'Generation...' : 'Generer fichiers Sage GA'}
           </button>
         )}

@@ -382,7 +382,7 @@ export default function AchatsDossierPage() {
         <div className="space-y-4">
           <div className="card p-4">
             <div className="flex items-center gap-3 flex-wrap">
-              <label className="bg-orange-600 text-white px-4 py-2 rounded text-sm hover:bg-orange-700 cursor-pointer flex items-center gap-1">
+              <label className="btn btn-orange px-4 py-2 rounded text-sm hover:bg-orange-700 cursor-pointer flex items-center gap-1">
                 <Upload size={15} />
                 {uploading ? 'Extraction...' : 'Importer PDF(s) / Image(s)'}
                 <input type="file" accept=".pdf,.png,.jpg,.jpeg,.tiff,.bmp" multiple className="hidden" onChange={e => e.target.files && handleUploadFiles(e.target.files)} />
@@ -468,7 +468,7 @@ export default function AchatsDossierPage() {
                   {plan && ` — ${getPlanSummary(plan).totalComptes} comptes / ${getPlanSummary(plan).totalFournisseurs} fournisseurs`}
                 </p>
               </div>
-              <label className="bg-orange-600 text-white px-3 py-1.5 rounded text-xs hover:bg-orange-700 cursor-pointer flex items-center gap-1">
+              <label className="btn btn-orange px-3 py-1.5 rounded text-xs hover:bg-orange-700 cursor-pointer flex items-center gap-1">
                 <RefreshCw size={13} /> Remplacer le plan (.xlsx)
                 <input type="file" accept=".xlsx,.xls" className="hidden" onChange={async e => {
                   const f = e.target.files?.[0];
@@ -548,7 +548,7 @@ export default function AchatsDossierPage() {
                 <p className="text-xs text-gray-400">AI analyse chaque facture et génère les écritures (Journal AC)</p>
               </div>
               <button onClick={handleGenerateAll} disabled={generating || factures.length === 0 || !plan}
-                className="ml-auto px-4 py-2 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1">
+                className="ml-auto px-4 py-2 btn btn-orange rounded text-sm hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1">
                 <Zap size={14} />{generating ? 'Génération AI...' : `Générer (${factures.length} factures)`}
               </button>
             </div>
@@ -571,13 +571,13 @@ export default function AchatsDossierPage() {
       {tab === 'ecritures' && (
         <div className="space-y-4">
           <div className="flex gap-2 flex-wrap">
-            <button onClick={addEcriture} className="bg-orange-600 text-white px-3 py-1.5 rounded text-sm hover:bg-orange-700 flex items-center gap-1">
+            <button onClick={addEcriture} className="btn btn-orange px-3 py-1.5 rounded text-sm hover:bg-orange-700 flex items-center gap-1">
               + Ajouter ligne
             </button>
             <button onClick={handleExportCSV} disabled={ecritures.length === 0} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 flex items-center gap-1">
               <Download size={14} /> CSV
             </button>
-            <button onClick={handleExportXLSX} disabled={ecritures.length === 0} className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 flex items-center gap-1">
+            <button onClick={handleExportXLSX} disabled={ecritures.length === 0} className="btn btn-blue px-3 py-1.5 rounded text-sm hover:bg-blue-700 flex items-center gap-1">
               <Download size={14} /> XLSX
             </button>
             <button onClick={() => setEcritures([])} disabled={ecritures.length === 0} className="text-red-400 hover:text-red-600 text-sm border border-red-200 px-3 py-1.5 rounded">
@@ -646,7 +646,7 @@ export default function AchatsDossierPage() {
                 <p className="text-xs text-gray-400">Vérifie balance, TVA, comptes du plan</p>
               </div>
               <button onClick={handleVerifyAI} disabled={verifying || ecritures.length === 0}
-                className="ml-auto px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                className="ml-auto px-4 py-2 btn btn-blue rounded text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
                 <ShieldCheck size={14} />{verifying ? 'Vérification...' : 'Vérifier avec IA'}
               </button>
             </div>
@@ -682,7 +682,7 @@ export default function AchatsDossierPage() {
                 <p className="text-xs text-gray-400">Doublons inter-pièces + cas résiduels (l'intra-pièce et le remappage sont déjà auto)</p>
               </div>
               <button onClick={analyzeCleanup} disabled={ecritures.length === 0 || !plan}
-                className="ml-auto px-4 py-2 bg-orange-600 text-white rounded text-sm hover:bg-orange-700 disabled:opacity-50">
+                className="ml-auto px-4 py-2 btn btn-orange rounded text-sm hover:bg-orange-700 disabled:opacity-50">
                 Analyser
               </button>
             </div>
@@ -743,7 +743,7 @@ export default function AchatsDossierPage() {
               <button onClick={handleExportCSV} disabled={ecritures.length === 0} className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-1">
                 <Download size={15} /> Export CSV
               </button>
-              <button onClick={handleExportXLSX} disabled={ecritures.length === 0} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+              <button onClick={handleExportXLSX} disabled={ecritures.length === 0} className="btn btn-blue px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
                 <Download size={15} /> Export XLSX
               </button>
               <span className="text-sm text-gray-500">{factures.length} factures / {ecritures.length} écritures</span>

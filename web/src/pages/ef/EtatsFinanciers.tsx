@@ -184,7 +184,7 @@ function NumInput({ value, onChange, className = '' }: InputProps) {
   return (
     <input type="number" step="any" value={value || ''}
       onChange={e => onChange(parseFloat(e.target.value) || 0)}
-      className={`w-full text-right font-mono text-xs bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none ${className}`} />
+      className={`input-field w-full text-right font-mono text-xs bg-transparent border-b border-transparent hover:border-gray-300 ${className}`} />
   );
 }
 
@@ -1184,7 +1184,7 @@ export default function EtatsFinanciers() {
         </button>
         <input ref={fileRefN1} type="file" accept=".xls,.xlsx,.csv,.txt" className="hidden" onChange={handleFileImportN1} />
         <button onClick={() => fileRefN1.current?.click()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
+          className="btn btn-blue hover:bg-blue-700 px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
           <FileSpreadsheet size={16} /> Importer Balance N-1
         </button>
         {balanceCount > 0 && (
@@ -1428,7 +1428,7 @@ export default function EtatsFinanciers() {
         <div className="card p-3 flex flex-wrap items-center gap-3">
           <input ref={fileRefImmob} type="file" accept=".xls,.xlsx,.csv,.txt" className="hidden" onChange={handleFileImportImmob} />
           <button onClick={() => fileRefImmob.current?.click()}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
+            className="btn btn-accent hover:bg-purple-700 px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
             <Upload size={14} /> Importer Excel
           </button>
           <button onClick={() => {
@@ -1453,7 +1453,7 @@ export default function EtatsFinanciers() {
               setImmobCount(newImmob.length);
             }
           }} disabled={balanceN.length === 0}
-            className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
+            className="btn btn-emerald hover:bg-emerald-700 disabled:bg-gray-400 px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
             <RefreshCw size={14} />
             Depuis la balance
           </button>
@@ -1479,7 +1479,7 @@ export default function EtatsFinanciers() {
               setAmtLoading(false);
             }
           }} disabled={amtLoading || balanceN.length === 0}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
+            className="btn btn-blue hover:bg-blue-700 disabled:bg-gray-400 px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
             {amtLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
             {amtLoading ? 'IA en cours...' : 'Améliorer avec IA'}
           </button>
@@ -1748,7 +1748,7 @@ export default function EtatsFinanciers() {
             <button
               onClick={handleVerifyAI}
               disabled={aiLoading}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
+              className="btn btn-accent hover:bg-purple-700 disabled:bg-gray-400 px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
             >
               {aiLoading ? (
                 <><span className="animate-spin">⏳</span> Analyse en cours...</>

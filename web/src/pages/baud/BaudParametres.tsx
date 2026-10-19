@@ -72,7 +72,7 @@ export default function BaudParametres() {
             <button onClick={() => setShowPassword(!showPassword)} className="p-2 border rounded hover:bg-gray-50">
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
-            <button onClick={handleAuth} className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">
+            <button onClick={handleAuth} className="px-4 py-2 btn btn-accent rounded text-sm hover:bg-purple-700">
               Accéder
             </button>
           </div>

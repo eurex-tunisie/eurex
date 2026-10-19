@@ -618,7 +618,7 @@ export default function OrgDashboardExpert() {
               rows={3}
               autoFocus
               placeholder="Motif du renvoi (ex : montants à recopier sur le justificatif, pièce manquante…)"
-              className="w-full border border-gray-200 rounded-lg p-2.5 text-sm resize-none focus:ring-2 focus:ring-purple-500 outline-none"
+              className="input-field w-full p-2.5 text-sm resize-none"
               data-testid="return-reason"
             />
             <div className="flex gap-2 justify-end mt-4">
@@ -839,13 +839,13 @@ export default function OrgDashboardExpert() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Rechercher un client..."
-                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                className="input-field w-full pl-9 pr-3 py-2 text-sm"
               />
             </div>
             <select
               value={filterComptable}
               onChange={e => setFilterComptable(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-purple-500 outline-none"
+              className="input-sm px-3 py-2 text-sm"
             >
               <option value="all">Tous les comptables</option>
               {comptables.map(c => (
@@ -1018,7 +1018,7 @@ export default function OrgDashboardExpert() {
                         setNewDossierComp(cl?.assigned_comptable_id || '');
                       }
                     }}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                    className="input-field w-full px-4 py-2.5 text-sm"
                   >
                     <option value="">— Sélectionner un client existant —</option>
                     {allClients.map(c => (
@@ -1082,7 +1082,7 @@ export default function OrgDashboardExpert() {
                     type="number"
                     value={newExercice}
                     onChange={e => setNewExercice(Number(e.target.value))}
-                    className="flex-1 text-center border border-gray-200 rounded-xl px-4 py-2.5 text-lg font-bold text-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                    className="input-field flex-1 text-center px-4 py-2.5 text-lg font-bold text-gray-800"
                   />
                   <button
                     onClick={() => setNewExercice(y => y + 1)}
@@ -1101,7 +1101,7 @@ export default function OrgDashboardExpert() {
                 <select
                   value={newDossierComp}
                   onChange={e => setNewDossierComp(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-white"
+                  className="input-field w-full px-4 py-2.5 text-sm"
                 >
                   <option value="">— Sélectionner un comptable —</option>
                   {comptables.filter(c => c.is_active).map(c => (
@@ -1115,7 +1115,7 @@ export default function OrgDashboardExpert() {
               <button
                 onClick={createDossier}
                 disabled={(!selectedClient && !newClientName.trim()) || !newDossierComp || creating}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-200"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn btn-accent hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {creating ? 'Création...' : 'Créer le dossier'}
               </button>
@@ -1167,7 +1167,7 @@ export default function OrgDashboardExpert() {
               <button
                 onClick={saveEditClient}
                 disabled={ecSaving || !ecName.trim()}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-all"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold btn btn-accent hover:bg-purple-700 disabled:opacity-50 transition-all"
               >
                 <Save size={15} />
                 {ecSaving ? 'Enregistrement...' : 'Enregistrer'}
@@ -1202,7 +1202,7 @@ export default function OrgDashboardExpert() {
               <select
                 value={ntDossier}
                 onChange={e => setNtDossier(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white"
+                className="input-field w-full px-4 py-2.5 text-sm"
                 data-testid="new-task-dossier"
               >
                 <option value="">— Sélectionner un dossier —</option>
@@ -1218,7 +1218,7 @@ export default function OrgDashboardExpert() {
                 value={ntLabel}
                 onChange={e => setNtLabel(e.target.value)}
                 placeholder="Ex : Rapprochement bancaire septembre"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                className="input-field w-full px-3 py-2 text-sm"
                 data-testid="new-task-label"
               />
             </div>
@@ -1228,7 +1228,7 @@ export default function OrgDashboardExpert() {
               <select
                 value={ntMonth === '' ? '' : String(ntMonth)}
                 onChange={e => setNtMonth(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white"
+                className="input-field w-full px-4 py-2.5 text-sm"
               >
                 <option value="">— Annuel (hors mois) —</option>
                 {['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'].map((m, i) => (
@@ -1241,7 +1241,7 @@ export default function OrgDashboardExpert() {
               <button
                 onClick={createGlobalTask}
                 disabled={!ntDossier || !ntLabel.trim() || ntCreating}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-200"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn btn-accent hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 data-testid="new-task-submit"
               >
                 {ntCreating ? 'Création...' : 'Créer la tâche'}
@@ -1275,7 +1275,7 @@ export default function OrgDashboardExpert() {
               <select
                 value={roYear}
                 onChange={e => setRoYear(Number(e.target.value))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                className="input-field w-full px-4 py-2.5 text-sm"
                 data-testid="rollover-year"
               >
                 {[1, 2].map(o => {
@@ -1294,7 +1294,7 @@ export default function OrgDashboardExpert() {
               <button
                 onClick={runRollover}
                 disabled={roBusy}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-all"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn btn-emerald hover:bg-emerald-700 disabled:opacity-50 transition-all"
                 data-testid="rollover-submit"
               >
                 {roBusy ? 'Exécution...' : 'Lancer le rollover'}

@@ -147,6 +147,37 @@ input[inputmode="numeric"],
   .btn-danger:hover {
     filter: brightness(1.08);
   }
+  .btn-emerald {
+    @apply text-white;
+    background: var(--green);
+  }
+  .btn-emerald:hover {
+    filter: brightness(1.06);
+  }
+  .btn-orange {
+    @apply text-white;
+    background: var(--orange);
+  }
+  .btn-orange:hover {
+    filter: brightness(1.06);
+  }
+  .btn-indigo {
+    @apply text-white;
+    background: #5856d6;
+  }
+  .btn-indigo:hover {
+    filter: brightness(1.08);
+  }
+  .btn-outline {
+    @apply text-sm font-medium;
+    background: var(--card);
+    color: var(--label-2);
+    box-shadow: var(--shadow-card);
+  }
+  .btn-outline:hover {
+    color: var(--accent);
+    box-shadow: var(--shadow-card-hover);
+  }
 
   /* Inputs: iOS-style field */
   .input-field {

@@ -534,7 +534,7 @@ export default function BaudDossierPage() {
           {employees.length > 0 ? (
             <>
               <div className="flex gap-2">
-                <button onClick={calculateAll} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-1"><Calculator size={14} />Calculer les salaires</button>
+                <button onClick={calculateAll} className="px-4 py-2 btn btn-blue rounded text-sm hover:bg-blue-700 flex items-center gap-1"><Calculator size={14} />Calculer les salaires</button>
                 <span className="text-xs text-gray-400 self-center">{employees.length} salaries</span>
               </div>
               <div className="card overflow-x-auto">
@@ -618,7 +618,7 @@ export default function BaudDossierPage() {
                 <h3 className="font-medium text-sm">Verification IA</h3>
                 <p className="text-xs text-gray-400">Verifie, detecte et corrige automatiquement les anomalies</p>
               </div>
-              <button onClick={handleVerifyAI} disabled={verifying || employees.length === 0} className="ml-auto px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+              <button onClick={handleVerifyAI} disabled={verifying || employees.length === 0} className="ml-auto px-4 py-2 btn btn-blue rounded text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
                 <ShieldCheck size={14} />{verifying ? 'Verification...' : 'Verifier avec IA'}
               </button>
             </div>
@@ -674,7 +674,7 @@ export default function BaudDossierPage() {
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-blue-700"><Wand2 size={12} className="inline mr-1" />{verifyResult.corrections.length} corrections de calcul</span>
-                    <button onClick={handleApplyCorrections} className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 flex items-center gap-1"><Wand2 size={12} />Appliquer</button>
+                    <button onClick={handleApplyCorrections} className="px-3 py-1 btn btn-blue text-xs rounded hover:bg-blue-700 flex items-center gap-1"><Wand2 size={12} />Appliquer</button>
                   </div>
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     {verifyResult.corrections.map((c: CorrectionAction, i: number) => (
@@ -762,7 +762,7 @@ export default function BaudDossierPage() {
                 <div className="flex-1">
                   <p className="text-xs text-gray-500">Prépare les variables d'entrée — Sage applique ses propres paramètres et barèmes</p>
                 </div>
-                <button onClick={generateSageVariablesExportHandler} disabled={generating || employees.length === 0} className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
+                <button onClick={generateSageVariablesExportHandler} disabled={generating || employees.length === 0} className="px-4 py-2 btn btn-accent rounded text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1">
                   {generating ? 'Generation...' : 'Generer + Exporter'}
                 </button>
               </div>
@@ -808,7 +808,7 @@ export default function BaudDossierPage() {
                 {generating ? 'Generation...' : 'Generer export salaries'}
               </button>
               {sageSalariesResult && sageSalariesResult.lines.length > 0 && (
-                <button onClick={downloadSageSalariesTxt} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-1">
+                <button onClick={downloadSageSalariesTxt} className="px-4 py-2 btn btn-blue rounded text-sm hover:bg-blue-700 flex items-center gap-1">
                   Telecharger .txt
                 </button>
               )}
@@ -909,7 +909,7 @@ export default function BaudDossierPage() {
                 <div className="flex-1">
                   <p className="text-xs text-gray-500">Exporte les rubriques calculées par notre système — contrôle croisé avec Sage</p>
                 </div>
-                <button onClick={generateSageExport} disabled={generating || salaryResults.size === 0} className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={generateSageExport} disabled={generating || salaryResults.size === 0} className="px-4 py-2 btn btn-accent rounded text-sm hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1">
                   {generating ? 'Generation...' : 'Generer + Exporter'}
                 </button>
               </div>

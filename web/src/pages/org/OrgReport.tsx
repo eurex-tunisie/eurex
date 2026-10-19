@@ -104,14 +104,14 @@ export default function OrgReport() {
           aria-label="Mois du rapport"
           value={month}
           onChange={e => setMonth(Number(e.target.value))}
-          className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm font-semibold bg-white outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+          className="input-sm px-2 py-1.5 text-sm font-semibold cursor-pointer"
         >
           {MONTHS_SHORT.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
         </select>
-        <button type="button" data-testid="report-prev" onClick={() => shiftMonth(-1)} title="Mois précédent" className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:border-purple-300 hover:text-purple-700">‹</button>
-        <button type="button" data-testid="report-today" onClick={() => { setExercice(currentExercice()); setMonth(new Date().getMonth() + 1); }} className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:border-purple-300 hover:text-purple-700">Mois courant</button>
-        <button type="button" data-testid="report-next" onClick={() => shiftMonth(1)} title="Mois suivant" className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:border-purple-300 hover:text-purple-700">›</button>
-        <button type="button" data-testid="report-excel" onClick={exportExcel} disabled={!data} className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold">⬇ Excel</button>
+        <button type="button" data-testid="report-prev" onClick={() => shiftMonth(-1)} title="Mois précédent" className="btn btn-outline px-2.5 py-1.5 rounded-lg text-sm font-semibold">‹</button>
+        <button type="button" data-testid="report-today" onClick={() => { setExercice(currentExercice()); setMonth(new Date().getMonth() + 1); }} className="btn btn-outline px-2.5 py-1.5 rounded-lg text-sm font-semibold">Mois courant</button>
+        <button type="button" data-testid="report-next" onClick={() => shiftMonth(1)} title="Mois suivant" className="btn btn-outline px-2.5 py-1.5 rounded-lg text-sm font-semibold">›</button>
+        <button type="button" data-testid="report-excel" onClick={exportExcel} disabled={!data} className="px-3 py-1.5 rounded-lg btn btn-emerald hover:bg-emerald-700 disabled:opacity-50 text-sm font-semibold">⬇ Excel</button>
         <button type="button" data-testid="report-print" onClick={() => window.print()} className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold">🖨 PDF / Imprimer</button>
       </div>
 

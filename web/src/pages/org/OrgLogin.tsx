@@ -24,14 +24,14 @@ export default function OrgLogin() {
   };
 
   return (
-    <div className="flex-1 bg-gray-900 flex items-center justify-center p-4">
+    <div className="flex-1 flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
       <div className="bg-white rounded-2xl shadow-modal animate-rise p-8 w-full max-w-md">
         <div className="flex items-center gap-3 mb-6">
-          <span className="bg-purple-100 text-purple-700 rounded-lg p-2">
+          <span className="rounded-xl p-2" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
             <Building2 size={22} />
           </span>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">EUREX — Cabinet</h1>
+            <h1 className="text-xl font-bold tracking-tight text-gray-900">EUREX — Cabinet</h1>
             <p className="text-xs text-gray-500">{t('auth.login')}</p>
           </div>
         </div>
@@ -46,7 +46,7 @@ export default function OrgLogin() {
             onChange={e => setEmail(e.target.value)}
             placeholder="expert@eurex.tn"
             autoFocus
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="input-field mb-4 text-sm"
           />
 
           <label className="block text-xs font-semibold text-gray-700 mb-1">{t('auth.password')}</label>
@@ -56,7 +56,7 @@ export default function OrgLogin() {
             name="password"
             autoComplete="current-password"
             placeholder="••••••••••••"
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="input-field mb-4 text-sm"
           />
 
           {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
@@ -64,7 +64,7 @@ export default function OrgLogin() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 text-sm flex items-center justify-center gap-2"
+            className="w-full btn btn-accent hover:bg-purple-700 disabled:opacity-50 font-semibold rounded-lg py-2.5 text-sm flex items-center justify-center gap-2"
           >
             {loading ? <RefreshCw size={15} className="animate-spin" /> : <><LogIn size={15} /> {t('auth.login_btn')}</>}
           </button>

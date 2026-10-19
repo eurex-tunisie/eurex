@@ -71,7 +71,7 @@ export default function Timeline({ events }: TimelineProps) {
             {grouped[day].map((event, i) => (
               <div key={i} className="relative pl-4 pb-3">
                 <span className="absolute -left-[14px] top-0.5 text-sm">{event.icon}</span>
-                <div className="bg-white border border-gray-100 rounded-lg p-2.5 shadow-sm">
+                <div className="card rounded-lg p-2.5">
                   <p className="text-sm text-gray-800">{event.label}</p>
                   {event.details?.duration_seconds != null && (
                     <p className="text-xs font-mono font-semibold text-purple-600 mt-0.5">
