@@ -47,7 +47,7 @@ const d1 = sql => execSync(
       try { await j(API + '/api/org/alerts/' + id, { method: 'DELETE', headers: HE }); }
       catch (e) { console.log('!! cleanup alert ' + id + ': ' + e.message); fails++; }
     }
-    try { await j(API + '/api/org/clients/' + clientId, { method: 'DELETE', headers: HE }); console.log('CLEANUP: ' + zz + ' supprimé (cascade) + ' + alertIds.length + ' échéance(s)'); }
+    try { await j(API + '/api/org/clients/' + clientId, { method: 'DELETE', headers: HE }); console.log('CLEANUP: ' + zz + ' supprimÃ© (cascade) + ' + alertIds.length + ' Ã©chÃ©ance(s)'); }
     catch (e) { console.log('!! CLEANUP FAILED: ' + e.message); fails++; }
   };
 
@@ -58,36 +58,36 @@ const d1 = sql => execSync(
     const d = await j(API + '/api/org/clients/' + clientId + '/dossiers', { method: 'POST', headers: HE, body: JSON.stringify({ exercice: 2026 }) });
     dossierId = d.body.id;
 
-    // 1) Tâche en retard (hier) -> notification Salim
+    // 1) TÃ¢che en retard (hier) -> notification Salim
     const tLate = await j(API + '/api/org/dossiers/' + dossierId + '/tasks', { method: 'POST', headers: HS, body: JSON.stringify({ label: lateLabel, due_date: day(-1) }) });
-    // 2) Échéance dossier dans la fenêtre de relance -> notification Salim
+    // 2) Ã‰chÃ©ance dossier dans la fenÃªtre de relance -> notification Salim
     const aD = await j(API + '/api/org/alerts', { method: 'POST', headers: HE, body: JSON.stringify({ title: alertDossier, due_date: day(1), lead_days: 5, dossier_id: dossierId }) });
     alertIds.push(aD.body.id);
-    // 3) Échéance globale -> notification experts uniquement
+    // 3) Ã‰chÃ©ance globale -> notification experts uniquement
     const aG = await j(API + '/api/org/alerts', { method: 'POST', headers: HE, body: JSON.stringify({ title: alertGlobal, due_date: day(2), lead_days: 5 }) });
     alertIds.push(aG.body.id);
-    // 4) Tâche en vérification avec délai dépassé -> notification experts (via SQL)
+    // 4) TÃ¢che en vÃ©rification avec dÃ©lai dÃ©passÃ© -> notification experts (via SQL)
     const tVer = await j(API + '/api/org/dossiers/' + dossierId + '/tasks', { method: 'POST', headers: HS, body: JSON.stringify({ label: verifyLabel, due_date: day(3) }) });
     const tVerId = tVer.body.id;
     await j(API + '/api/org/dossiers/' + dossierId + '/tasks/' + tVerId, { method: 'PATCH', headers: HS, body: JSON.stringify({ status: 'fait' }) });
     d1(`UPDATE org_tasks SET verify_due_at = datetime('now','-1 hours') WHERE id = '${tVerId}'`);
     console.log('SETUP client=' + clientId + ' dossier=' + dossierId + ' late=' + tLate.body.id + ' verify=' + tVerId);
 
-    // --- A. Génération + portée (API) ---
+    // --- A. GÃ©nÃ©ration + portÃ©e (API) ---
     const g1 = await j(API + '/api/org/notifications', { headers: HS });
     const n1 = g1.body.notifications || [];
-    ok(n1.some(n => n.message.includes(lateLabel) && n.message.includes('En retard')), 'A1a: notif tâche en retard pour Salim');
-    ok(n1.some(n => n.message.includes(alertDossier) && n.message.includes('Échéance')), 'A1b: notif échéance dossier pour Salim');
+    ok(n1.some(n => n.message.includes(lateLabel) && n.message.includes('En retard')), 'A1a: notif tÃ¢che en retard pour Salim');
+    ok(n1.some(n => n.message.includes(alertDossier) && n.message.includes('Ã‰chÃ©ance')), 'A1b: notif Ã©chÃ©ance dossier pour Salim');
     ok(g1.body.unread >= 2, 'A1c: Salim a >= 2 non lues (' + g1.body.unread + ')');
 
     const g2 = await j(API + '/api/org/notifications', { headers: HS });
-    ok((g2.body.notifications || []).length === n1.length, 'A2: idempotent (2e appel, même total=' + n1.length + ')');
+    ok((g2.body.notifications || []).length === n1.length, 'A2: idempotent (2e appel, mÃªme total=' + n1.length + ')');
 
     const gE = await j(API + '/api/org/notifications', { headers: HE });
     const nE = gE.body.notifications || [];
-    ok(nE.some(n => n.message.includes(alertGlobal) && n.message.includes('Échéance')), 'A3a: notif échéance globale pour expert');
-    ok(nE.some(n => n.message.includes(verifyLabel) && n.message.includes('Validation dépassée')), 'A3b: notif vérification dépassée pour expert');
-    ok(!nE.some(n => n.message.includes(lateLabel)), 'A3c: expert ne reçoit PAS la tâche en retard de Salim');
+    ok(nE.some(n => n.message.includes(alertGlobal) && n.message.includes('Ã‰chÃ©ance')), 'A3a: notif Ã©chÃ©ance globale pour expert');
+    ok(nE.some(n => n.message.includes(verifyLabel) && n.message.includes('Validation dÃ©passÃ©e')), 'A3b: notif vÃ©rification dÃ©passÃ©e pour expert');
+    ok(!nE.some(n => n.message.includes(lateLabel)), 'A3c: expert ne reÃ§oit PAS la tÃ¢che en retard de Salim');
 
     const lateNotif = n1.find(n => n.message.includes(lateLabel));
     const r1 = await j(API + '/api/org/notifications/read', { method: 'POST', headers: HS, body: JSON.stringify({ id: lateNotif.id }) });
@@ -117,8 +117,8 @@ const d1 = sql => execSync(
       const cnt = await items.count();
       ok(cnt >= 1, 'B2a: liste ouverte avec ' + cnt + ' item(s)');
       const listText = await page.locator('[data-testid="notif-list"]').innerText();
-      ok(listText.includes(lateLabel), 'B2b: item « tâche en retard » présent');
-      ok(!listText.includes(alertGlobal), 'B2c: pas d\'échéance globale pour Salim (portée)');
+      ok(listText.includes(lateLabel), 'B2b: item Â« tÃ¢che en retard Â» prÃ©sent');
+      ok(!listText.includes(alertGlobal), 'B2c: pas d\'Ã©chÃ©ance globale pour Salim (portÃ©e)');
 
       await items.filter({ hasText: lateLabel }).first().click();
       await page.waitForTimeout(1500);
@@ -131,11 +131,11 @@ const d1 = sql => execSync(
       await page.waitForSelector('[data-testid="notif-list"]', { timeout: 10000 });
       const markAll = page.locator('[data-testid="notif-mark-all"]');
       await markAll.waitFor({ timeout: 15000 }).catch(() => {});
-      ok(await markAll.isVisible(), 'B4a: bouton « Tout marquer comme lu » visible');
+      ok(await markAll.isVisible(), 'B4a: bouton Â« Tout marquer comme lu Â» visible');
       await markAll.click();
       await page.waitForFunction(() => !document.querySelector('[data-testid="notif-unread"]'), null, { timeout: 15000 }).catch(() => {});
       const badgeAfter = await page.locator('[data-testid="notif-unread"]').count();
-      ok(badgeAfter === 0, 'B4b: badge disparu après « tout lu »');
+      ok(badgeAfter === 0, 'B4b: badge disparu aprÃ¨s Â« tout lu Â»');
 
       ok(errors.length === 0, 'B5: aucune erreur JS (' + errors.length + ')');
     } catch (e) {
@@ -145,7 +145,7 @@ const d1 = sql => execSync(
     }
 
     const g3 = await j(API + '/api/org/notifications', { headers: HS });
-    ok(g3.body.unread === 0, 'A6: Salim -> 0 non lu après marquage (' + g3.body.unread + ')');
+    ok(g3.body.unread === 0, 'A6: Salim -> 0 non lu aprÃ¨s marquage (' + g3.body.unread + ')');
   } finally {
     await cleanup();
   }

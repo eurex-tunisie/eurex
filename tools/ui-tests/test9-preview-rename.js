@@ -1,13 +1,13 @@
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE || 'https://salimezine.github.io/eurex';
+const BASE = process.env.BASE || 'https://eurex-tunisie.github.io/eurex';
 
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage();
   page.on('pageerror', e => console.log('!! PAGEERROR: ' + e.message));
   page.on('response', async r => {
-    if (r.request().method() === 'PATCH') console.log('   PATCH → ' + r.status());
+    if (r.request().method() === 'PATCH') console.log('   PATCH â†’ ' + r.status());
   });
 
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
@@ -59,7 +59,7 @@ const BASE = process.env.BASE || 'https://salimezine.github.io/eurex';
   await page.waitForTimeout(400);
   let nameAfter = (await row1.locator('span.font-mono').innerText()).trim();
   if (!nameAfter.startsWith('001_MA SOCIETE TEST_')) { console.log('ECHEC fournisseur: ' + nameAfter); process.exit(1); }
-  console.log('5. fournisseur edite → ' + nameAfter);
+  console.log('5. fournisseur edite â†’ ' + nameAfter);
 
   // --- EDITION DATE ---
   const dt = row1.locator('input[type="date"]');
@@ -67,7 +67,7 @@ const BASE = process.env.BASE || 'https://salimezine.github.io/eurex';
   await page.waitForTimeout(400);
   nameAfter = (await row1.locator('span.font-mono').innerText()).trim();
   if (!nameAfter.startsWith('001_MA SOCIETE TEST_2026-12-24')) { console.log('ECHEC date: ' + nameAfter); process.exit(1); }
-  console.log('6. date editee → ' + nameAfter);
+  console.log('6. date editee â†’ ' + nameAfter);
 
   // --- TELECHARGEMENT AVEC LE NOUVEAU NOM ---
   const dlPromise = page.waitForEvent('download', { timeout: 30000 });

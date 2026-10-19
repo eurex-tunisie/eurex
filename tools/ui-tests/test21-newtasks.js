@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
 const SAL = { email: 'salim@eurex.tn', pwd: 'salim1234567' };
-const DOSS = 'doss_001'; // ANIMAL CITY — assigne a Salim (user_comp_001)
+const DOSS = 'doss_001'; // ANIMAL CITY â€” assigne a Salim (user_comp_001)
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
 async function bodyText(p) { return p.evaluate(() => document.body.innerText); }
@@ -44,10 +44,10 @@ async function loginAs(p, email, pwd) {
   // ---- U1 : le comptable ajoute une tache depuis la page dossier ----
   await loginAs(p, SAL.email, SAL.pwd);
   await p.goto(BASE + '/cabinet/dossier/' + DOSS, { waitUntil: 'domcontentloaded' });
-  const u1 = await waitText(p, '+ Ajouter une tâche', true);
+  const u1 = await waitText(p, '+ Ajouter une tÃ¢che', true);
   ok(u1, 'U1: bouton "+ Ajouter une tache" visible (dossier en cours)');
-  await p.locator('button', { hasText: '+ Ajouter une tâche' }).click();
-  await p.locator('input[placeholder="Libellé de la nouvelle tâche..."]').fill(label);
+  await p.locator('button', { hasText: '+ Ajouter une tÃ¢che' }).click();
+  await p.locator('input[placeholder="LibellÃ© de la nouvelle tÃ¢che..."]').fill(label);
   await p.locator('button', { hasText: /^Ajouter$/ }).click();
   const u2 = await waitText(p, label, true);
   ok(u2, 'U2: la tache "' + label + '" apparait dans la checklist');
@@ -61,16 +61,16 @@ async function loginAs(p, email, pwd) {
 
   // ---- U4 : la carte "Nouvelles taches" est dans le dashboard ----
   await p.goto(BASE + '/cabinet', { waitUntil: 'domcontentloaded' });
-  const u4 = await waitText(p, 'Nouvelles tâches', true);
+  const u4 = await waitText(p, 'Nouvelles tÃ¢ches', true);
   ok(u4, 'U4: section "Nouvelles taches" presente dans le dashboard comptable');
   const card = p.locator('[data-testid="recent-task-card"]').filter({ hasText: label });
   ok(await card.count() === 1, 'U5: la nouvelle tache a sa propre carte');
   const cardTxt = await card.first().innerText();
   ok(cardTxt.includes('ANIMAL CITY') && cardTxt.includes('Exercice 2026'), 'U6: la carte precise le dossier (ANIMAL CITY, exercice 2026)');
   const createdTxt = await card.first().locator('[data-testid="recent-task-created"]').innerText();
-  ok(/Ajoutée le \d{2}\/\d{2}\/\d{4} à \d{2}h\d{2}/.test(createdTxt), 'U7: date + heure de creation affichees (' + createdTxt.trim() + ')');
+  ok(/AjoutÃ©e le \d{2}\/\d{2}\/\d{4} Ã  \d{2}h\d{2}/.test(createdTxt), 'U7: date + heure de creation affichees (' + createdTxt.trim() + ')');
   const restTxt = (await card.first().locator('[data-testid="recent-task-rest"]').innerText()).trim();
-  ok(restTxt === 'Sans échéance', 'U8: sans date butoir => "Sans echeance" (' + restTxt + ')');
+  ok(restTxt === 'Sans Ã©chÃ©ance', 'U8: sans date butoir => "Sans echeance" (' + restTxt + ')');
   const href = await card.first().getAttribute('href');
   ok((href || '').includes(DOSS), 'U9: la carte pointe vers le dossier (' + href + ')');
 
@@ -79,7 +79,7 @@ async function loginAs(p, email, pwd) {
   const due = new Date(tn.getTime() + 7 * 86400000).toISOString().slice(0, 10);
   await j(API + '/api/org/dossiers/' + DOSS + '/tasks/' + taskId, { method: 'PATCH', headers: H, body: JSON.stringify({ due_date: due }) });
   await p.goto(BASE + '/cabinet', { waitUntil: 'domcontentloaded' });
-  await waitText(p, 'Nouvelles tâches', true);
+  await waitText(p, 'Nouvelles tÃ¢ches', true);
   const card2 = p.locator('[data-testid="recent-task-card"]').filter({ hasText: label });
   const rest2 = (await card2.first().locator('[data-testid="recent-task-rest"]').innerText()).trim();
   ok(rest2 === 'J-7', 'U10: echeance +7j => badge "J-7" (' + rest2 + ')');

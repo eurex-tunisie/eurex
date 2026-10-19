@@ -14,7 +14,7 @@ async function j(url, opt) {
 }
 async function getRaw(url, headers) {
   const r = await fetch(url, { headers });
-  // arrayBuffer -> utf8 : on garde le BOM (r.text() le décodeur le mange)
+  // arrayBuffer -> utf8 : on garde le BOM (r.text() le dÃ©codeur le mange)
   const body = Buffer.from(await r.arrayBuffer()).toString('utf8');
   return { s: r.status, ct: r.headers.get('content-type') || '', cd: r.headers.get('content-disposition') || '', body };
 }
@@ -28,7 +28,7 @@ async function loginAs(p, email, pwd) {
   await p.click('button[type="submit"]');
   await p.waitForTimeout(1500);
 }
-// lignes « données » du CSV (hors en-tête et hors ligne TOTAL)
+// lignes Â« donnÃ©es Â» du CSV (hors en-tÃªte et hors ligne TOTAL)
 const dataLines = body => body.replace(/^\uFEFF/, '').split('\r\n').filter(l => l && !l.startsWith('"date"') && !l.includes('"TOTAL"'));
 
 (async () => {
@@ -49,7 +49,7 @@ const dataLines = body => body.replace(/^\uFEFF/, '').split('\r\n').filter(l => 
   await j(API + '/api/org/dossiers/' + dossier.id + '/tasks/' + task.id + '/time', { method: 'POST', headers: HS, body: JSON.stringify({ seconds: 5400, note: noteSalim }) });
   await j(API + '/api/org/dossiers/' + dossier.id + '/tasks/' + task.id + '/time', { method: 'POST', headers: HE, body: JSON.stringify({ seconds: 3600, note: noteExpert }) });
   const cleanup = async () => {
-    try { await j(API + '/api/org/clients/' + client.id, { method: 'DELETE', headers: HE }); console.log('CLEANUP: ' + zz + ' supprimé (cascade)'); }
+    try { await j(API + '/api/org/clients/' + client.id, { method: 'DELETE', headers: HE }); console.log('CLEANUP: ' + zz + ' supprimÃ© (cascade)'); }
     catch (e) { console.log('!! CLEANUP FAILED: ' + e.message); fails++; }
   };
   console.log('SETUP client=' + client.id + ' dossier=' + dossier.id + ' task=' + task.id);
@@ -60,21 +60,21 @@ const dataLines = body => body.replace(/^\uFEFF/, '').split('\r\n').filter(l => 
     const a1 = await getRaw(EXP_URL, HE);
     ok(a1.s === 200 && a1.ct.includes('text/csv'), 'A1: 200 + content-type text/csv (' + a1.ct + ')');
     ok(a1.cd.includes('filename="') && a1.cd.includes('.csv"'), 'A1b: Content-Disposition attachment (' + a1.cd + ')');
-    ok(a1.body.charCodeAt(0) === 0xFEFF, 'A1c: BOM UTF-8 présent (Excel FR)');
+    ok(a1.body.charCodeAt(0) === 0xFEFF, 'A1c: BOM UTF-8 prÃ©sent (Excel FR)');
     const header = a1.body.replace(/^\uFEFF/, '').split('\r\n')[0];
-    ok(header.startsWith('"date";"debut";"fin";"duree"'), 'A1d: en-tête CSV (' + header.slice(0, 60) + '...)');
-    ok(a1.body.includes('EXP-NOTE-' + ts) && a1.body.includes('EXP-EXPNOTE-' + ts), 'A1e: les 2 saisies (Salim + expert) sont exportées');
-    ok(a1.body.includes('""quote""'), 'A1f: échappement des guillemets (note avec ")');
-    ok(a1.body.includes('"TOTAL"'), 'A1g: ligne TOTAL présente');
+    ok(header.startsWith('"date";"debut";"fin";"duree"'), 'A1d: en-tÃªte CSV (' + header.slice(0, 60) + '...)');
+    ok(a1.body.includes('EXP-NOTE-' + ts) && a1.body.includes('EXP-EXPNOTE-' + ts), 'A1e: les 2 saisies (Salim + expert) sont exportÃ©es');
+    ok(a1.body.includes('""quote""'), 'A1f: Ã©chappement des guillemets (note avec ")');
+    ok(a1.body.includes('"TOTAL"'), 'A1g: ligne TOTAL prÃ©sente');
     const lines1 = dataLines(a1.body);
     if (lines1.length !== 2) console.log('DEBUG dataLines(' + lines1.length + '):', JSON.stringify(lines1, null, 1).slice(0, 1500));
-    ok(lines1.length === 2, 'A1h: exactement 2 lignes de données (' + lines1.length + ')');
+    ok(lines1.length === 2, 'A1h: exactement 2 lignes de donnÃ©es (' + lines1.length + ')');
 
     const a2 = await getRaw(EXP_URL + '?exercice=2026', HE);
     ok(a2.s === 200 && dataLines(a2.body).length === 2, 'A2: filtre exercice=2026 garde les 2 saisies');
     const a2b = await getRaw(EXP_URL + '?exercice=2025', HE);
     ok(a2b.s === 200 && dataLines(a2b.body).length === 0, 'A2b: exercice=2025 -> 0 ligne (header seuls)');
-    ok(a2b.body.includes('"TOTAL"'), 'A2c: TOTAL toujours présent même sans donnée');
+    ok(a2b.body.includes('"TOTAL"'), 'A2c: TOTAL toujours prÃ©sent mÃªme sans donnÃ©e');
 
     const a3 = await getRaw(EXP_URL + '?dossier_id=' + dossier.id, HE);
     ok(dataLines(a3.body).length === 2, 'A3: dossier_id filtre correctement');
@@ -90,9 +90,9 @@ const dataLines = body => body.replace(/^\uFEFF/, '').split('\r\n').filter(l => 
     ok(dataLines(a4b.body).length === 0, 'A4b: expert filtre sur Samar (0 saisie) -> 0 ligne');
 
     const a5 = await getRaw(EXP_URL, HS);
-    ok(dataLines(a5.body).length === 1 && a5.body.includes('EXP-NOTE-' + ts) && !a5.body.includes('EXP-EXPNOTE-' + ts), 'A5: Salim exporte -> SEULEMENT ses heures (portée)');
+    ok(dataLines(a5.body).length === 1 && a5.body.includes('EXP-NOTE-' + ts) && !a5.body.includes('EXP-EXPNOTE-' + ts), 'A5: Salim exporte -> SEULEMENT ses heures (portÃ©e)');
     const a5b = await getRaw(EXP_URL + '?user_id=' + salimId, HS);
-    ok(dataLines(a5b.body).length === 1 && !a5b.body.includes('EXP-EXPNOTE-' + ts), 'A5b: Salim avec ?user_id=expert -> ignoré, reste ses heures');
+    ok(dataLines(a5b.body).length === 1 && !a5b.body.includes('EXP-EXPNOTE-' + ts), 'A5b: Salim avec ?user_id=expert -> ignorÃ©, reste ses heures');
 
     const a6 = await getRaw(EXP_URL, HM);
     ok(a6.s === 200 && dataLines(a6.body).length === 0, 'A6: Samar (0 saisie) -> 200, 0 ligne');
@@ -115,24 +115,24 @@ const dataLines = body => body.replace(/^\uFEFF/, '').split('\r\n').filter(l => 
       // Expert : export cabinet
       await loginAs(page, EXP.email, EXP.pwd);
       await page.waitForSelector('[data-testid="export-heures-cabinet"]', { timeout: 20000 });
-      ok(await page.locator('[data-testid="export-heures-cabinet"]').isVisible(), 'B1: bouton « Export heures » visible (dashboard expert)');
+      ok(await page.locator('[data-testid="export-heures-cabinet"]').isVisible(), 'B1: bouton Â« Export heures Â» visible (dashboard expert)');
       const [dl1] = await Promise.all([
         page.waitForEvent('download', { timeout: 20000 }),
         page.click('[data-testid="export-heures-cabinet"]'),
       ]);
-      ok(dl1.suggestedFilename().endsWith('.csv') && dl1.suggestedFilename().includes('cabinet'), 'B1b: téléchargement (' + dl1.suggestedFilename() + ')');
+      ok(dl1.suggestedFilename().endsWith('.csv') && dl1.suggestedFilename().includes('cabinet'), 'B1b: tÃ©lÃ©chargement (' + dl1.suggestedFilename() + ')');
       const csv1 = fs.readFileSync(await dl1.path(), 'utf8');
       ok(csv1.includes('EXP-EXPNOTE-' + ts) && csv1.includes('EXP-NOTE-' + ts), 'B1c: contenu CSV = les 2 saisies du cabinet');
 
-      // Comptable : export « mes heures »
+      // Comptable : export Â« mes heures Â»
       await loginAs(page, SAL.email, SAL.pwd);
       await page.waitForSelector('[data-testid="heures-export"]', { timeout: 20000 });
-      ok(await page.locator('[data-testid="heures-export"]').isVisible(), 'B2: bouton ⬇ CSV visible (carte Mes heures, Salim)');
+      ok(await page.locator('[data-testid="heures-export"]').isVisible(), 'B2: bouton â¬‡ CSV visible (carte Mes heures, Salim)');
       const [dl2] = await Promise.all([
         page.waitForEvent('download', { timeout: 20000 }),
         page.click('[data-testid="heures-export"]'),
       ]);
-      ok(dl2.suggestedFilename().endsWith('.csv'), 'B2b: téléchargement (' + dl2.suggestedFilename() + ')');
+      ok(dl2.suggestedFilename().endsWith('.csv'), 'B2b: tÃ©lÃ©chargement (' + dl2.suggestedFilename() + ')');
       const csv2 = fs.readFileSync(await dl2.path(), 'utf8');
       ok(csv2.includes('EXP-NOTE-' + ts) && !csv2.includes('EXP-EXPNOTE-' + ts), 'B2c: CSV de Salim = ses heures uniquement');
 

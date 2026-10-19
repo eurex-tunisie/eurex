@@ -6,9 +6,9 @@ const { chromium } = require('playwright');
   page.on('pageerror', e => console.log('!! PAGEERROR: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') console.log('!! CONSOLE: ' + m.text().slice(0, 200)); });
 
-  await page.goto('https://salimezine.github.io/eurex/', { waitUntil: 'domcontentloaded' });
+  await page.goto('https://eurex-tunisie.github.io/eurex/', { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => sessionStorage.setItem('eurex_authorized', '1'));
-  await page.goto('https://salimezine.github.io/eurex/dossier/dossier_animal', { waitUntil: 'domcontentloaded' });
+  await page.goto('https://eurex-tunisie.github.io/eurex/dossier/dossier_animal', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('button:has-text("Choisir un PDF")', { timeout: 20000 });
   console.log('1. bouton Scinder present');
 

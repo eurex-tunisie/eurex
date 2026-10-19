@@ -5,10 +5,10 @@ let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
 
 // AP 1/2/3 rattaches a juin/septembre/decembre (plus dans "Annuel")
-const EXP_NON = { Tous:74, Annuel:7, Janv:6, 'Févr':5, Mars:5, Avr:6, Mai:5, Juin:6, Juil:6, 'Août':5, Sept:6, Oct:6, Nov:5, Déc:6 };
-const EXP_EXP = { Tous:84, Annuel:9, Janv:8, 'Févr':5, Mars:5, Avr:8, Mai:5, Juin:6, Juil:8, 'Août':5, Sept:6, Oct:8, Nov:5, Déc:6 };
-const KEYS = ['Tous','Annuel','Janv','Févr','Mars','Avr','Mai','Juin','Juil','Août','Sept','Oct','Nov','Déc'];
-const CHIPS_RE = /^(Tous|Annuel|Janv\.?|Févr\.?|Mars|Avr\.?|Mai|Juin|Juil\.?|Août|Sept\.?|Oct\.?|Nov\.?|Déc\.?)\s*(\d+)$/;
+const EXP_NON = { Tous:74, Annuel:7, Janv:6, 'FÃ©vr':5, Mars:5, Avr:6, Mai:5, Juin:6, Juil:6, 'AoÃ»t':5, Sept:6, Oct:6, Nov:5, DÃ©c:6 };
+const EXP_EXP = { Tous:84, Annuel:9, Janv:8, 'FÃ©vr':5, Mars:5, Avr:8, Mai:5, Juin:6, Juil:8, 'AoÃ»t':5, Sept:6, Oct:8, Nov:5, DÃ©c:6 };
+const KEYS = ['Tous','Annuel','Janv','FÃ©vr','Mars','Avr','Mai','Juin','Juil','AoÃ»t','Sept','Oct','Nov','DÃ©c'];
+const CHIPS_RE = /^(Tous|Annuel|Janv\.?|FÃ©vr\.?|Mars|Avr\.?|Mai|Juin|Juil\.?|AoÃ»t|Sept\.?|Oct\.?|Nov\.?|DÃ©c\.?)\s*(\d+)$/;
 
 async function getChips(p) {
   const list = await p.$$eval('button', bs => bs.map(b => (b.innerText || '').replace(/\s+/g, ' ').trim()));
@@ -67,7 +67,7 @@ async function dump(p, name, txt) {
   const DROIT = 'des salaires';
   const EXPORT = '(entreprises totalement exportatrices)';
   const PP = '(personne physique)';
-  const PM = '(PM télé-déclarante)';
+  const PM = '(PM tÃ©lÃ©-dÃ©clarante)';
 
   // ---- Etat A : non_exportatrice ----
   await sel.selectOption('non_exportatrice');

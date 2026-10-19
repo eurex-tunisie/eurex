@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const BASE = 'https://salimezine.github.io/eurex';
+const BASE = 'https://eurex-tunisie.github.io/eurex';
 const DOSSIER = 'doss_003'; // TECH SOLUTIONS SARL
 
 (async () => {

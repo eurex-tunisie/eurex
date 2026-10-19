@@ -2,7 +2,7 @@
 
 Plateforme web tunisienne (SCE 1996) : cabinet comptable + modules Achats, Etats Financiers, Baud et ScanFlash.
 
-**Site : https://salimezine.github.io/eurex/**
+**Site : https://eurex-tunisie.github.io/eurex/**
 
 ## Architecture
 
@@ -42,7 +42,7 @@ cd web && npm install && npm run dev
 
 ## Deploiement
 
-- **Frontend** : push sur `main` → GitHub Actions build (`cd web && npm run build`) → GitHub Pages
+- **Frontend** : push sur `main` â†’ GitHub Actions build (`cd web && npm run build`) â†’ GitHub Pages
 - **API** : `cd api && npx wrangler deploy`
 
-L'accès se fait uniquement par le lien du site ci-dessus.
+L'accÃ¨s se fait uniquement par le lien du site ci-dessus.

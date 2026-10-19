@@ -1,4 +1,4 @@
-﻿const { chromium } = require('playwright');
+const { chromium } = require('playwright');
 const BASE = process.env.BASE;
 (async () => {
   const b = await chromium.launch();

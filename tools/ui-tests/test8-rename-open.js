@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const BASE = process.env.BASE || 'https://salimezine.github.io/eurex';
+const BASE = process.env.BASE || 'https://eurex-tunisie.github.io/eurex';
 const RENAMES = [
   { badge: 'ANIMAL', from: 'ANIMAL', to: 'ANIMAL RENAME TEST', link: '/dossier/dossier_animal' },
   { badge: 'SCANFLASH', from: 'SCANFLASH', to: 'SCAN RENAME TEST', link: '/scanflash/dossier/' },
@@ -23,7 +23,7 @@ const waitText = async (page, badge, expected, timeout = 12000) => {
     if (last.includes(expected)) return last;
     await page.waitForTimeout(300);
   }
-  throw new Error(`texte non obtenu pour ${badge}: attendu "${expected}" → obtenu "${last}"`);
+  throw new Error(`texte non obtenu pour ${badge}: attendu "${expected}" â†’ obtenu "${last}"`);
 };
 
 const rename = async (page, badge, from, to) => {
@@ -44,7 +44,7 @@ const rename = async (page, badge, from, to) => {
   page.on('pageerror', e => console.log('!! PAGEERROR: ' + e.message));
   page.on('dialog', async d => { console.log('!! DIALOG: ' + d.message()); await d.dismiss(); });
   page.on('response', async r => {
-    if (r.request().method() === 'PATCH') console.log('   PATCH → ' + r.status());
+    if (r.request().method() === 'PATCH') console.log('   PATCH â†’ ' + r.status());
   });
 
   const openHome = async () => {
@@ -70,9 +70,9 @@ const rename = async (page, badge, from, to) => {
     const before = await cardText(page, r.badge);
     if (!before.includes(r.from)) { console.log('ECHEC (nom initial ' + r.badge + '): ' + before); process.exit(1); }
     await rename(page, r.badge, r.from, r.to);
-    console.log('   ✓ ' + r.from + ' → ' + r.to);
+    console.log('   âœ“ ' + r.from + ' â†’ ' + r.to);
     await rename(page, r.badge, r.to, r.from);
-    console.log('   ✓ restauration ' + r.from);
+    console.log('   âœ“ restauration ' + r.from);
   }
   console.log('2. renommage + restauration 4/4 OK');
 
@@ -83,8 +83,8 @@ const rename = async (page, badge, from, to) => {
     await page.waitForURL(u => u.href.includes(r.link), { timeout: 20000 });
     await page.waitForTimeout(1200);
     const h = (await page.locator('h1, h2').first().innerText().catch(() => '')).replace(/\n/g, ' ');
-    if (!h) { console.log('ECHEC: page vide après ouverture de ' + r.badge); process.exit(1); }
-    console.log('   ✓ ' + r.badge + ' → ' + page.url().replace(BASE, '') + ' ("' + h.slice(0, 55) + '")');
+    if (!h) { console.log('ECHEC: page vide aprÃ¨s ouverture de ' + r.badge); process.exit(1); }
+    console.log('   âœ“ ' + r.badge + ' â†’ ' + page.url().replace(BASE, '') + ' ("' + h.slice(0, 55) + '")');
     await openHome();
   }
   console.log('3. ouverture des 4 dossiers OK');

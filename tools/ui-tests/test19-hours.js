@@ -62,7 +62,7 @@ async function loginAs(p, email, pwd) {
   await sec.waitFor({ timeout: 20000 }).catch(() => {});
   ok((await sec.count()) === 1, 'H1: section "Mes heures" visible sur le dashboard comptable');
   const tb = await bodyText(p);
-  ok(tb.includes('⏱ Mes heures'), 'H1b: titre "⏱ Mes heures"');
+  ok(tb.includes('â± Mes heures'), 'H1b: titre "â± Mes heures"');
   ok(tb.includes('norme 8h30'), 'H1c: mention de la norme 8h30');
 
   // ---- H2 : ligne du jour (realise / norme) ----
@@ -78,7 +78,7 @@ async function loginAs(p, email, pwd) {
   ok(weekOk, 'H3: total "Semaine (7 jours)"');
   const secTxt = await sec.innerText();
   ok(/\d+h\d\d \/ \d+h\d\d/.test(secTxt), 'H3b: totaux semaine format XhYY / XhYY');
-  ok(/(solde net|au-delà de la norme|à jour)/.test(secTxt), 'H3c: solde net affiche (manque/depassement/a-jour)');
+  ok(/(solde net|au-delÃ  de la norme|Ã  jour)/.test(secTxt), 'H3c: solde net affiche (manque/depassement/a-jour)');
 
   // ---- H4 : barre de progression du jour ----
   const bar = sec.locator('div[style*="width"]');
@@ -91,7 +91,7 @@ async function loginAs(p, email, pwd) {
   const nRows = await rows.count();
   ok(nRows === 7, 'H5b: 7 lignes (7 derniers jours) [' + nRows + ']');
   const ths = await table.locator('thead th').allInnerTexts();
-  ok(ths.join(' ').includes('Jour') && ths.join(' ').includes('Réalisé') && ths.join(' ').includes('Norme') && ths.join(' ').includes('Écart norme'),
+  ok(ths.join(' ').includes('Jour') && ths.join(' ').includes('RÃ©alisÃ©') && ths.join(' ').includes('Norme') && ths.join(' ').includes('Ã‰cart norme'),
     'H5c: entetes Jour/Realise/Norme/Ecart norme');
 
   // ---- H6 : repos sam-dim affiche ----
@@ -119,11 +119,11 @@ async function loginAs(p, email, pwd) {
     const tds = await r.locator('td').allInnerTexts();
     const normTxt = tds[2] || '';
     const missTxt = (tds[3] || '').trim();
-    const okCell = /\d+h\d\d/.test(missTxt) || missTxt.includes('✓ atteint') || missTxt.startsWith('+') || missTxt === '—';
+    const okCell = /\d+h\d\d/.test(missTxt) || missTxt.includes('âœ“ atteint') || missTxt.startsWith('+') || missTxt === 'â€”';
     if (!okCell) cellsOk = false;
-    if (normTxt.includes('Repos') && missTxt !== '—' && !missTxt.startsWith('+')) cellsOk = false;
+    if (normTxt.includes('Repos') && missTxt !== 'â€”' && !missTxt.startsWith('+')) cellsOk = false;
   }
-  ok(cellsOk, 'H8: chaque ligne a "XhYY" | "+XhYY" (depassement) | "atteint" | "—"');
+  ok(cellsOk, 'H8: chaque ligne a "XhYY" | "+XhYY" (depassement) | "atteint" | "â€”"');
 
   // ---- H10 : onglets de periode (Jours / Mois / Annee) ----
   const tabs = sec.locator('button[role="tab"]');
@@ -135,7 +135,7 @@ async function loginAs(p, email, pwd) {
   ok(rowsMonth === todayNum, 'H10b: vue Mois -> ' + rowsMonth + ' lignes (jours 1..' + todayNum + ')');
   ok((await bodyText(p)).includes('Mois (au'), 'H10c: total "Mois (au JJ/MM)" affiche');
 
-  await tabs.filter({ hasText: 'Année' }).click();
+  await tabs.filter({ hasText: 'AnnÃ©e' }).click();
   await p.waitForTimeout(1800);
   const thYear = await table.locator('thead th').allInnerTexts();
   ok(thYear.join(' ').includes('Mois'), 'H10d: entetes vue Annee (colonne "Mois")');
@@ -143,7 +143,7 @@ async function loginAs(p, email, pwd) {
   const monthNum = parseInt(tnDate.slice(5, 7), 10);
   ok(rowsYear === monthNum, 'H10e: vue Annee -> ' + rowsYear + ' mois (janv..' + monthNum + ')');
   const yearTxt = await bodyText(p);
-  ok(yearTxt.includes('Année ' + tnDate.slice(0, 4)), 'H10f: total "Annee ' + tnDate.slice(0, 4) + '" affiche');
+  ok(yearTxt.includes('AnnÃ©e ' + tnDate.slice(0, 4)), 'H10f: total "Annee ' + tnDate.slice(0, 4) + '" affiche');
   ok(yearTxt.includes('en cours'), 'H10g: mois courant marque "en cours"');
 
   await tabs.filter({ hasText: 'Jours' }).click();
@@ -158,7 +158,7 @@ async function loginAs(p, email, pwd) {
   await expSec.waitFor({ timeout: 20000 }).catch(() => {});
   ok((await expSec.count()) === 1, 'H9: expert -> section "Mes heures" presente sur son dashboard');
   const expTxt = await bodyText(p);
-  ok(expTxt.includes('⏱ Mes heures') && /\d+h\d\d \/ (8h30|Repos)/.test(expTxt), 'H9b: heures de l\'expert affichees (XhYY / 8h30)');
+  ok(expTxt.includes('â± Mes heures') && /\d+h\d\d \/ (8h30|Repos)/.test(expTxt), 'H9b: heures de l\'expert affichees (XhYY / 8h30)');
 
   await b.close();
   // teardown : d'abord le client (sinon 409 : client encore assigne), puis le compte de test

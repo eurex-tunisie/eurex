@@ -56,7 +56,7 @@ const CUR_Y = nowTn.getUTCFullYear();
       try { await j(API + '/api/org/clients/' + cid, { method: 'DELETE', headers: HE }); }
       catch (e) { console.log('!! cleanup client ' + cid + ': ' + e.message); fails++; }
     }
-    console.log('CLEANUP: clients restants supprimés + modèles TPL-* supprimés');
+    console.log('CLEANUP: clients restants supprimÃ©s + modÃ¨les TPL-* supprimÃ©s');
   };
 
   try {
@@ -138,7 +138,7 @@ const CUR_Y = nowTn.getUTCFullYear();
       ok(await page.locator('[data-testid="template-freq-new"]').isVisible(), 'B1b: select frequence a l ajout present');
 
       // B2 : ajout d un modele mensuel cabinet-wide
-      await page.fill('input[placeholder="Libellé de la tâche"]', L_UI);
+      await page.fill('input[placeholder="LibellÃ© de la tÃ¢che"]', L_UI);
       await page.selectOption('[data-testid="template-freq-new"]', 'mensuelle');
       await page.click('button:has-text("Ajouter")');
       const rowUi = page.locator('[data-testid="template-row"]').filter({ hasText: L_UI });
@@ -150,7 +150,7 @@ const CUR_Y = nowTn.getUTCFullYear();
       await rowUi.locator('[data-testid="template-apply"]').click();
       for (let i = 0; i < 40 && dlg.length < d0 + 2; i++) await page.waitForTimeout(250);
       ok(dlg.length >= d0 + 1 && dlg[d0].includes('dossiers ouverts'), 'B3a: confirmation demandee (' + dlg[d0] + ')');
-      ok(dlg[d0 + 1] === '24 tâche(s) créée(s) dans 2 dossier(s)', 'B3b: resultat apply = 24 taches / 2 dossiers (' + dlg[d0 + 1] + ')');
+      ok(dlg[d0 + 1] === '24 tÃ¢che(s) crÃ©Ã©e(s) dans 2 dossier(s)', 'B3b: resultat apply = 24 taches / 2 dossiers (' + dlg[d0 + 1] + ')');
       const t1u = await tasksOf(d1);
       ok(countLbl(t1u, L_UI) === 12, 'B3c: API d1 -> 12 x TPL-UI apres apply UI');
 
@@ -162,7 +162,7 @@ const CUR_Y = nowTn.getUTCFullYear();
       ok(gUi && gUi.month === 3, 'B4b: API month=3 (' + (gUi && gUi.month) + ')');
 
       // B5 : ajout avec ciblage client
-      await page.fill('input[placeholder="Libellé de la tâche"]', L_UI2);
+      await page.fill('input[placeholder="LibellÃ© de la tÃ¢che"]', L_UI2);
       await page.selectOption('[data-testid="template-client-new"]', { label: zz1 });
       await page.click('button:has-text("Ajouter")');
       const rowUi2 = page.locator('[data-testid="template-row"]').filter({ hasText: L_UI2 });

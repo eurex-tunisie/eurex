@@ -37,7 +37,7 @@ async function loginAs(p, email, pwd) {
       try { await j(API + '/api/org/clients/' + id, { method: 'DELETE', headers: HE }); }
       catch (e) { console.log('!! CLEANUP FAILED ' + id + ': ' + e.message); fails++; }
     }
-    if (toDelete.length) console.log('CLEANUP: ' + toDelete.length + ' client(s) supprimé(s) (cascade)');
+    if (toDelete.length) console.log('CLEANUP: ' + toDelete.length + ' client(s) supprimÃ©(s) (cascade)');
   };
 
   try {
@@ -50,21 +50,21 @@ async function loginAs(p, email, pwd) {
       create_dossier: true,
     });
     toDelete.push(...a1.created.map(c => c.id));
-    ok(a1.counts.created === 2, 'A1: 2 clients créés (' + JSON.stringify(a1.counts) + ')');
+    ok(a1.counts.created === 2, 'A1: 2 clients crÃ©Ã©s (' + JSON.stringify(a1.counts) + ')');
     ok(a1.counts.dossiers === 1, 'A1b: 1 seul dossier (ligne sans comptable -> warning)');
-    ok(a1.counts.warnings === 1 && a1.warnings[0].name.includes('ZZ-IMP-B'), 'A1c: warning « Aucun comptable affecté »');
+    ok(a1.counts.warnings === 1 && a1.warnings[0].name.includes('ZZ-IMP-B'), 'A1c: warning Â« Aucun comptable affectÃ© Â»');
     const createdA = a1.created.find(c => c.name.includes('IMP-A'));
-    ok(!!createdA && !!createdA.dossier_id, 'A1d: dossier_id renvoyé pour la ligne avec comptable');
+    ok(!!createdA && !!createdA.dossier_id, 'A1d: dossier_id renvoyÃ© pour la ligne avec comptable');
     const ds = await j(API + '/api/org/clients/' + createdA.id + '/dossiers', { headers: HE });
-    ok(ds.length === 1 && Number(ds[0].exercice) === new Date(Date.now() + 3600000).getUTCFullYear(), 'A1e: dossier créé sur l exercice courant (' + (ds[0] && ds[0].exercice) + ')');
-    ok(ds.length === 1 && ds[0].task_stats && ds[0].task_stats.total >= 10, 'A1f: tâches du modèle générées (' + (ds[0] && ds[0].task_stats.total) + ')');
+    ok(ds.length === 1 && Number(ds[0].exercice) === new Date(Date.now() + 3600000).getUTCFullYear(), 'A1e: dossier crÃ©Ã© sur l exercice courant (' + (ds[0] && ds[0].exercice) + ')');
+    ok(ds.length === 1 && ds[0].task_stats && ds[0].task_stats.total >= 10, 'A1f: tÃ¢ches du modÃ¨le gÃ©nÃ©rÃ©es (' + (ds[0] && ds[0].task_stats.total) + ')');
 
     const a2 = await importClients({ clients: [
       { name: 'ZZ-IMP-A-' + ts },
       { name: 'ZZ-IMP-B-' + ts },
     ], create_dossier: false });
-    ok(a2.counts.created === 0 && a2.counts.skipped === 2, 'A2: ré-import des mêmes noms -> 2 ignorés (doublons)');
-    ok(a2.skipped.every(s => s.reason === 'Client déjà existant'), 'A2b: motif « Client déjà existant »');
+    ok(a2.counts.created === 0 && a2.counts.skipped === 2, 'A2: rÃ©-import des mÃªmes noms -> 2 ignorÃ©s (doublons)');
+    ok(a2.skipped.every(s => s.reason === 'Client dÃ©jÃ  existant'), 'A2b: motif Â« Client dÃ©jÃ  existant Â»');
 
     const a3 = await importClients({ clients: [
       { name: '' },
@@ -73,7 +73,7 @@ async function loginAs(p, email, pwd) {
       { name: 'ZZ-IMP-E-' + ts, contact_email: 'pas-un-email' },
     ] });
     ok(a3.counts.created === 0 && a3.counts.errors === 4, 'A3: 4 lignes invalides -> 4 erreurs (' + JSON.stringify(a3.counts) + ')');
-    ok(a3.errors.map(e => e.error).join('|').includes('Comptable introuvable'), 'A3b: erreur « Comptable introuvable »');
+    ok(a3.errors.map(e => e.error).join('|').includes('Comptable introuvable'), 'A3b: erreur Â« Comptable introuvable Â»');
 
     const a4 = await importClients({ clients: [{ name: 'ZZ-IMP-F-' + ts, assigned_comptable_id: salimId }], create_dossier: false });
     toDelete.push(...a4.created.map(c => c.id));
@@ -81,10 +81,10 @@ async function loginAs(p, email, pwd) {
     ok(a4.counts.created === 1 && a4.counts.dossiers === 0 && ds4.length === 0, 'A4: create_dossier=false -> client sans dossier');
 
     const a5 = await j(API + '/api/org/clients/import', { method: 'POST', headers: HS, body: JSON.stringify({ clients: [{ name: 'ZZ-IMP-G' }] }), allowFail: true });
-    ok(a5 && a5.error, 'A5: comptable (Salim) -> 403 refusé (' + a5.error + ')');
+    ok(a5 && a5.error, 'A5: comptable (Salim) -> 403 refusÃ© (' + a5.error + ')');
 
     const a6 = await j(API + '/api/org/clients/import', { method: 'POST', headers: HE, body: JSON.stringify({ clients: [] }), allowFail: true });
-    ok(a6 && a6.error === 'Aucune ligne à importer', 'A6: liste vide -> 400');
+    ok(a6 && a6.error === 'Aucune ligne Ã  importer', 'A6: liste vide -> 400');
 
     const a7 = await j(API + '/api/org/clients/import', { method: 'POST', headers: HE, body: JSON.stringify({ clients: Array.from({ length: 501 }, (_, i) => ({ name: 'X' + i })) }), allowFail: true });
     ok(a7 && a7.error && a7.error.includes('500'), 'A7: 501 lignes -> 400 (limite)');
@@ -100,7 +100,7 @@ async function loginAs(p, email, pwd) {
     try {
       await loginAs(page, EXP.email, EXP.pwd);
       await page.waitForSelector('[data-testid="import-clients"]', { timeout: 20000 });
-      ok(await page.locator('[data-testid="import-clients"]').isVisible(), 'B1: bouton « Importer CSV » visible');
+      ok(await page.locator('[data-testid="import-clients"]').isVisible(), 'B1: bouton Â« Importer CSV Â» visible');
       await page.click('[data-testid="import-clients"]');
       await page.waitForSelector('[data-testid="import-modal"]', { timeout: 8000 });
       ok(true, 'B1b: modale d\'import ouverte');
@@ -110,24 +110,24 @@ async function loginAs(p, email, pwd) {
       await page.click('[data-testid="import-analyze"]');
       await page.waitForSelector('[data-testid="import-preview-row"]', { timeout: 8000 });
       const nRows = await page.locator('[data-testid="import-preview-row"]').count();
-      ok(nRows === 2, 'B2: aperçu = 2 lignes (' + nRows + ')');
+      ok(nRows === 2, 'B2: aperÃ§u = 2 lignes (' + nRows + ')');
       const prevText = (await page.locator('[data-testid="import-preview-row"]').allTextContents()).join('|');
-      ok(prevText.includes(uiA) && prevText.includes(uiB) && prevText.includes('Salim'), 'B2b: aperçu nom + comptable résolu (' + prevText.slice(0, 120) + ')');
+      ok(prevText.includes(uiA) && prevText.includes(uiB) && prevText.includes('Salim'), 'B2b: aperÃ§u nom + comptable rÃ©solu (' + prevText.slice(0, 120) + ')');
 
       await page.click('[data-testid="import-confirm"]');
       await page.waitForSelector('[data-testid="import-result"]', { timeout: 20000 });
       const resText = await page.locator('[data-testid="import-result"]').innerText();
-      ok(resText.includes('2 client(s) créé(s)') && resText.includes('1 dossier'), 'B3: résultat ' + resText.split('\n')[0]);
+      ok(resText.includes('2 client(s) crÃ©Ã©(s)') && resText.includes('1 dossier'), 'B3: rÃ©sultat ' + resText.split('\n')[0]);
 
       const list = await j(API + '/api/org/clients', { headers: HE });
       for (const nm of [uiA, uiB]) {
         const c = list.find(x => x.name === nm);
         if (c) toDelete.push(c.id);
-        ok(!!c, 'B4: « ' + nm + ' » créé et listé dans l API');
+        ok(!!c, 'B4: Â« ' + nm + ' Â» crÃ©Ã© et listÃ© dans l API');
       }
       const uiClient = list.find(x => x.name === uiA);
       const dsUi = await j(API + '/api/org/clients/' + uiClient.id + '/dossiers', { headers: HE });
-      ok(dsUi.length === 1, 'B4b: dossier créé depuis l UI');
+      ok(dsUi.length === 1, 'B4b: dossier crÃ©Ã© depuis l UI');
 
       await page.click('[data-testid="import-close"]');
       await page.waitForTimeout(800);

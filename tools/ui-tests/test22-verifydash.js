@@ -39,83 +39,83 @@ async function loginAs(p, email, pwd) {
   const client = await j(API + '/api/org/clients', { method: 'POST', headers: HE, body: JSON.stringify({ name: zz, assigned_comptable_id: 'user_comp_001' }) });
   const dossier = await j(API + `/api/org/clients/${client.id}/dossiers`, { method: 'POST', headers: HE, body: JSON.stringify({ exercice: 2026 }) });
   const cleanup = async () => {
-    try { await j(API + '/api/org/clients/' + client.id, { method: 'DELETE', headers: HE }); console.log('CLEANUP: client ' + zz + ' supprimé (cascade)'); }
+    try { await j(API + '/api/org/clients/' + client.id, { method: 'DELETE', headers: HE }); console.log('CLEANUP: client ' + zz + ' supprimÃ© (cascade)'); }
     catch (e) { console.log('!! CLEANUP FAILED: ' + e.message); fails++; }
   };
   console.log('SETUP client=' + client.id + ' dossier=' + dossier.id + ' ' + zz);
 
-  // Tâche ajoutée MANUELLEMENT (created_by renseigné) : seule catégorie admise
-  // dans "🆕 Nouvelles tâches" — la checklist générée à l'ouverture en est exclue.
+  // TÃ¢che ajoutÃ©e MANUELLEMENT (created_by renseignÃ©) : seule catÃ©gorie admise
+  // dans "ðŸ†• Nouvelles tÃ¢ches" â€” la checklist gÃ©nÃ©rÃ©e Ã  l'ouverture en est exclue.
   const recentTask = await j(API + '/api/org/dossiers/' + dossier.id + '/tasks', { method: 'POST', headers: HC, body: JSON.stringify({ label: 'ZZ-RECENT-' + Date.now().toString().slice(-6) }) });
   console.log('recent_task=' + recentTask.id);
 
   let b;
   try {
     const g0 = await j(API + '/api/org/dossiers/' + dossier.id, { headers: HC });
-    // Tâche du MOIS COURANT : le checklist est filtré sur le mois en cours par défaut
+    // TÃ¢che du MOIS COURANT : le checklist est filtrÃ© sur le mois en cours par dÃ©faut
     const curMonth = new Date().getMonth() + 1;
     const task = g0.tasks.find(x => x.month === curMonth) || g0.tasks.find(x => x.month === null) || g0.tasks[0];
     console.log('task=' + task.id + ' month=' + task.month);
 
-    // Salim (comptable) travaille et termine la tâche -> a_verifier
+    // Salim (comptable) travaille et termine la tÃ¢che -> a_verifier
     await j(API + '/api/org/dossiers/' + dossier.id + '/tasks/' + task.id, { method: 'PATCH', headers: HC, body: JSON.stringify({ status: 'fait' }) });
     const g1 = await j(API + '/api/org/dossiers/' + dossier.id, { headers: HE });
     const t1 = g1.tasks.find(x => x.id === task.id);
-    ok(t1.status === 'a_verifier', 'setup: tâche en a_verifier après "fait" du comptable');
-    ok(!!t1.done_by_name, 'setup: done_by_name renseigné (' + t1.done_by_name + ')');
+    ok(t1.status === 'a_verifier', 'setup: tÃ¢che en a_verifier aprÃ¨s "fait" du comptable');
+    ok(!!t1.done_by_name, 'setup: done_by_name renseignÃ© (' + t1.done_by_name + ')');
 
     b = await chromium.launch();
     const p = await b.newPage();
     p.on('pageerror', e => console.log('!! PAGEERROR: ' + e.message));
     p.on('dialog', async dg => { console.log('!! DIALOG[' + dg.type() + ']: ' + dg.message()); await dg.accept(); });
 
-    // ---- U1-U4 : page dossier expert — tags ----
+    // ---- U1-U4 : page dossier expert â€” tags ----
     await loginAs(p, EXP.email, EXP.pwd);
     await p.goto(BASE + '/cabinet/dossier/' + dossier.id, { waitUntil: 'domcontentloaded' });
     await p.locator('button', { hasText: /^Tous/ }).first().click({ timeout: 10000 }).catch(() => {});
-    ok(await waitText(p, task.label, true), 'U1: tâche visible dans le dossier');
-    ok(await waitText(p, 'À vérifier', true), 'U2: tag "⏳ À vérifier" présent (fait mais non vérifié)');
+    ok(await waitText(p, task.label, true), 'U1: tÃ¢che visible dans le dossier');
+    ok(await waitText(p, 'Ã€ vÃ©rifier', true), 'U2: tag "â³ Ã€ vÃ©rifier" prÃ©sent (fait mais non vÃ©rifiÃ©)');
     ok(await p.locator('[data-testid="tag-a-verifier"]').count() >= 1, 'U2b: balise data-testid tag-a-verifier');
     const doneByTxt = await p.locator('[data-testid="tag-done-by"]').first().innerText();
-    ok(doneByTxt.includes(t1.done_by_name), 'U3: tag "Travaillé par ' + t1.done_by_name + '" (' + doneByTxt.replace(/\s+/g, ' ').trim() + ')');
-    ok(await p.locator('[data-testid="tag-verified-by"]').count() === 0, 'U4: pas encore de tag "Vérifié par"');
+    ok(doneByTxt.includes(t1.done_by_name), 'U3: tag "TravaillÃ© par ' + t1.done_by_name + '" (' + doneByTxt.replace(/\s+/g, ' ').trim() + ')');
+    ok(await p.locator('[data-testid="tag-verified-by"]').count() === 0, 'U4: pas encore de tag "VÃ©rifiÃ© par"');
 
-    // ---- U5-U9 : dashboard expert — carte "✅ À vérifier" ----
+    // ---- U5-U9 : dashboard expert â€” carte "âœ… Ã€ vÃ©rifier" ----
     await p.goto(BASE + '/cabinet', { waitUntil: 'domcontentloaded' });
-    ok(await waitText(p, 'À vérifier', true), 'U5: section "✅ À vérifier" présente dans le dashboard expert');
+    ok(await waitText(p, 'Ã€ vÃ©rifier', true), 'U5: section "âœ… Ã€ vÃ©rifier" prÃ©sente dans le dashboard expert');
     // on filtre sur le label ET le nom du client (homonymes possibles)
     const card = p.locator('[data-testid="verify-task-card"]').filter({ hasText: task.label }).filter({ hasText: zz });
-    ok(await card.count() === 1, 'U6: la tâche a sa carte de vérification (' + await card.count() + ')');
+    ok(await card.count() === 1, 'U6: la tÃ¢che a sa carte de vÃ©rification (' + await card.count() + ')');
     const cTxt = await card.first().innerText();
-    ok(cTxt.includes(zz) && cTxt.includes('Exercice 2026'), 'U7: la carte précise le dossier (' + zz + ', exercice 2026)');
-    ok(cTxt.includes(t1.done_by_name), 'U8: la carte indique qui a travaillé (' + t1.done_by_name + ')');
+    ok(cTxt.includes(zz) && cTxt.includes('Exercice 2026'), 'U7: la carte prÃ©cise le dossier (' + zz + ', exercice 2026)');
+    ok(cTxt.includes(t1.done_by_name), 'U8: la carte indique qui a travaillÃ© (' + t1.done_by_name + ')');
     const delayTxt = await card.first().locator('[data-testid="verify-task-delay"]').innerText();
-    ok(/(h restantes|min restantes|Sans délai)/.test(delayTxt), 'U9: délai de validation affiché (' + delayTxt + ')');
+    ok(/(h restantes|min restantes|Sans dÃ©lai)/.test(delayTxt), 'U9: dÃ©lai de validation affichÃ© (' + delayTxt + ')');
 
-    // ---- U18-U19 : carte "🆕 Nouvelles tâches" aussi sur le dashboard expert ----
-    // (le feed arrive en parallèle : on attend la section avant de compter)
+    // ---- U18-U19 : carte "ðŸ†• Nouvelles tÃ¢ches" aussi sur le dashboard expert ----
+    // (le feed arrive en parallÃ¨le : on attend la section avant de compter)
     const ntSection = p.locator('[data-testid="nouvelles-taches"]').first();
-    ok(await ntSection.waitFor({ timeout: 20000 }).then(() => true).catch(() => false), 'U18: carte "🆕 Nouvelles tâches" présente sur le dashboard expert');
-    ok(await p.locator('[data-testid="recent-task-card"]').count() >= 1, 'U19: au moins une tâche récente listée (' + await p.locator('[data-testid="recent-task-card"]').count() + ')');
+    ok(await ntSection.waitFor({ timeout: 20000 }).then(() => true).catch(() => false), 'U18: carte "ðŸ†• Nouvelles tÃ¢ches" prÃ©sente sur le dashboard expert');
+    ok(await p.locator('[data-testid="recent-task-card"]').count() >= 1, 'U19: au moins une tÃ¢che rÃ©cente listÃ©e (' + await p.locator('[data-testid="recent-task-card"]').count() + ')');
     const rc = p.locator('[data-testid="recent-task-card"]').first();
-    ok(/\d{2}\/\d{4} à \d{2}h\d{2}/.test(await rc.locator('[data-testid="recent-task-created"]').innerText()), 'U20: date/heure de création formatée (DD/MM/YYYY à HHhMM)');
-    ok((await rc.locator('[data-testid="recent-task-rest"]').innerText()).length > 0, 'U21: badge "temps restant" affiché');
+    ok(/\d{2}\/\d{4} Ã  \d{2}h\d{2}/.test(await rc.locator('[data-testid="recent-task-created"]').innerText()), 'U20: date/heure de crÃ©ation formatÃ©e (DD/MM/YYYY Ã  HHhMM)');
+    ok((await rc.locator('[data-testid="recent-task-rest"]').innerText()).length > 0, 'U21: badge "temps restant" affichÃ©');
 
     // ---- U10 : validation en un clic depuis la carte ----
     await card.first().locator('[data-testid="verify-task-btn"]').click();
     await p.waitForTimeout(2500);
-    ok(await card.count() === 0, 'U10: la carte disparaît après validation');
+    ok(await card.count() === 0, 'U10: la carte disparaÃ®t aprÃ¨s validation');
 
-    // ---- U11-U13 : la tâche est maintenant "✅ Vérifié par" ----
+    // ---- U11-U13 : la tÃ¢che est maintenant "âœ… VÃ©rifiÃ© par" ----
     await p.goto(BASE + '/cabinet/dossier/' + dossier.id, { waitUntil: 'domcontentloaded' });
     await waitText(p, task.label, true);
-    ok(await p.locator('[data-testid="tag-fait"]').count() >= 1, 'U11: tag "✅ Vérifié" affiché');
+    ok(await p.locator('[data-testid="tag-fait"]').count() >= 1, 'U11: tag "âœ… VÃ©rifiÃ©" affichÃ©');
     const verTxt = await p.locator('[data-testid="tag-verified-by"]').first().innerText();
-    ok(verTxt.includes('Vérifié par') && verTxt.includes('Omar'), 'U12: tag "✓ Vérifié par Omar" (' + verTxt.replace(/\s+/g, ' ').trim() + ')');
+    ok(verTxt.includes('VÃ©rifiÃ© par') && verTxt.includes('Omar'), 'U12: tag "âœ“ VÃ©rifiÃ© par Omar" (' + verTxt.replace(/\s+/g, ' ').trim() + ')');
     const done2 = await p.locator('[data-testid="tag-done-by"]').first().innerText();
-    ok(done2.includes(t1.done_by_name), 'U13: "Travaillé par" intact après validation (' + t1.done_by_name + ')');
+    ok(done2.includes(t1.done_by_name), 'U13: "TravaillÃ© par" intact aprÃ¨s validation (' + t1.done_by_name + ')');
 
-    // ---- U14-U16 : vérifications API ----
+    // ---- U14-U16 : vÃ©rifications API ----
     const gf = await j(API + '/api/org/dossiers/' + dossier.id, { headers: HE });
     const tf = gf.tasks.find(x => x.id === task.id);
     ok(tf.status === 'fait', 'U14: statut final = fait (API)');
@@ -128,7 +128,7 @@ async function loginAs(p, email, pwd) {
   }
 
   const left = await j(API + '/api/org/clients', { headers: HE });
-  ok(!left.some(c => c.id === client.id), 'U17: aucun résidu client');
+  ok(!left.some(c => c.id === client.id), 'U17: aucun rÃ©sidu client');
 
   console.log(fails ? fails + ' FAILURES' : 'ALL PASS');
   process.exit(fails ? 1 : 0);

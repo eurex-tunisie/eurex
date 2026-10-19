@@ -55,7 +55,7 @@ const jlogin = email => j(API + '/api/org/auth/login', { method: 'POST', headers
   if (!v1) {
     const t = await bodyText(p);
     console.log('DEBUG PAGE TITLE:', await p.title(), '| URL:', p.url());
-    console.log('DEBUG HAS SAISIE:', t.includes('SAISIE'), '| HAS a_verifier:', t.includes('À vérifier') || t.includes('a_verifier'), '| HAS Reste:', t.includes('Reste'));
+    console.log('DEBUG HAS SAISIE:', t.includes('SAISIE'), '| HAS a_verifier:', t.includes('Ã€ vÃ©rifier') || t.includes('a_verifier'), '| HAS Reste:', t.includes('Reste'));
     console.log('DEBUG SNIPPET:', t.slice(0, 600).replace(/\n+/g, ' | '));
     await b.close();
     await j(API + `/api/org/dossiers/${d.id}/tasks/${tid}`, { method: 'PATCH', headers: H, body: JSON.stringify({ status: 'a_faire' }) });
@@ -67,14 +67,14 @@ const jlogin = email => j(API + '/api/org/auth/login', { method: 'POST', headers
     await p.locator('span', { hasText: t0.label }).first().click();
   }
   ok(await waitText(p, 'Validation :', true), 'V2: panneau Validation affiche');
-  ok(await waitText(p, 'Fixer le délai', true), 'V3: bouton Fixer le delai (expert)');
+  ok(await waitText(p, 'Fixer le dÃ©lai', true), 'V3: bouton Fixer le delai (expert)');
   // fixer 6h
   const inputCount = await p.locator('input[placeholder="h"]').count();
   console.log('DEBUG inputs[h]:', inputCount);
   await p.locator('input[placeholder="h"]').first().fill('6');
   const val = await p.locator('input[placeholder="h"]').first().inputValue();
   console.log('DEBUG input value after fill:', val);
-  await p.locator('button', { hasText: 'Fixer le délai' }).first().click();
+  await p.locator('button', { hasText: 'Fixer le dÃ©lai' }).first().click();
   const v4 = await waitText(p, 'Reste 5h', true);
   ok(v4, 'V4: badge repasse a ~6h apres fixation (Reste 5h59)');
   if (!v4) {

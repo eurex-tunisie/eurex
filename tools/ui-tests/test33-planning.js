@@ -24,7 +24,7 @@ const pad2 = n => String(n).padStart(2, '0');
 const now = new Date(Date.now() + 3600000);
 const Y = now.getUTCFullYear(), M = now.getUTCMonth() + 1;
 const dayCell = d => `${Y}-${pad2(M)}-${pad2(d)}`;
-// mois suivant / précédent pour la navigation
+// mois suivant / prÃ©cÃ©dent pour la navigation
 const nextM = new Date(Date.UTC(Y, M, 1));
 const nextPrefix = `${nextM.getUTCFullYear()}-${pad2(nextM.getUTCMonth() + 1)}`;
 
@@ -45,7 +45,7 @@ const nextPrefix = `${nextM.getUTCFullYear()}-${pad2(nextM.getUTCMonth() + 1)}`;
       try { await j(API + '/api/org/alerts/' + id, { method: 'DELETE', headers: HE }); }
       catch (e) { console.log('!! cleanup alert ' + id + ': ' + e.message); fails++; }
     }
-    try { await j(API + '/api/org/clients/' + clientId, { method: 'DELETE', headers: HE }); console.log('CLEANUP: ' + zz + ' supprimé (cascade) + ' + alertIds.length + ' échéance(s)'); }
+    try { await j(API + '/api/org/clients/' + clientId, { method: 'DELETE', headers: HE }); console.log('CLEANUP: ' + zz + ' supprimÃ© (cascade) + ' + alertIds.length + ' Ã©chÃ©ance(s)'); }
     catch (e) { console.log('!! CLEANUP FAILED: ' + e.message); fails++; }
   };
 
@@ -63,11 +63,11 @@ const nextPrefix = `${nextM.getUTCFullYear()}-${pad2(nextM.getUTCMonth() + 1)}`;
     const t1 = await j(API + '/api/org/dossiers/' + dossierId + '/tasks', { method: 'POST', headers: HS, body: JSON.stringify({ label: taskLabel, due_date: dayCell(12) }) });
     console.log('SETUP client=' + clientId + ' dossier=' + dossierId + ' alerts=' + alertIds.join(',') + ' task=' + t1.id);
 
-    // A. Le feed contient bien les 3 événements sur le mois courant
+    // A. Le feed contient bien les 3 Ã©vÃ©nements sur le mois courant
     const feed = await j(API + '/api/org/alerts', { headers: HE });
-    ok(feed.alerts.some(a => a.title === alertGlobal && a.due_date === dayCell(20)), 'A1: échéance globale dans le feed (' + dayCell(20) + ')');
-    ok(feed.alerts.some(a => a.title === alertDossier && a.due_date === dayCell(25)), 'A2: échéance dossier dans le feed');
-    ok(feed.tasks.some(t => t.label === taskLabel && t.due_date === dayCell(12)), 'A3: tâche à date butoir dans le feed');
+    ok(feed.alerts.some(a => a.title === alertGlobal && a.due_date === dayCell(20)), 'A1: Ã©chÃ©ance globale dans le feed (' + dayCell(20) + ')');
+    ok(feed.alerts.some(a => a.title === alertDossier && a.due_date === dayCell(25)), 'A2: Ã©chÃ©ance dossier dans le feed');
+    ok(feed.tasks.some(t => t.label === taskLabel && t.due_date === dayCell(12)), 'A3: tÃ¢che Ã  date butoir dans le feed');
 
     const browser = await chromium.launch();
     const page = await (await browser.newContext()).newPage();
@@ -78,7 +78,7 @@ const nextPrefix = `${nextM.getUTCFullYear()}-${pad2(nextM.getUTCMonth() + 1)}`;
       // --- B. UI expert ---
       await loginAs(page, EXP.email, EXP.pwd);
       await page.waitForSelector('[data-testid="planning-nav"]', { timeout: 20000 });
-      ok(await page.locator('[data-testid="planning-nav"]').isVisible(), 'B1: bouton « 📅 Planning » visible');
+      ok(await page.locator('[data-testid="planning-nav"]').isVisible(), 'B1: bouton Â« ðŸ“… Planning Â» visible');
       await page.click('[data-testid="planning-nav"]');
       await page.waitForSelector('[data-testid="planning-grid"]', { timeout: 15000 });
       ok(page.url().includes('/cabinet/planning'), 'B1b: navigation vers /cabinet/planning');
@@ -87,15 +87,15 @@ const nextPrefix = `${nextM.getUTCFullYear()}-${pad2(nextM.getUTCMonth() + 1)}`;
       const cell20 = page.locator(`[data-testid="planning-day-${dayCell(20)}"]`);
       const cell12 = page.locator(`[data-testid="planning-day-${dayCell(12)}"]`);
       const cell25 = page.locator(`[data-testid="planning-day-${dayCell(25)}"]`);
-      // la grille rend avant le feed : on attend les événements eux-mêmes
+      // la grille rend avant le feed : on attend les Ã©vÃ©nements eux-mÃªmes
       await cell20.locator('[data-testid="planning-event"]').first().waitFor({ timeout: 20000 }).catch(() => {});
       await cell12.locator('[data-testid="planning-event"]').first().waitFor({ timeout: 20000 }).catch(() => {});
       await cell25.locator('[data-testid="planning-event"]').first().waitFor({ timeout: 20000 }).catch(() => {});
-      ok(await cell20.count() === 1 && (await cell20.innerText()).includes(alertGlobal), 'B2: échéance globale le ' + dayCell(20));
-      ok(await cell12.count() === 1 && (await cell12.innerText()).includes(taskLabel), 'B3: tâche le ' + dayCell(12));
-      ok(await cell25.count() === 1 && (await cell25.innerText()).includes(alertDossier), 'B4: échéance dossier le ' + dayCell(25));
+      ok(await cell20.count() === 1 && (await cell20.innerText()).includes(alertGlobal), 'B2: Ã©chÃ©ance globale le ' + dayCell(20));
+      ok(await cell12.count() === 1 && (await cell12.innerText()).includes(taskLabel), 'B3: tÃ¢che le ' + dayCell(12));
+      ok(await cell25.count() === 1 && (await cell25.innerText()).includes(alertDossier), 'B4: Ã©chÃ©ance dossier le ' + dayCell(25));
 
-      // Clic sur l'échéance liée au dossier -> ouvre le dossier
+      // Clic sur l'Ã©chÃ©ance liÃ©e au dossier -> ouvre le dossier
       const ev25 = cell25.locator('[data-testid="planning-event"]').first();
       await ev25.click();
       await page.waitForTimeout(1500);
@@ -107,15 +107,15 @@ const nextPrefix = `${nextM.getUTCFullYear()}-${pad2(nextM.getUTCMonth() + 1)}`;
       await page.click('[data-testid="planning-next"]');
       await page.waitForTimeout(600);
       const nextText = await page.locator('[data-testid="planning-page"]').innerText();
-      ok(nextText.includes(alertGlobal) === false && nextText.includes(taskLabel) === false, 'B6: mois suivant sans nos événements');
+      ok(nextText.includes(alertGlobal) === false && nextText.includes(taskLabel) === false, 'B6: mois suivant sans nos Ã©vÃ©nements');
       const nextCell = page.locator(`[data-testid="planning-day-${nextPrefix}-${pad2(20)}"]`);
       ok(await nextCell.count() === 1, 'B6b: grille du mois suivant rendue (' + nextPrefix + ')');
       await page.click('[data-testid="planning-today"]');
       await page.waitForTimeout(600);
       const todayText = await page.locator('[data-testid="planning-page"]').innerText();
-      ok(todayText.includes(alertGlobal) && todayText.includes(taskLabel), 'B7: retour « Aujourd\'hui » -> événements visibles');
+      ok(todayText.includes(alertGlobal) && todayText.includes(taskLabel), 'B7: retour Â« Aujourd\'hui Â» -> Ã©vÃ©nements visibles');
 
-      // --- C. Portée comptable (Salim) ---
+      // --- C. PortÃ©e comptable (Salim) ---
       await loginAs(page, SAL.email, SAL.pwd);
       await page.waitForSelector('[data-testid="planning-nav"]', { timeout: 20000 });
       await page.click('[data-testid="planning-nav"]');
@@ -126,9 +126,9 @@ const nextPrefix = `${nextM.getUTCFullYear()}-${pad2(nextM.getUTCMonth() + 1)}`;
       await c12.locator('[data-testid="planning-event"]').first().waitFor({ timeout: 20000 }).catch(() => {});
       await c25.locator('[data-testid="planning-event"]').first().waitFor({ timeout: 20000 }).catch(() => {});
       await page.waitForTimeout(500);
-      ok(await c20.count() === 1 && !(await c20.innerText()).includes(alertGlobal), 'C1: Salim ne voit PAS l échéance globale (portée)');
-      ok(await c12.count() === 1 && (await c12.innerText()).includes(taskLabel), 'C2: Salim voit la tâche de son dossier');
-      ok(await c25.count() === 1 && (await c25.innerText()).includes(alertDossier), 'C3: Salim voit l échéance de son dossier');
+      ok(await c20.count() === 1 && !(await c20.innerText()).includes(alertGlobal), 'C1: Salim ne voit PAS l Ã©chÃ©ance globale (portÃ©e)');
+      ok(await c12.count() === 1 && (await c12.innerText()).includes(taskLabel), 'C2: Salim voit la tÃ¢che de son dossier');
+      ok(await c25.count() === 1 && (await c25.innerText()).includes(alertDossier), 'C3: Salim voit l Ã©chÃ©ance de son dossier');
 
       ok(errors.length === 0, 'C4: aucune erreur JS (' + errors.length + ')');
     } catch (e) {

@@ -43,30 +43,30 @@ const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails
   await p.waitForSelector('button', { timeout: 15000 });
   await p.waitForTimeout(1200);
 
-  // Baseline : statut vide = non_exportatrice → suspension masquee, 74/84
+  // Baseline : statut vide = non_exportatrice â†’ suspension masquee, 74/84
   ok((await sel.inputValue()) === '', 'D1: statut initial vide');
   ok(await waitTous(74), 'D2: checklist Tous=74 (10 taches suspension masquees) [' + (await tousCount()) + ']');
   ok(await waitSusp(false), 'D3: feed sans echeance suspension (non-export)');
 
   // Exportatrice, SANS reload
   await sel.selectOption('exportatrice');
-  ok(await waitSusp(true), 'D4: export → echeance suspension visible SANS reload');
-  ok(await waitTous(84), 'D5: export → checklist Tous=84 SANS reload [' + (await tousCount()) + ']');
+  ok(await waitSusp(true), 'D4: export â†’ echeance suspension visible SANS reload');
+  ok(await waitTous(84), 'D5: export â†’ checklist Tous=84 SANS reload [' + (await tousCount()) + ']');
 
   // Semi, SANS reload
   await sel.selectOption('semi_exportatrice');
-  ok(await waitSusp(true), 'D6: semi → suspension visible');
-  ok(await waitTous(84), 'D7: semi → checklist Tous=84 [' + (await tousCount()) + ']');
+  ok(await waitSusp(true), 'D6: semi â†’ suspension visible');
+  ok(await waitTous(84), 'D7: semi â†’ checklist Tous=84 [' + (await tousCount()) + ']');
 
   // Non-export, SANS reload
   await sel.selectOption('non_exportatrice');
-  ok(await waitSusp(false), 'D8: non-export → suspension masquee SANS reload');
-  ok(await waitTous(74), 'D9: non-export → checklist Tous=74 [' + (await tousCount()) + ']');
+  ok(await waitSusp(false), 'D8: non-export â†’ suspension masquee SANS reload');
+  ok(await waitTous(74), 'D9: non-export â†’ checklist Tous=74 [' + (await tousCount()) + ']');
 
   // Retour vide + persistance apres reload
   await sel.selectOption('');
   ok(await (async () => { for (let i = 0; i < 20; i++) { if ((await sel.inputValue()) === '') return true; await p.waitForTimeout(300); } return false; })(), 'D10b: PATCH export_status=null confirme (select vide)');
-  ok(await waitTous(74), 'D10: retour statut vide → Tous=74');
+  ok(await waitTous(74), 'D10: retour statut vide â†’ Tous=74');
   await p.reload({ waitUntil: 'domcontentloaded' });
   await sel.waitFor({ timeout: 15000 });
   await p.waitForTimeout(1200);

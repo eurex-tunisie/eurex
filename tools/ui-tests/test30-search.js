@@ -39,7 +39,7 @@ async function loginAs(p, email, pwd) {
   const task = await j(API + '/api/org/dossiers/' + dossier.id + '/tasks', { method: 'POST', headers: HS, body: JSON.stringify({ label: taskLabel }) });
   const note = await j(API + '/api/org/dossiers/' + dossier.id + '/notes', { method: 'POST', headers: HS, body: JSON.stringify({ content: noteContent }) });
   const cleanup = async () => {
-    try { await j(API + '/api/org/clients/' + client.id, { method: 'DELETE', headers: HE }); console.log('CLEANUP: ' + zz + ' supprimé (cascade)'); }
+    try { await j(API + '/api/org/clients/' + client.id, { method: 'DELETE', headers: HE }); console.log('CLEANUP: ' + zz + ' supprimÃ© (cascade)'); }
     catch (e) { console.log('!! CLEANUP FAILED: ' + e.message); fails++; }
   };
   console.log('SETUP client=' + client.id + ' dossier=' + dossier.id + ' task=' + task.id + ' note=' + note.id);
@@ -51,36 +51,36 @@ async function loginAs(p, email, pwd) {
   try {
     // --- A. API ---
     r = await search('Z', HE);
-    ok(Array.isArray(r.clients) && Array.isArray(r.dossiers) && r.clients.length === 0, 'A1: q de 1 caractère -> résultat vide');
+    ok(Array.isArray(r.clients) && Array.isArray(r.dossiers) && r.clients.length === 0, 'A1: q de 1 caractÃ¨re -> rÃ©sultat vide');
 
     r = await search(zz, HE);
     ok(findId(r.clients, client.id), 'A2: expert trouve le client par nom');
     const found = (r.clients || []).find(x => x.id === client.id);
-    ok(!!found && found.dossier_id === dossier.id, 'A2b: résultat client porte le dossier courant (' + (found && found.dossier_id) + ')');
-    ok((r.dossiers || []).some(x => x.id === dossier.id), 'A2c: le dossier apparaît aussi (nom du client)');
+    ok(!!found && found.dossier_id === dossier.id, 'A2b: rÃ©sultat client porte le dossier courant (' + (found && found.dossier_id) + ')');
+    ok((r.dossiers || []).some(x => x.id === dossier.id), 'A2c: le dossier apparaÃ®t aussi (nom du client)');
 
     r = await search(taskLabel, HE);
     const t = (r.tasks || []).find(x => x.id === task.id);
-    ok(!!t, 'A3: tâche trouvée par libellé');
-    ok(!!t && t.dossier_id === dossier.id && t.client_name === zz, 'A3b: tâche rattachée au bon dossier/client');
+    ok(!!t, 'A3: tÃ¢che trouvÃ©e par libellÃ©');
+    ok(!!t && t.dossier_id === dossier.id && t.client_name === zz, 'A3b: tÃ¢che rattachÃ©e au bon dossier/client');
 
     r = await search(noteContent.slice(0, 24), HE);
-    ok((r.notes || []).some(x => x.id === note.id), 'A4: note trouvée par contenu');
+    ok((r.notes || []).some(x => x.id === note.id), 'A4: note trouvÃ©e par contenu');
 
     const dg = (await j(API + '/api/org/dossiers/' + dossier.id, { headers: HE }));
     const docLabel = (dg.documents && dg.documents[0] || {}).label;
     if (docLabel) {
       r = await search(docLabel, HE);
-      ok((r.documents || []).some(x => x.dossier_id === dossier.id), 'A5: document attendu trouvé par libellé (' + docLabel + ')');
+      ok((r.documents || []).some(x => x.dossier_id === dossier.id), 'A5: document attendu trouvÃ© par libellÃ© (' + docLabel + ')');
     } else { ok(false, 'A5: aucun document de template sur le dossier'); }
 
     r = await search(zz, HS);
-    ok((r.clients || []).some(x => x.id === client.id), 'A6: comptable assigné voit le client');
+    ok((r.clients || []).some(x => x.id === client.id), 'A6: comptable assignÃ© voit le client');
 
     r = await search(zz, HM);
     ok(!(r.clients || []).some(x => x.id === client.id) && !(r.dossiers || []).some(x => x.id === dossier.id)
       && !(r.tasks || []).some(x => x.dossier_id === dossier.id) && !(r.notes || []).some(x => x.dossier_id === dossier.id),
-      'A7: comptable non assigné (Samar) ne voit RIEN (portée)');
+      'A7: comptable non assignÃ© (Samar) ne voit RIEN (portÃ©e)');
 
     r = await search("' OR 1=1--", HE);
     ok(r.q === "' OR 1=1--", 'A8: injection SQL sans effet (200, retour neutre)');
@@ -101,7 +101,7 @@ async function loginAs(p, email, pwd) {
       await page.fill('[data-testid="search-input"]', zz);
       await page.waitForSelector('[data-testid="search-results"]', { timeout: 8000 });
       const rows = page.locator('[data-testid="search-result"]:has-text("' + zz + '")');
-      ok(await rows.count() >= 1, 'B2: résultat client affiché');
+      ok(await rows.count() >= 1, 'B2: rÃ©sultat client affichÃ©');
       await rows.first().click();
       await page.waitForTimeout(1200);
       ok(page.url().includes('/cabinet/dossier/' + dossier.id), 'B3: clic -> ouverture du dossier (' + page.url().split('/cabinet')[1] + ')');
@@ -109,16 +109,16 @@ async function loginAs(p, email, pwd) {
       await page.fill('[data-testid="search-input"]', taskLabel);
       await page.waitForSelector('[data-testid="search-results"]', { timeout: 8000 });
       const trows = page.locator('[data-testid="search-result"]:has-text("' + taskLabel + '")');
-      ok(await trows.count() >= 1, 'B4: résultat tâche affiché');
+      ok(await trows.count() >= 1, 'B4: rÃ©sultat tÃ¢che affichÃ©');
       await trows.first().click();
       await page.waitForTimeout(1500);
       ok(page.url().includes('?task=' + task.id), 'B4b: clic -> dossier + ?task=' + (page.url().split('?')[1] || ''));
-      ok(await page.locator('#task-' + task.id).count() >= 1, 'B4c: tâche dépliée/highlightée sur la page');
+      ok(await page.locator('#task-' + task.id).count() >= 1, 'B4c: tÃ¢che dÃ©pliÃ©e/highlightÃ©e sur la page');
 
       await page.fill('[data-testid="search-input"]', noteContent.slice(0, 24));
       await page.waitForSelector('[data-testid="search-results"]', { timeout: 8000 });
       const nrows = page.locator('[data-testid="search-result"]:has-text("' + noteContent.slice(0, 24) + '")');
-      ok(await nrows.count() >= 1, 'B5: résultat note affiché');
+      ok(await nrows.count() >= 1, 'B5: rÃ©sultat note affichÃ©');
       await nrows.first().click();
       await page.waitForTimeout(1500);
       ok(page.url().includes('?tab=notes'), 'B5b: clic -> ?tab=notes');
@@ -136,7 +136,7 @@ async function loginAs(p, email, pwd) {
       await page.mouse.click(5, 5);
       await page.waitForTimeout(600);
       const stillOpen = await page.locator('[data-testid="search-results"]').count();
-      ok(stillOpen === 0, 'B7: clic à l\'extérieur ferme la liste de résultats');
+      ok(stillOpen === 0, 'B7: clic Ã  l\'extÃ©rieur ferme la liste de rÃ©sultats');
 
       ok(errors.length === 0, 'B8: aucune erreur JS (' + errors.length + ')');
     } catch (e) {

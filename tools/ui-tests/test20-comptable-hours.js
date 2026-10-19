@@ -72,7 +72,7 @@ async function j(url, opt) {
   ok(rowsMonth === todayNum, 'U4: vue Mois -> ' + rowsMonth + ' lignes (1..' + todayNum + ')');
 
   // ---- U5 : vue Annee ----
-  await tabs.filter({ hasText: 'Année' }).click();
+  await tabs.filter({ hasText: 'AnnÃ©e' }).click();
   await p.waitForTimeout(1800);
   const rowsYear = await table.locator('tbody tr').count();
   ok(rowsYear === monthNum, 'U5: vue Annee -> ' + rowsYear + ' mois (janv..' + monthNum + ')');

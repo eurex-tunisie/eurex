@@ -40,15 +40,15 @@ async function j(url, opt) {
   await p.click('button[type="submit"]');
   await p.waitForTimeout(1500);
 
-  // S1 : navigation Settings (onglets Modèles + Comptables)
-  await p.locator('a', { hasText: 'Paramètres' }).first().click({ timeout: 20000 });
-  const s1 = await waitText(p, 'Ajouter une tâche type', true);
-  ok(s1, 'S1: page Settings ouverte (onglet Modèles par defaut)');
-  ok((await bodyText(p)).includes('Modèles de tâches'), 'S1b: onglet "Modèles de tâches" present');
+  // S1 : navigation Settings (onglets ModÃ¨les + Comptables)
+  await p.locator('a', { hasText: 'ParamÃ¨tres' }).first().click({ timeout: 20000 });
+  const s1 = await waitText(p, 'Ajouter une tÃ¢che type', true);
+  ok(s1, 'S1: page Settings ouverte (onglet ModÃ¨les par defaut)');
+  ok((await bodyText(p)).includes('ModÃ¨les de tÃ¢ches'), 'S1b: onglet "ModÃ¨les de tÃ¢ches" present');
   ok((await bodyText(p)).includes('Comptables'), 'S1c: onglet "Comptables" present');
 
-  // S2 : select "Comptable assigné" n'affiche QUE des comptables
-  const sel = p.locator('select[title="Comptable assigné par défaut"]').first();
+  // S2 : select "Comptable assignÃ©" n'affiche QUE des comptables
+  const sel = p.locator('select[title="Comptable assignÃ© par dÃ©faut"]').first();
   await sel.waitFor({ timeout: 15000 });
   const opts = await sel.evaluate(s => [...s.options].map(o => o.textContent || ''));
   ok(opts.some(o => o.includes('Salim')), 'S2: select modele contient un comptable (Salim) [' + opts.join(' | ') + ']');
@@ -73,10 +73,10 @@ async function j(url, opt) {
   await p.locator('input[placeholder="Nom complet"]').first().fill(NAME);
   await p.locator('input[placeholder="Email"]').first().fill(MAIL);
   await p.locator('input[placeholder="Mot de passe (12+ car.)"]').first().fill(PWD);
-  const createSel = p.locator('select[title="Rôle du compte"]');
+  const createSel = p.locator('select[title="RÃ´le du compte"]');
   ok((await createSel.count()) === 1, 'S4: 1 select de role (creation)');
   await createSel.first().selectOption('manager');
-  await p.locator('button', { hasText: 'Créer le compte' }).first().click();
+  await p.locator('button', { hasText: 'CrÃ©er le compte' }).first().click();
   const s4 = await waitText(p, NAME, true);
   ok(s4, 'S4b: compte cree visible dans la liste');
   const nameP = p.locator('p', { hasText: NAME }).first();
@@ -88,8 +88,8 @@ async function j(url, opt) {
   // S5 : edition -> passage au role Expert
   const row = p.locator('xpath=//p[contains(.,"' + NAME + '")]/ancestor::div[contains(@class,"rounded-xl")][1]');
   await row.locator('button[title^="Modifier"]').click();
-  const editSel = p.locator('select[title="Rôle du compte"]');
-  await p.waitForFunction(() => document.querySelectorAll('select[title="Rôle du compte"]').length === 2, null, { timeout: 10000 });
+  const editSel = p.locator('select[title="RÃ´le du compte"]');
+  await p.waitForFunction(() => document.querySelectorAll('select[title="RÃ´le du compte"]').length === 2, null, { timeout: 10000 });
   await editSel.last().selectOption('expert');
   await p.locator('button[title="Enregistrer"]').first().click();
   const s5 = await waitText(p, NAME + '\nExpert', true, 20) || (await p.locator('p', { hasText: NAME }).first().innerText()).includes('Expert');
@@ -98,9 +98,9 @@ async function j(url, opt) {
   ok(u2 && u2.role === 'expert', 'S5b: API role=expert (' + (u2 ? u2.role : 'absent') + ')');
 
   // S6 : le nouveau compte (expert) n'apparait plus dans le select des modeles
-  await p.locator('button', { hasText: 'Modèles' }).first().click();
+  await p.locator('button', { hasText: 'ModÃ¨les' }).first().click();
   await p.waitForTimeout(1200);
-  const opts2 = await p.locator('select[title="Comptable assigné par défaut"]').first().evaluate(s => [...s.options].map(o => o.textContent || ''));
+  const opts2 = await p.locator('select[title="Comptable assignÃ© par dÃ©faut"]').first().evaluate(s => [...s.options].map(o => o.textContent || ''));
   ok(!opts2.some(o => o.includes(NAME)), 'S6: compte promu expert EXCLU du select des modeles');
 
   await b.close();

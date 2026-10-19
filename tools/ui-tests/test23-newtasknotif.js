@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
 const SAL = { email: 'salim@eurex.tn', pwd: 'salim1234567' };
-const DOSS = 'doss_001'; // ANIMAL CITY — assigne a Salim
+const DOSS = 'doss_001'; // ANIMAL CITY â€” assigne a Salim
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
 // rouge (red-500/600 tailwind) : r fort, g et b faibles
@@ -55,7 +55,7 @@ async function delTask(H, id) {
     ok(await p.locator('[data-testid="nouvelles-taches"]').first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false), 'N1: section "Nouvelles taches" presente');
     const badge = p.locator('[data-testid="nouvelles-taches-badge"]');
     ok(await badge.count() === 1, 'N2: badge rouge "N nouvelles" present (' + await badge.count() + ')');
-    ok(/🔴 \d+ nouvelle/.test(await badge.first().innerText()), 'N3: texte du badge (' + (await badge.first().innerText()).trim() + ')');
+    ok(/ðŸ”´ \d+ nouvelle/.test(await badge.first().innerText()), 'N3: texte du badge (' + (await badge.first().innerText()).trim() + ')');
     ok(isRed(await badge.first().evaluate(el => getComputedStyle(el).backgroundColor)), 'N4: badge bien rouge (bg red-600 = ' + await badge.first().evaluate(el => getComputedStyle(el).backgroundColor) + ')');
     const cardA = p.locator('[data-testid="recent-task-card"]').filter({ hasText: labelA });
     ok(await cardA.count() === 1, 'N5: carte de la tache A presente');

@@ -1,4 +1,4 @@
-// test25 — minimisation des cartes dashboard : Nouvelles taches / A verifier / Mes heures
+// test25 â€” minimisation des cartes dashboard : Nouvelles taches / A verifier / Mes heures
 // Chaque carte a son propre bouton chevron + etat memorise (localStorage), comme Echeances fiscales.
 const { chromium } = require('playwright');
 const BASE = process.env.BASE;

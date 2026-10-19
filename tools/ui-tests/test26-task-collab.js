@@ -1,4 +1,4 @@
-// test26 — Collaboration : un comptable tague un autre comptable sur une tache
+// test26 â€” Collaboration : un comptable tague un autre comptable sur une tache
 //   => acces AUTO au dossier (renfort) + chacun son chrono (chronos en parallele)
 const { chromium } = require('playwright');
 const BASE = process.env.BASE;
