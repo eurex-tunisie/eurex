@@ -102,6 +102,7 @@ export interface OrgGrant {
 export interface OrgMyGrant {
   id: string;
   dossier_id: string;
+  client_id: string;
   reason: string | null;
   days: number;
   expires_at: string;

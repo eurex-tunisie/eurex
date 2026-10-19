@@ -100,9 +100,6 @@ export default function OrgDossierPage() {
   const [grantDays, setGrantDays] = useState(7);
   const [grantReason, setGrantReason] = useState('');
   const [grantBusy, setGrantBusy] = useState(false);
-  const [grantTargets, setGrantTargets] = useState<{ id: string; exercice: number; status: string }[]>([]);
-  const [grantDossierIds, setGrantDossierIds] = useState<string[]>([]);
-  const [grantNotice, setGrantNotice] = useState('');
   const canEditType = isExpert || (state.user?.role === 'comptable' && !!dossier && dossier.client_comptable_id === state.user.id);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('checklist');
@@ -151,27 +148,13 @@ export default function OrgDossierPage() {
   // Renfort : ouvrir / revoquer un acces temporaire (expert/manager)
   const openGrant = async () => {
     if (!dossier || !grantComp || !grantReason.trim()) return;
-    const ids = grantDossierIds.length ? grantDossierIds : [dossier.id];
     setGrantBusy(true);
-    setGrantNotice('');
-    const errors: string[] = [];
-    let opened = 0;
-    for (const did of ids) {
-      try {
-        await orgApi.createGrant(did, { granted_to: grantComp, days: grantDays, reason: grantReason.trim() });
-        opened++;
-      } catch (err: any) {
-        const msg = String(err?.message || 'Erreur');
-        if (!/d[ée]j[àa]/i.test(msg)) errors.push(`${did === dossier.id ? 'Ce dossier' : 'Dossier'} : ${msg}`);
-      }
-    }
-    setGrantBusy(false);
-    if (errors.length) alert(errors.join('\n'));
-    if (opened) {
+    try {
+      await orgApi.createGrant(dossier.id, { granted_to: grantComp, days: grantDays, reason: grantReason.trim() });
       setGrantComp(''); setGrantReason('');
-      setGrantNotice(opened > 1 ? `Accès ouvert sur ${opened} dossiers` : 'Accès ouvert');
-      if (ids.includes(dossier.id)) load();
-    }
+      load();
+    } catch (err: any) { alert(err.message); }
+    finally { setGrantBusy(false); }
   };
   const revokeGrant = async (grantId: string) => {
     if (!dossier) return;
@@ -266,20 +249,6 @@ export default function OrgDossierPage() {
   useEffect(() => {
     if (isExpert) orgApi.getComptables().then(cs => setComptables(cs.filter(c => c.role === 'comptable'))).catch(() => {});
   }, [isExpert]);
-
-  // Renfort : dossiers du client (tous exercices) pour ouvrir l'acces sur plusieurs dossiers
-  useEffect(() => {
-    if (!dossier || !isExpert) return;
-    orgApi.getClientDossiers(dossier.client_id)
-      .then(ds => setGrantTargets(ds.map(d => ({ id: d.id, exercice: d.exercice, status: d.status }))))
-      .catch(() => {});
-  }, [dossier?.client_id, isExpert]);
-
-  // Selection par defaut : le dossier ouvert
-  useEffect(() => {
-    if (dossier) setGrantDossierIds([dossier.id]);
-    setGrantNotice('');
-  }, [dossier?.id]);
 
   // Live timer tick
   useEffect(() => {
@@ -794,30 +763,6 @@ export default function OrgDossierPage() {
             <h3 className="font-semibold text-sm text-gray-700">🔧 Renfort — accès temporaire à ce dossier</h3>
             <span className="text-[11px] text-gray-400">{(dossier.grants || []).length} accès actif{(dossier.grants || []).length > 1 ? 's' : ''}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mr-1">Dossiers</span>
-            {(grantTargets.length ? grantTargets : [{ id: dossier.id, exercice: dossier.exercice, status: dossier.status }]).map(t => {
-              const active = grantDossierIds.includes(t.id);
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  data-testid={`grant-target-${t.exercice}`}
-                  onClick={() => setGrantDossierIds(prev => prev.includes(t.id) ? prev.filter(x => x !== t.id) : [...prev, t.id])}
-                  title={t.id === dossier.id ? 'Dossier ouvert' : `Dossier ${t.exercice}`}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    active
-                      ? 'bg-amber-100 border-amber-300 text-amber-800'
-                      : 'bg-white border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-700'
-                  }`}
-                >
-                  {t.exercice}
-                  {t.id === dossier.id && ' · ce dossier'}
-                  {t.status === 'cloture' && ' · clôturé'}
-                </button>
-              );
-            })}
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
             <select
               value={grantComp}
@@ -853,15 +798,12 @@ export default function OrgDossierPage() {
             />
             <button
               onClick={openGrant}
-              disabled={!grantComp || !grantReason.trim() || grantBusy || grantDossierIds.length === 0}
+              disabled={!grantComp || !grantReason.trim() || grantBusy}
               className="btn btn-orange px-4 py-2 rounded-lg text-sm font-medium"
             >
-              Ouvrir l'accès{grantDossierIds.length > 1 ? ` (${grantDossierIds.length})` : ''}
+              Ouvrir l'accès
             </button>
           </div>
-          {grantNotice && (
-            <p className="text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 mb-3">{grantNotice}</p>
-          )}
           {(dossier.grants || []).length > 0 && (
             <div className="space-y-1.5">
               {dossier.grants!.map(g => (

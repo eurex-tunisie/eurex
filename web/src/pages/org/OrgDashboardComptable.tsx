@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { orgApi, OrgClient, OrgMyGrant } from '../../lib/orgApi';
+import { orgApi, OrgClient, OrgMyGrant, OrgDossier } from '../../lib/orgApi';
+import { useOrgAuth } from '../../lib/orgAuth';
 import { t } from '../../lib/orgI18n';
 import ProgressDonut, { DonutLegend } from '../../components/ProgressDonut';
 import Skeleton, { SkeletonCardGrid, SkeletonKpiGrid } from '../../components/Skeleton';
@@ -12,7 +13,7 @@ import { EXPORT_LABELS } from '../../lib/orgAlerts';
 import { verifyRate } from '../../lib/orgVerify';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
-import { FolderOpen, AlertTriangle, Clock, ArrowUpDown, Search, Users, BarChart3, Hourglass, AlertCircle, FileText, CheckCircle2, Wrench } from 'lucide-react';
+import { FolderOpen, AlertTriangle, Clock, ArrowUpDown, Search, Users, BarChart3, Hourglass, AlertCircle, FileText, CheckCircle2, Wrench, X } from 'lucide-react';
 
 type SortKey = 'name' | 'progress' | 'blocked';
 
@@ -21,6 +22,11 @@ export default function OrgDashboardComptable() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [clients, setClients] = useState<OrgClient[]>([]);
   const [myGrants, setMyGrants] = useState<OrgMyGrant[]>([]);
+  const { state: authState } = useOrgAuth();
+  const [picking, setPicking] = useState<OrgMyGrant | null>(null);
+  const [pickDossiers, setPickDossiers] = useState<OrgDossier[]>([]);
+  const [pickBusy, setPickBusy] = useState(false);
+  const [pickError, setPickError] = useState('');
   const [exercices, setExercices] = useState<number[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -63,6 +69,36 @@ export default function OrgDashboardComptable() {
   };
 
   useEffect(() => { load(); }, [exercice]);
+
+  // Renfort : le comptable choisit lui-meme les dossiers du client (acces
+  // deja ouvert sur un dossier, l'API reprend la duree et l'echeance du renfort)
+  const openPicker = async (g: OrgMyGrant) => {
+    setPicking(g);
+    setPickError('');
+    setPickDossiers([]);
+    try {
+      setPickDossiers(await orgApi.getClientDossiers(g.client_id));
+    } catch (err: any) { setPickError(err.message || 'Erreur'); }
+  };
+
+  const grantedHere = new Set(
+    picking ? myGrants.filter(x => x.client_id === picking.client_id).map(x => x.dossier_id) : []
+  );
+
+  const togglePickDossier = async (d: OrgDossier) => {
+    if (!picking || !authState.user || grantedHere.has(d.id) || pickBusy) return;
+    setPickBusy(true);
+    setPickError('');
+    try {
+      await orgApi.createGrant(d.id, {
+        granted_to: authState.user.id,
+        days: picking.days,
+        reason: 'Renfort : dossier choisi par le comptable',
+      });
+      setMyGrants(await orgApi.getMyGrants());
+    } catch (err: any) { setPickError(err.message || 'Erreur'); }
+    finally { setPickBusy(false); }
+  };
 
   const filtered = clients
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.matricule_fiscal?.includes(search))
@@ -206,6 +242,14 @@ export default function OrgDashboardComptable() {
                   Exercice {g.exercice} · {g.days === 0 ? 'accès à vie' : `expire le ${String(g.expires_at).slice(0, 16)}`}
                 </p>
                 {g.reason && <p className="text-[11px] text-gray-500 italic truncate">« {g.reason} »</p>}
+                <button
+                  type="button"
+                  data-testid={`pick-dossiers-${g.dossier_id}`}
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); openPicker(g); }}
+                  className="mt-2 text-[11px] font-semibold text-amber-800 bg-white/80 border border-amber-200 rounded-full px-2.5 py-1 hover:bg-white transition-colors"
+                >
+                  Choisir les dossiers
+                </button>
               </Link>
             ))}
           </div>
@@ -354,6 +398,46 @@ export default function OrgDashboardComptable() {
           );
         })}
       </div>
+
+      {picking && (
+        <div className="modal-overlay" onClick={() => setPicking(null)}>
+          <div className="modal-panel p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-bold text-base tracking-tight">Dossiers — {picking.client_name}</h3>
+              <button type="button" className="icon-btn" onClick={() => setPicking(null)} title="Fermer"><X size={16} /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Choisissez les dossiers sur lesquels vous intervenez. Ceux marqués « inclus » sont déjà ouverts.
+            </p>
+            {pickError && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-2">{pickError}</p>}
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {pickDossiers.map(d => {
+                const included = grantedHere.has(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    data-testid={`pick-dossier-${d.exercice}`}
+                    disabled={pickBusy || included}
+                    onClick={() => togglePickDossier(d)}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-colors ${
+                      included
+                        ? 'bg-amber-50 border-amber-200 text-amber-800'
+                        : 'bg-white border-gray-200 hover:border-amber-300'
+                    } disabled:opacity-80`}
+                  >
+                    <span className="font-medium">Exercice {d.exercice}</span>
+                    <span className="text-[11px] text-gray-500">
+                      {d.status === 'cloture' ? 'clôturé' : 'en cours'}{included ? ' · inclus' : ''}
+                    </span>
+                  </button>
+                );
+              })}
+              {pickDossiers.length === 0 && !pickError && <p className="text-xs text-gray-400 py-2">Chargement…</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3417,27 +3417,47 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
       if (orgGrantsMatch && method === 'POST') {
         const user = await verifyOrgToken(request);
         if (!user) return json({ error: 'Non autorisé' }, 401);
-        if (!isSupervisor(user.role)) return json({ error: 'Seul un expert/manager peut ouvrir un renfort' }, 403);
         const dossierId = orgGrantsMatch[1];
-        const dossier = await env.DB.prepare('SELECT d.id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ? AND c.organization_id = ?').bind(dossierId, user.organization_id).first();
+        const dossier = await env.DB.prepare('SELECT d.id, d.client_id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ? AND c.organization_id = ?').bind(dossierId, user.organization_id).first() as any;
         if (!dossier) return json({ error: 'Dossier non trouvé' }, 404);
-        const { granted_to, days, reason } = await request.json() as any;
-        const grantDays = days === undefined || days === null ? 7 : Number(days);
-        if (![1, 7, 30, 180, 365, 0].includes(grantDays)) return json({ error: 'Durée invalide (1, 7, 30, 180, 365 jours ou à vie)' }, 400);
-        if (!reason || !String(reason).trim()) return json({ error: 'Motif du renfort requis' }, 400);
+        const body = await request.json() as any;
+        const { granted_to } = body;
         if (!granted_to) return json({ error: 'granted_to requis' }, 400);
-        const target = await env.DB.prepare('SELECT id, full_name FROM org_users WHERE id = ? AND organization_id = ? AND role = ? AND is_active = 1').bind(granted_to, user.organization_id, 'comptable').first() as any;
-        if (!target) return json({ error: 'Comptable introuvable' }, 400);
+        const selfService = !isSupervisor(user.role);
+        let grantDays = body.days === undefined || body.days === null ? 7 : Number(body.days);
+        let reason = String(body.reason || '').trim();
+        let expiresAt: string | null = null;
+        let targetName = '';
+        if (selfService) {
+          // Le comptable choisit lui-meme les dossiers du client sur lequel il a
+          // deja un renfort actif : on reprend la duree et l'echeance du renfort source.
+          if (user.role !== 'comptable' || granted_to !== user.id) return json({ error: 'Seul un expert/manager peut ouvrir un renfort pour un autre comptable' }, 403);
+          const src = await env.DB.prepare(`SELECT g.days, g.expires_at FROM org_dossier_grants g JOIN org_dossiers d ON g.dossier_id = d.id WHERE g.granted_to = ? AND d.client_id = ? AND g.dossier_id <> ? AND ${ORG_GRANT_ACTIVE} LIMIT 1`).bind(user.id, dossier.client_id, dossierId).first() as any;
+          if (!src) return json({ error: 'Accès non autorisé à ce client' }, 403);
+          grantDays = src.days;
+          expiresAt = src.expires_at;
+          reason = reason || 'Renfort : dossier choisi par le comptable';
+          targetName = user.full_name;
+        } else {
+          if (![1, 7, 30, 180, 365, 0].includes(grantDays)) return json({ error: 'Durée invalide (1, 7, 30, 180, 365 jours ou à vie)' }, 400);
+          if (!reason) return json({ error: 'Motif du renfort requis' }, 400);
+          const target = await env.DB.prepare('SELECT id, full_name FROM org_users WHERE id = ? AND organization_id = ? AND role = ? AND is_active = 1').bind(granted_to, user.organization_id, 'comptable').first() as any;
+          if (!target) return json({ error: 'Comptable introuvable' }, 400);
+          targetName = target.full_name;
+        }
         const dup = await env.DB.prepare(`SELECT 1 AS x FROM org_dossier_grants WHERE dossier_id = ? AND granted_to = ? AND ${ORG_GRANT_ACTIVE}`).bind(dossierId, granted_to).first();
         if (dup) return json({ error: 'Accès déjà ouvert pour ce comptable' }, 400);
         const id = genId();
-        // days = 0 : acces a vie (sentinel accepte par ORG_GRANT_ACTIVE : expires_at > maintenant)
-        const expiresSql = grantDays === 0 ? `'9999-12-31 23:59:59'` : `datetime('now', '+${grantDays} days')`;
-        await env.DB.prepare(`INSERT INTO org_dossier_grants (id, dossier_id, granted_to, granted_by, reason, days, expires_at) VALUES (?, ?, ?, ?, ?, ?, ${expiresSql})`).bind(id, dossierId, granted_to, user.id, String(reason).trim(), grantDays).run();
-        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'grant_created', 'dossier', dossierId, JSON.stringify({ granted_to, granted_to_name: target.full_name, days: grantDays, reason: String(reason).trim() })).run();
-        return json({ id, dossier_id: dossierId, granted_to, granted_to_name: target.full_name, days: grantDays, reason: String(reason).trim() }, 201);
-      }
-      if (orgGrantsMatch && method === 'GET') {
+        if (selfService && expiresAt) {
+          await env.DB.prepare('INSERT INTO org_dossier_grants (id, dossier_id, granted_to, granted_by, reason, days, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, dossierId, granted_to, user.id, reason, grantDays, expiresAt).run();
+        } else {
+          // days = 0 : acces a vie (sentinel accepte par ORG_GRANT_ACTIVE : expires_at > maintenant)
+          const expiresSql = grantDays === 0 ? `'9999-12-31 23:59:59'` : `datetime('now', '+${grantDays} days')`;
+          await env.DB.prepare(`INSERT INTO org_dossier_grants (id, dossier_id, granted_to, granted_by, reason, days, expires_at) VALUES (?, ?, ?, ?, ?, ?, ${expiresSql})`).bind(id, dossierId, granted_to, user.id, reason, grantDays).run();
+        }
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'grant_created', 'dossier', dossierId, JSON.stringify({ granted_to, granted_to_name: targetName, days: grantDays, reason, self_service: selfService })).run();
+        return json({ id, dossier_id: dossierId, granted_to, granted_to_name: targetName, days: grantDays, reason }, 201);
+      }      if (orgGrantsMatch && method === 'GET') {
         const user = await verifyOrgToken(request);
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!isSupervisor(user.role)) return json({ error: 'Réservé à l\'expert/manager' }, 403);
@@ -3462,7 +3482,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
       if (path === '/api/org/grants/mine' && method === 'GET') {
         const user = await verifyOrgToken(request);
         if (!user) return json({ error: 'Non autorisé' }, 401);
-        const { results } = await env.DB.prepare(`SELECT g.id, g.dossier_id, g.reason, g.days, g.expires_at, g.created_at, d.exercice, d.status, c.name as client_name, ub.full_name as granted_by_name FROM org_dossier_grants g JOIN org_dossiers d ON g.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_users ub ON g.granted_by = ub.id WHERE g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now')) ORDER BY g.created_at DESC`).bind(user.id).all();
+        const { results } = await env.DB.prepare(`SELECT g.id, g.dossier_id, d.client_id, g.reason, g.days, g.expires_at, g.created_at, d.exercice, d.status, c.name as client_name, ub.full_name as granted_by_name FROM org_dossier_grants g JOIN org_dossiers d ON g.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_users ub ON g.granted_by = ub.id WHERE g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now')) ORDER BY g.created_at DESC`).bind(user.id).all();
         return json(results);
       }
 
