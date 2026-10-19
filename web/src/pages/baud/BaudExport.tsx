@@ -38,7 +38,7 @@ export default function BaudExport() {
   return (
     <div className="space-y-4 mt-4">
       <h2 className="text-xl font-semibold">Export Sage GA</h2>
-      <div className="bg-white border rounded-lg p-4 flex gap-3 items-end">
+      <div className="card p-4 flex gap-3 items-end">
         <div>
           <label className="text-xs text-gray-500">Societe</label>
           <select value={societeId} onChange={e => { setSocieteId(e.target.value); setDossierId(''); setExports([]); }}
@@ -64,7 +64,7 @@ export default function BaudExport() {
       {msg && <p className={`text-sm ${msg.includes('Erreur') ? 'text-red-600' : 'text-green-700'}`}>{msg}</p>}
 
       {exports.length > 0 && (
-        <div className="bg-white border rounded-lg p-4">
+        <div className="card p-4">
           <h3 className="font-medium text-sm mb-3">Fichiers generes</h3>
           <div className="space-y-2">
             {exports.map((exp: any) => (

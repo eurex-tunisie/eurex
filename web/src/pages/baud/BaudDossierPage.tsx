@@ -515,7 +515,7 @@ export default function BaudDossierPage() {
 
       {/* TAB: IMPORT */}
       {tab === 'navette' && (
-        <div className="bg-white border rounded-lg p-4 space-y-3">
+        <div className="card p-4 space-y-3">
           {dossier.fichier_navette_nom && <p className="text-sm text-green-600">Fichier: {dossier.fichier_navette_nom}</p>}
           <div className="flex gap-3 items-end">
             <div className="flex-1">
@@ -537,9 +537,9 @@ export default function BaudDossierPage() {
                 <button onClick={calculateAll} className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-1"><Calculator size={14} />Calculer les salaires</button>
                 <span className="text-xs text-gray-400 self-center">{employees.length} salaries</span>
               </div>
-              <div className="bg-white border rounded-lg overflow-x-auto">
+              <div className="card overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-gray-500 border-b bg-gray-50">
+                  <thead><tr className="text-left text-xs text-gray-500 border-b table-header">
                     <th className="p-2">Mat</th><th className="p-2">Nom</th><th className="p-2">Prenom</th>
                     <th className="p-2">CIN</th><th className="p-2">CNSS</th><th className="p-2">SF</th><th className="p-2">NE</th>
                     <th className="p-2">Embauche</th><th className="p-2">Fonction</th><th className="p-2">Contrat</th>
@@ -611,7 +611,7 @@ export default function BaudDossierPage() {
       {/* TAB: CONTROLE IA */}
       {tab === 'controle' && (
         <div className="space-y-4">
-          <div className="bg-white border rounded-lg p-4 space-y-3">
+          <div className="card p-4 space-y-3">
             <div className="flex items-center gap-3">
               <ShieldCheck size={20} className="text-blue-600" />
               <div>
@@ -702,9 +702,9 @@ export default function BaudDossierPage() {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center"><div className="text-xs text-green-600">Total Net</div><div className="text-lg font-bold text-green-800">{totalNet.toFixed(3)}</div></div>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center"><div className="text-xs text-purple-600">Salaries</div><div className="text-lg font-bold text-purple-800">{salaryResults.size}</div></div>
               </div>
-              <div className="bg-white border rounded-lg overflow-x-auto">
+              <div className="card overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="text-left text-xs text-gray-500 border-b bg-gray-50">
+                  <thead><tr className="text-left text-xs text-gray-500 border-b table-header">
                     <th className="p-2">Mat</th><th className="p-2">Nom</th><th className="p-2 text-right">Base</th>
                     <th className="p-2 text-right">Anc</th><th className="p-2 text-right">Transport</th><th className="p-2 text-right">Presence</th>
                     <th className="p-2 text-right">Brut</th><th className="p-2 text-right">CNSS</th><th className="p-2 text-right">IRPP</th><th className="p-2 text-right">CSS</th><th className="p-2 text-right">Net</th><th className="p-2 text-right">Net a payer</th>
@@ -734,7 +734,7 @@ export default function BaudDossierPage() {
       {tab === 'export' && (
         <div className="space-y-4">
           {/* Toggle mode export */}
-          <div className="bg-white border rounded-lg p-4 space-y-3">
+          <div className="card p-4 space-y-3">
             <div className="flex items-center gap-3">
               <FileSpreadsheet size={20} className="text-purple-600" />
               <h3 className="font-medium text-sm">Export Sage Paie 100</h3>
@@ -757,7 +757,7 @@ export default function BaudDossierPage() {
 
           {/* Mode: Variables — Sage fait le calcul */}
           {exportMode === 'variables' && (
-            <div className="bg-white border rounded-lg p-4 space-y-3">
+            <div className="card p-4 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <p className="text-xs text-gray-500">Prépare les variables d'entrée — Sage applique ses propres paramètres et barèmes</p>
@@ -797,7 +797,7 @@ export default function BaudDossierPage() {
           )}
 
           {/* Export Salariés SAGE BTP — format fixe import */}
-          <div className="bg-white border rounded-lg p-4 space-y-3">
+          <div className="card p-4 space-y-3">
             <div className="flex items-center gap-3">
               <FileSpreadsheet size={20} className="text-green-600" />
               <h3 className="font-medium text-sm">Export Salariés SAGE BTP (format fixe)</h3>
@@ -904,7 +904,7 @@ export default function BaudDossierPage() {
 
           {/* Mode: Legacy — calcul interne */}
           {exportMode === 'legacy' && (
-            <div className="bg-white border rounded-lg p-4 space-y-3">
+            <div className="card p-4 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <p className="text-xs text-gray-500">Exporte les rubriques calculées par notre système — contrôle croisé avec Sage</p>
@@ -978,7 +978,7 @@ export default function BaudDossierPage() {
           )}
 
           {exports.length > 0 && (
-            <div className="bg-white border rounded-lg p-4">
+            <div className="card p-4">
               <h3 className="font-medium text-sm mb-3">Fichiers générés</h3>
               <div className="space-y-2">
                 {exports.map((exp: any) => (

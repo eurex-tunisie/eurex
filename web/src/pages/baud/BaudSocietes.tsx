@@ -62,7 +62,7 @@ export default function BaudSocietes() {
       </div>
 
       {showNew && (
-        <div className="bg-white border rounded-lg p-4 space-y-3">
+        <div className="card p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <input placeholder="Nom de la societe" value={nom} onChange={e => setNom(e.target.value)} className="border rounded px-3 py-2 text-sm" />
             <select value={formeJuridique} onChange={e => setFormeJuridique(e.target.value)} className="border rounded px-3 py-2 text-sm">
@@ -94,7 +94,7 @@ export default function BaudSocietes() {
 
       {/* Dossiers for selected societe */}
       {selected && (
-        <div className="bg-white border rounded-lg p-4">
+        <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
             {editingSoc === selected.id ? (
               <div className="flex items-center gap-2 flex-1">
@@ -137,12 +137,12 @@ export default function BaudSocietes() {
       )}
 
       {!selected && societes.length > 0 && (
-        <div className="bg-white border rounded-lg p-8 text-center text-gray-400 text-sm">
+        <div className="card p-8 text-center text-gray-400 text-sm">
           Selectionnez une societe pour voir ses dossiers
         </div>
       )}
       {societes.length === 0 && (
-        <div className="bg-white border rounded-lg p-8 text-center text-gray-400 text-sm">
+        <div className="card p-8 text-center text-gray-400 text-sm">
           Aucune societe. Cliquez "+ Nouvelle" pour creer.
         </div>
       )}

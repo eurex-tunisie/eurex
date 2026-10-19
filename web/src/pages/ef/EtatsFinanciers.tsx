@@ -1164,7 +1164,7 @@ export default function EtatsFinanciers() {
 
   // ===== RENDER =====
   const renderInputs = () => (
-    <div className="bg-white rounded-lg border p-4 flex gap-4 items-end flex-wrap">
+    <div className="card p-4 flex gap-4 items-end flex-wrap">
       <div>
         <label className="text-xs text-gray-500 block mb-1">Societe</label>
         <input type="text" value={nomSociete} onChange={e => setNomSociete(e.target.value)}
@@ -1219,7 +1219,7 @@ export default function EtatsFinanciers() {
   );
 
   const renderTable = (headers: string[], rows: { label: string; indent?: number; bold?: boolean; vals: (number | string)[]; isSection?: boolean }[], totals?: { label: string; vals: number[] }) => (
-    <div className="bg-white rounded-lg border overflow-x-auto">
+    <div className="card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-blue-700 text-white">
@@ -1270,7 +1270,7 @@ export default function EtatsFinanciers() {
       <div className="space-y-4">
         {renderToolbar("Etat des soldes de gestion", buildResultatRows, 'ESG')}
         {/* Two-column layout matching screenshot */}
-        <div className="grid grid-cols-2 gap-0 bg-white rounded-lg border overflow-hidden">
+        <div className="grid grid-cols-2 gap-0 card overflow-hidden">
           {/* PRODUITS */}
           <div className="border-r">
             <table className="w-full text-sm">
@@ -1425,7 +1425,7 @@ export default function EtatsFinanciers() {
     return (
       <div className="space-y-4">
         {renderToolbar("Tableau des Immobilisations", buildTabAmtRows, 'TAB_AMT')}
-        <div className="bg-white border rounded-lg p-3 flex flex-wrap items-center gap-3">
+        <div className="card p-3 flex flex-wrap items-center gap-3">
           <input ref={fileRefImmob} type="file" accept=".xls,.xlsx,.csv,.txt" className="hidden" onChange={handleFileImportImmob} />
           <button onClick={() => fileRefImmob.current?.click()}
             className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded text-sm flex items-center gap-2 font-medium">
@@ -1651,7 +1651,7 @@ export default function EtatsFinanciers() {
     return (
       <div className="space-y-4">
         {renderToolbar("Resultat Fiscal", buildFiscRows, 'RESULTAT_FISCAL')}
-        <div className="bg-white border rounded-lg p-4 space-y-3">
+        <div className="card p-4 space-y-3">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Resultat comptable</label>
@@ -1761,7 +1761,7 @@ export default function EtatsFinanciers() {
       )}
       {/* AI Results Panel */}
       {showAiPanel && (
-        <div className="bg-white border rounded-lg p-5 space-y-4">
+        <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-gray-800 flex items-center gap-2">
               <BrainCircuit size={18} className="text-purple-600" />
@@ -1819,7 +1819,7 @@ export default function EtatsFinanciers() {
       {!selected ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {EF_TYPES.map(t => (
-            <button key={t.key} onClick={() => setSelected(t.key)} className="bg-white border rounded-lg p-5 text-left hover:shadow-md transition-all group">
+            <button key={t.key} onClick={() => setSelected(t.key)} className="card p-5 text-left hover:shadow-md transition-all group">
               <div className="text-3xl mb-2">{t.icon}</div>
               <div className="font-semibold text-gray-800 group-hover:text-blue-600">{t.label}</div>
               <div className="text-xs text-gray-500 mt-1">{t.desc}</div>

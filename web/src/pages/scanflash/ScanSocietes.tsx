@@ -69,7 +69,7 @@ export default function ScanSocietes() {
         <h1 className="text-2xl font-bold text-gray-800">SCANFLASH — Societes</h1>
       </div>
 
-      <div className="bg-white rounded-lg border p-4">
+      <div className="card p-4">
         <h2 className="font-semibold text-gray-700 mb-3">Nouvelle societe</h2>
         <div className="flex gap-3 items-end">
           <input value={newNom} onChange={e => setNewNom(e.target.value)} placeholder="Raison sociale" className="flex-1 border rounded px-3 py-2 text-sm" />
@@ -83,7 +83,7 @@ export default function ScanSocietes() {
       {loading ? <div className="text-gray-400">Chargement...</div> : societes.length === 0 ? (
         <div className="text-center text-gray-400 py-10">Aucune societe</div>
       ) : societes.map(s => (
-        <div key={s.id} className="bg-white rounded-lg border">
+        <div key={s.id} className="card">
           <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50 rounded-t-lg">
             <div>
               <span className="font-semibold text-gray-800">{s.raison_sociale}</span>

@@ -61,7 +61,7 @@ export default function BaudUpload() {
   return (
     <div className="space-y-4 mt-4">
       <h2 className="text-xl font-semibold">Upload fiche navette</h2>
-      <div className="bg-white border rounded-lg p-4 space-y-3">
+      <div className="card p-4 space-y-3">
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="text-xs text-gray-500">Societe</label>
@@ -87,7 +87,7 @@ export default function BaudUpload() {
       </div>
 
       {dossier && (
-        <div className="bg-white border rounded-lg p-4 space-y-3">
+        <div className="card p-4 space-y-3">
           <p className="text-sm text-gray-600">Dossier: {String(mois).padStart(2, '0')}/{annee} — Statut: <span className="font-medium">{dossier.statut}</span></p>
           {dossier.fichier_navette_nom && <p className="text-sm text-green-600">Fichier: {dossier.fichier_navette_nom}</p>}
           <div className="flex gap-3 items-end">

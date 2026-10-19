@@ -55,7 +55,7 @@ export default function BaudParametres() {
   if (!authenticated) {
     return (
       <div className="max-w-md mx-auto mt-20 space-y-4">
-        <div className="bg-white rounded-lg border p-6 text-center">
+        <div className="card p-6 text-center">
           <ShieldCheck size={40} className="mx-auto text-purple-500 mb-3" />
           <h2 className="text-lg font-bold mb-2">Paramètres BAUD</h2>
           <p className="text-sm text-gray-500 mb-4">Entrez le code d'accès</p>
@@ -230,7 +230,7 @@ export default function BaudParametres() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-lg border p-4">
+    <div className="card p-4">
       <h3 className="font-semibold text-sm mb-3 text-gray-700">{title}</h3>
       <div className="space-y-2">{children}</div>
     </div>

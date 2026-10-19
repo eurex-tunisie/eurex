@@ -107,21 +107,21 @@ export default function Home() {
   return (
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-semibold">Dossiers</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Dossiers</h2>
         <button onClick={() => setSplitOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2">
+          className="btn btn-soft">
           <Scissors size={16} /> Scinder un PDF
         </button>
       </div>
 
       {dossiers.length === 0 && (
-        <div className="bg-white border rounded-lg p-8 text-center text-gray-400 text-sm">
+        <div className="card p-8 text-center text-sm" style={{ color: 'var(--label-3)' }}>
           Aucun dossier.
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <Link to="/ef" className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-4 hover:shadow-md transition-all group">
+        <Link to="/ef" className="bg-gradient-to-br from-indigo-50 to-blue-50 shadow-card rounded-xl p-4 card-hover group">
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 size={20} className="text-indigo-600" />
             <span className="font-medium text-indigo-800">Etats Financiers</span>
@@ -131,7 +131,7 @@ export default function Home() {
             <span className="text-xs text-gray-500">Bilan, Resultat, SIG, Flux, Immob</span>
           </div>
         </Link>
-        <Link to="/achats" className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4 hover:shadow-md transition-all group">
+        <Link to="/achats" className="bg-gradient-to-br from-orange-50 to-amber-50 shadow-card rounded-xl p-4 card-hover group">
           <div className="flex items-center gap-2 mb-2">
             <ShoppingCart size={20} className="text-orange-600" />
             <span className="font-medium text-orange-800">Achats</span>
@@ -156,7 +156,7 @@ export default function Home() {
           const tone = colorMap[isAchat ? 'orange' : isBaud ? 'purple' : isScan ? 'emerald' : 'blue'];
           return (
             <Link key={d.id} to={link}
-              className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all group`}>
+              className={`card card-hover p-4 group`}>
               <div className="flex items-center justify-between mb-2 gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   {(() => { const Icon = icons[d.type] || FolderOpen; return <Icon size={20} className={`${tone.icon} shrink-0`} />; })()}

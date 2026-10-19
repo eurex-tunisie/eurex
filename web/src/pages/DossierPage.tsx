@@ -173,7 +173,7 @@ Reponds en 3 lignes max: cause de l'ecart (oui/non) et correction si necessaire.
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+              <thead><tr className="text-left text-xs font-semibold uppercase table-header">
                 <th className="px-4 py-2">Piece</th><th className="px-4 py-2">Date</th><th className="px-4 py-2 text-right">HT 19%</th><th className="px-4 py-2 text-right">TVA Calculee</th><th className="px-4 py-2 text-right">TVA Ecrite</th><th className="px-4 py-2 text-right">Ecart</th><th className="px-4 py-2 text-center">Statut</th><th className="px-4 py-2"></th>
               </tr></thead>
               <tbody className="divide-y divide-gray-100">
@@ -598,7 +598,7 @@ export default function DossierPage() {
             <div className="bg-white rounded-xl border overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                  <thead><tr className="text-left text-xs font-semibold uppercase table-header">
                     <th className="px-4 py-3">Date</th><th className="px-4 py-3">N Doc</th><th className="px-4 py-3">Libelle</th><th className="px-4 py-3">Compte</th><th className="px-4 py-3">Sens</th><th className="px-4 py-3 text-right">Montant</th><th className="px-4 py-3"></th>
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
@@ -664,7 +664,7 @@ export default function DossierPage() {
           {factures.length > 0 && (
             <div className="bg-white rounded-xl border overflow-hidden">
               <table className="w-full text-sm">
-                <thead><tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                <thead><tr className="text-left text-xs font-semibold uppercase table-header">
                   <th className="px-4 py-3">Date</th><th className="px-4 py-3">N Facture</th><th className="px-4 py-3">Client</th><th className="px-4 py-3 text-right">HT 0%</th><th className="px-4 py-3 text-right">HT 19%</th><th className="px-4 py-3 text-right">TVA</th><th className="px-4 py-3 text-right">TTC</th><th className="px-4 py-3"></th>
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
@@ -723,7 +723,7 @@ export default function DossierPage() {
           {rapport.length > 0 && (
             <div className="bg-white rounded-xl border overflow-hidden">
               <table className="w-full text-sm">
-                <thead><tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                <thead><tr className="text-left text-xs font-semibold uppercase table-header">
                   <th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Espece</th><th className="px-3 py-2 text-right">Cheque</th><th className="px-3 py-2 text-right">Carte</th><th className="px-3 py-2 text-right">Bons+Avoir</th><th className="px-3 py-2 text-right">Credit</th>
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">{rapport.map((r: any) => (
@@ -758,7 +758,7 @@ export default function DossierPage() {
             <div className="bg-white rounded-xl border overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                  <thead><tr className="text-left text-xs font-semibold uppercase table-header">
                     <th className="px-4 py-3">Date</th><th className="px-4 py-3">N Doc</th><th className="px-4 py-3">Libelle</th><th className="px-4 py-3">Compte</th><th className="px-4 py-3">Sens</th><th className="px-4 py-3 text-right">Montant</th><th className="px-4 py-3"></th>
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
@@ -851,7 +851,7 @@ export default function DossierPage() {
               )}
               <div className="bg-white rounded-xl border overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead><tr className="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase">
+                  <thead><tr className="text-left text-xs font-semibold uppercase table-header">
                     <th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Factures TTC</th><th className="px-3 py-2 text-right">Rapport Total</th><th className="px-3 py-2 text-right">Ecart</th><th className="px-3 py-2 text-center">Statut</th>
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">

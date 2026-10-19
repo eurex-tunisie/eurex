@@ -49,7 +49,7 @@ export default function BaudControle() {
   return (
     <div className="space-y-4 mt-4">
       <h2 className="text-xl font-semibold">Controle des extractions</h2>
-      <div className="bg-white border rounded-lg p-4 flex gap-3 items-end">
+      <div className="card p-4 flex gap-3 items-end">
         <div>
           <label className="text-xs text-gray-500">Societe</label>
           <select value={societeId} onChange={e => { setSocieteId(e.target.value); setDossierId(''); setLignes([]); }}
@@ -70,9 +70,9 @@ export default function BaudControle() {
       {msg && <p className={`text-sm ${msg.includes('Erreur') ? 'text-red-600' : 'text-green-700'}`}>{msg}</p>}
 
       {lignes.length > 0 && (
-        <div className="bg-white border rounded-lg overflow-x-auto">
+        <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-xs text-gray-500 border-b bg-gray-50">
+            <thead><tr className="text-left text-xs text-gray-500 border-b table-header">
               <th className="p-2">Matricule</th><th className="p-2">Nom</th><th className="p-2">Type</th>
               <th className="p-2">Rubrique</th><th className="p-2">Zone</th><th className="p-2">Valeur</th>
             </tr></thead>

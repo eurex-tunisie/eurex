@@ -490,7 +490,7 @@ export default function ScanDossierPage() {
       {tab === 'factures' && (
         <div className="space-y-4">
           {/* Upload */}
-          <div className="bg-white rounded-lg border p-4">
+          <div className="card p-4">
             <div className="flex items-center gap-3">
               <label className="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 cursor-pointer">
                 <Upload size={15} className="inline mr-1" />
@@ -515,7 +515,7 @@ export default function ScanDossierPage() {
           </div>
 
           {/* Client mapping */}
-          <div className="bg-white rounded-lg border p-4">
+          <div className="card p-4">
             <h3 className="font-semibold text-gray-700 mb-3 text-sm">Mapping Code Client → Compte 411XXX</h3>
             <div className="flex gap-2 items-end mb-2">
               <input placeholder="Code client (ex: CLT0626-1187)" value={newClientCode} onChange={e => setNewClientCode(e.target.value)} className="flex-1 border rounded px-2 py-1.5 text-sm" />
@@ -540,7 +540,7 @@ export default function ScanDossierPage() {
           </div>
 
           {/* Manual add */}
-          <div className="bg-white rounded-lg border p-4">
+          <div className="card p-4">
             <h3 className="font-semibold text-gray-700 mb-3 text-sm">Ajouter manuellement</h3>
             <div className="grid grid-cols-4 gap-2 text-sm">
               <input placeholder="N° FAC" value={form.numero} onChange={e => setForm({...form, numero: e.target.value})} className="border rounded px-2 py-1.5" />
@@ -558,9 +558,9 @@ export default function ScanDossierPage() {
           </div>
 
           {/* Factures table */}
-          <div className="bg-white rounded-lg border overflow-x-auto">
+          <div className="card overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
+              <thead className="table-header">
                 <tr>
                   <th className="px-3 py-2 text-left">N°</th>
                   <th className="px-3 py-2 text-left">Date</th>
@@ -627,7 +627,7 @@ export default function ScanDossierPage() {
           </div>
 
           {/* Manual add ecriture */}
-          <div className="bg-white rounded-lg border p-4">
+          <div className="card p-4">
             <h3 className="font-semibold text-gray-700 mb-3 text-sm">Ajouter une ecriture</h3>
             <div className="grid grid-cols-6 gap-2 text-sm">
               <input type="date" id="ecr-date" className="border rounded px-2 py-1.5" defaultValue={dossier?.mois ? `${dossier.annee}-${String(dossier.mois).padStart(2,'0')}-01` : ''} />
@@ -653,9 +653,9 @@ export default function ScanDossierPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border overflow-x-auto">
+          <div className="card overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
+              <thead className="table-header">
                 <tr>
                   <th className="px-3 py-2 text-left">Date</th>
                   <th className="px-3 py-2 text-left">Journal</th>
@@ -696,7 +696,7 @@ export default function ScanDossierPage() {
       {/* Tab: Export */}
       {tab === 'export' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-lg border p-6 space-y-4">
+          <div className="card p-6 space-y-4">
             <h3 className="font-semibold text-gray-700">Export CSV / Axeane</h3>
             <p className="text-sm text-gray-500">Format: N° piece | Date | Journal | Libelle | Compte | Libelle tresorerie | Debit | Credit</p>
             <div className="flex gap-3 items-center flex-wrap">
@@ -775,7 +775,7 @@ export default function ScanDossierPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-lg border p-6">
+          <div className="card p-6">
             <h3 className="font-semibold text-gray-700 mb-2">Comptes utilises</h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>

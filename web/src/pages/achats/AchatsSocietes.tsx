@@ -187,7 +187,7 @@ export default function AchatsSocietes() {
       </div>
 
       {/* Sociétés */}
-      <div className="bg-white rounded-lg border p-4">
+      <div className="card p-4">
         <h2 className="font-semibold text-gray-700 text-sm mb-3">Sociétés</h2>
         <div className="flex gap-2 flex-wrap items-center mb-3">
           {societes.map(s => (
@@ -214,7 +214,7 @@ export default function AchatsSocietes() {
       </div>
 
       {/* Plan Comptable par défaut */}
-      <div className="bg-white rounded-lg border p-4">
+      <div className="card p-4">
         <div className="flex items-center gap-2 mb-2">
           <FileSpreadsheet size={18} className="text-orange-600" />
           <h2 className="font-semibold text-gray-700 text-sm">Plan par défaut (nouveaux dossiers)</h2>
@@ -224,7 +224,7 @@ export default function AchatsSocietes() {
       </div>
 
       {/* Nouveau dossier */}
-      <div className="bg-white rounded-lg border p-4">
+      <div className="card p-4">
         <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
           <h2 className="font-semibold text-gray-700 text-sm">Dossiers — {selectedSociete.nom}</h2>
         </div>
