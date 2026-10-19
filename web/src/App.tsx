@@ -116,7 +116,7 @@ export default function App() {
 
   return (
     <OrgAuthProvider>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen flex flex-col">
         {!onPortail && <GlobalNav path={path} />}
         {/* /cabinet : conteneur sans padding → le login pleine largeur, les pages cabinet gèrent leur propre max-w */}
         <main className={onCabinet || onPortail ? 'flex-1 flex flex-col' : 'max-w-7xl mx-auto px-4 py-6 w-full'}>

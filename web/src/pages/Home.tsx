@@ -147,13 +147,19 @@ export default function Home() {
           const isAchat = d.type === 'achats';
           const link = isAchat ? `/achats/dossier/${d.id}` : isBaud ? `/baud/dossier/${d.id}` : isScan ? `/scanflash/dossier/${d.id}` : `/dossier/${d.id}`;
           const label = isAchat ? 'ACHATS' : isBaud ? 'BAUD' : isScan ? 'SCANFLASH' : 'ANIMAL';
-          const color = isAchat ? 'orange' : isBaud ? 'purple' : isScan ? 'emerald' : 'blue';
+          const colorMap = {
+            orange: { icon: 'text-orange-500', badge: 'bg-orange-100 text-orange-700' },
+            purple: { icon: 'text-purple-500', badge: 'bg-purple-100 text-purple-700' },
+            emerald: { icon: 'text-emerald-500', badge: 'bg-emerald-100 text-emerald-700' },
+            blue: { icon: 'text-blue-500', badge: 'bg-blue-100 text-blue-700' },
+          } as const;
+          const tone = colorMap[isAchat ? 'orange' : isBaud ? 'purple' : isScan ? 'emerald' : 'blue'];
           return (
             <Link key={d.id} to={link}
               className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all group`}>
               <div className="flex items-center justify-between mb-2 gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  {(() => { const Icon = icons[d.type] || FolderOpen; return <Icon size={20} className={`text-${color}-500 shrink-0`} />; })()}
+                  {(() => { const Icon = icons[d.type] || FolderOpen; return <Icon size={20} className={`${tone.icon} shrink-0`} />; })()}
                   {editingId === d.id ? (
                     <span className="flex items-center gap-1 min-w-0 flex-1"
                       onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
@@ -191,7 +197,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded text-xs bg-${color}-100 text-${color}-700`}>{label}</span>
+                <span className={`px-2 py-0.5 rounded text-xs ${tone.badge}`}>{label}</span>
               </div>
             </Link>
           );
