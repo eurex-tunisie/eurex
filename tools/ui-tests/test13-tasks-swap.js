@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails++; };
@@ -11,8 +12,8 @@ const ok = (c, m) => { console.log((c ? 'PASS: ' : 'FAIL: ') + m); if (!c) fails
   await p.evaluate(() => sessionStorage.setItem('eurex_authorized', '1'));
   await p.goto(BASE + '/cabinet', { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('input[name="email"]', { timeout: 20000 });
-  await p.fill('input[name="email"]', 'salim@eurex.tn');
-  await p.fill('input[name="password"]', 'salim1234567');
+  await p.fill('input[name="email"]', CRED.salim.email);
+  await p.fill('input[name="password"]', CRED.salim.password);
   await p.click('button[type="submit"]');
   await p.waitForSelector('a[href*="/cabinet/dossier/"]', { timeout: 20000 });
   const href = await p.locator('a[href*="/cabinet/dossier/doss_002"]').first().getAttribute('href');

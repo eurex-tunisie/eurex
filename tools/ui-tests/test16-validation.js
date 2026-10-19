@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
 let fails = 0;
@@ -16,13 +17,13 @@ async function j(url, opt) {
   if (!r.ok) throw new Error(url + ' -> ' + r.status);
   return r.json();
 }
-const jlogin = email => j(API + '/api/org/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: email === 'expert@eurex.tn' ? 'expert1234567' : 'samar1234567' }) });
+const jlogin = email => j(API + '/api/org/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: email === CRED.expert.email ? CRED.expert.password : CRED.samar.password }) });
 
 (async () => {
   // ---- setup API : dossier test + tache en a_verifier ----
-  const le = await jlogin('expert@eurex.tn');
+  const le = await jlogin(CRED.expert.email);
   const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + le.token };
-  const lc = await jlogin('samar@eurex.tn');
+  const lc = await jlogin(CRED.samar.email);
   const Hc = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + lc.token };
   const c = await j(API + '/api/org/clients', { method: 'POST', headers: H, body: JSON.stringify({ name: 'ZZ-VERIFY-UI', assigned_comptable_id: 'user_comp_002' }) });
   const d = await j(API + `/api/org/clients/${c.id}/dossiers`, { method: 'POST', headers: H, body: JSON.stringify({ exercice: 2026 }) });
@@ -41,8 +42,8 @@ const jlogin = email => j(API + '/api/org/auth/login', { method: 'POST', headers
   await p.evaluate(() => sessionStorage.setItem('eurex_authorized', '1'));
   await p.goto(BASE + '/cabinet', { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('input[name="email"]', { timeout: 20000 });
-  await p.fill('input[name="email"]', 'expert@eurex.tn');
-  await p.fill('input[name="password"]', 'expert1234567');
+  await p.fill('input[name="email"]', CRED.expert.email);
+  await p.fill('input[name="password"]', CRED.expert.password);
   await p.click('button[type="submit"]');
   // onglet Vue globale -> lien dossier du client test
   const glob = p.locator('button', { hasText: 'Vue globale' });

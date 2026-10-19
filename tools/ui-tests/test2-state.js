@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 
 const BASE = 'https://eurex-tunisie.github.io/eurex';
 const DOSSIER = 'doss_003';
@@ -22,8 +23,8 @@ const DOSSIER = 'doss_003';
   await page.evaluate(() => sessionStorage.setItem('eurex_authorized', '1'));
   await page.goto(BASE + '/cabinet', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('input[name="email"]', { timeout: 20000 });
-  await page.fill('input[name="email"]', 'expert@eurex.tn');
-  await page.fill('input[name="password"]', 'expert1234567');
+  await page.fill('input[name="email"]', CRED.expert.email);
+  await page.fill('input[name="password"]', CRED.expert.password);
   await page.click('button[type="submit"]');
   await page.waitForTimeout(3000);
 

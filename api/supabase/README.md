@@ -43,6 +43,35 @@ psql "$SUPABASE_DB_URL" -f api/supabase/schema.sql
    convient) — en cas de refus, relancer avec `--no-replica` et corriger les
    orphelines éventuelles signalées à l'import.
 
+### ⚠️ Après CHAQUE migration D1 : rattraper Supabase
+`schema.sql` est une **photographie** datée (voir son en-tête), pas une source
+qui se met à jour. Toute migration appliquée à D1 après cette date n'existe
+PAS côté PostgreSQL tant qu'on ne la rejoue pas à la main — et rien ne le
+signale : la double écriture ne recopie que des **lignes**, jamais des
+**colonnes**.
+
+C'est arrivé : `schema.sql` du 2026-10-09 (migrations ≤ 0034), alors que D1
+avait reçu 0035 à 0038. Résultat, chaque lecture confiée à PostgreSQL échouait
+et retombait sur D1 —
+
+```
+(error) lecture repartie indisponible, repli sur D1 :
+        column c.deleted_at does not exist
+```
+
+— en silence apparent (l'utilisateur ne voit qu'un repli), avec deux
+conséquences réelles : la répartition des lectures ne soulageait plus le quota
+de lignes lues de D1, et une bascule automatique sur Supabase aurait cassé la
+page Clients au lieu de secourir l'application.
+
+**Règle** : après toute migration D1, rejouer sa partie **structurelle** côté
+Supabase (SQL Editor ou psql), et **jamais** sa partie données si D1 était
+primaire à ce moment-là (la double écriture les a déjà copiées : les rejouer
+ferait des doublons).
+
+Exemple prêt à l'emploi : `api/supabase/rattrapage-0035-0038.sql` (idempotent,
+se termine par un contrôle de colonnes).
+
 ---
 
 ## 2. Écarts / décisions de conversion
@@ -660,7 +689,78 @@ la sortie « déjà sur D1 ». Conséquence pratique : dans l'état courant
   Les endpoints `/internal/register|heartbeat|cloud_mode` et les clés KV
   `__local/*` n'existent plus ; le paquet `api/local` reste dans le dépôt mais
   n'est plus joignable. Il n'y a donc plus d'étape manuelle de bascule locale.
-- Tests : `cd api && npm test` → **101 tests**, dont la double écriture (avec la
+- Tests : `cd api && npm test` → **133 tests**, dont la double écriture (avec la
   conservation des paramètres des écritures manquantes), la synchronisation sur
   doubles et la conservation de corps.
+
+---
+
+## 10. La copie contient-elle EXACTEMENT ce que contient D1 ? (contrôle d'écart)
+
+`schema.sql` répond à « la copie a-t-elle la bonne *forme* » (§1), et la double
+écriture à « reçoit-elle les *nouvelles* écritures ». Aucun des deux ne répond à
+« la copie contient-elle exactement ce que contient D1 » — la seule question qui
+compte le jour où une bascule envoie l'application servir Supabase.
+
+L'outil `tools/ecart-d1-supabase.ps1` y répond en quatre étapes indépendantes,
+de la plus large à la plus fine :
+
+| Étape | Question | Commande |
+|---|---|---|
+| `compteurs` | mêmes nombres de lignes, table par table ? | `-Etape compteurs` |
+| `schema` | mêmes colonnes et mêmes types ? | `-Etape schema` |
+| `valeurs` | même contenu, table par table ? | `-Etape valeurs` (ou `-Table org_tasks`) |
+| `colonne` | quelle colonne, et quelles lignes, divergent ? | `-Etape colonne -Table org_clients [-Colonne portal_token]` |
+
+Prérequis : le secret interne du Worker, lu dans `api/local/.env` (fichier ignoré
+par git — le contrôle passe par `/internal/pg`, réservé à l'exploitant) et
+wrangler authentifié. Résultat attendu : `tables en ecart : 0 / 35`.
+
+### ⚠️ Une écriture peut manquer à la copie sans laisser aucune trace
+
+C'est le constat le plus important de ce contrôle. Le journal
+`__backend/outbox` ne contient que les écritures qui ont **échoué alors que la
+double écriture était active**. Une écriture faite *avant* la double écriture —
+ou pendant qu'elle était désactivée — n'y figure pas ; et la copie complète
+nocturne D1 → Supabase ayant été retirée (§9), **rien ne la rattrapera jamais**.
+`forward_gap` ne la signale pas non plus : il n'a jamais été levé.
+
+Constaté le 2026-10-18 : deux clients avaient un `portal_token` (lien d'accès au
+portail client, 40 caractères) en D1 et `NULL` dans la copie. Pour l'un, le
+journal contenait bien l'écriture en attente (rejouée par le cron de 00:05 UTC) ;
+pour l'autre, **rien** — une écriture orpheline, invisible partout. Une bascule
+sur Supabase aurait cassé le portail de ce client.
+
+Réparé en recopiant la valeur de D1 (la primaire) vers PostgreSQL, avec un
+garde-fou : `UPDATE … WHERE id = … AND portal_token IS NULL`, jamais d'écrasement
+d'une valeur existante. Contrôle après réparation : `0 / 35`.
+
+**Règle** : après tout incident, toute bascule ou tout doute, lancer `-Etape
+compteurs` puis `-Etape valeurs`. C'est le seul contrôle qui voie ces écritures.
+
+### Bilan du 2026-10-18
+
+- **Compteurs** : identiques sur les 35 tables (6 912 lignes).
+- **Schéma** : identique sur les 35 tables, colonnes et types. Seule nuance,
+  sans effet : `rapport_modes.bonsAchat` porte une casse différente selon la base
+  (PostgreSQL le plie en `bonsachat`, comme le fait déjà le SQL applicatif non
+  quoté). `org_tasks` a les mêmes 23 colonnes dans les deux bases, dans un ordre
+  légèrement différent — sans conséquence, les `INSERT` nomment leurs colonnes.
+- **Valeurs** : identiques partout, hors les deux `portal_token` ci-dessus ; les
+  montants (`REAL`/`DOUBLE PRECISION`) sont vérifiés au centime près.
+
+### Les horodatages diffèrent d'une seconde, et c'est normal
+
+`datetime('now')` est traduit littéralement par `pg/translate.ts` en
+`now() AT TIME ZONE 'UTC'` : chaque base évalue donc *son* horloge au moment de
+*son* écriture, et les deux écritures sont séquentielles. Quand elles encadrent
+un changement de seconde, `created_at` (ou `last_seen_at`, `updated_at`…)
+diffère d'exactement une seconde — mesuré sur `org_users.last_seen_at`
+(`16:06:26` contre `16:06:27`).
+
+Sans effet : ces horodatages ne servent qu'à l'affichage et à des comparaisons à
+la minute, et la détection de présence tolère 180 s. L'outil compare donc les
+colonnes `*_at` **tronquées à la minute** et signale toute différence d'au moins
+une minute ; les dates portées par les données (`due_date`, `date_facture`,
+`date_naissance`…) ne finissent pas par `_at` et sont comparées à l'identique.
 

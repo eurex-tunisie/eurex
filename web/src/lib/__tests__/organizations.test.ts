@@ -440,8 +440,10 @@ describe('Organization: Password Policy', () => {
   });
 
   it('accepts password of 12+ chars', () => {
-    expect('expert1234567'.length >= 12).toBe(true);
-    expect('comptable1234567'.length >= 12).toBe(true);
+    // Chaînes de longueur uniquement : aucun mot de passe réel ne doit
+    // figurer dans le dépôt, qui est public.
+    expect('x'.repeat(12).length >= 12).toBe(true);
+    expect('MotDePasseDeTest123456'.length >= 12).toBe(true);
   });
 });
 

@@ -22,6 +22,12 @@ export interface Env {
   // auth MD5) -> Supabase (TLS valide avec la CA Supabase televersee). C'est
   // le seul chemin fonctionnel vers PostgreSQL depuis un Worker.
   HYPERDRIVE?: { connectionString: string };
+  // Cle de signature des jetons du cabinet (wrangler secret put ORG_SIGN_KEY).
+  // Sans elle, la constante historique de orgSignKey() sert de repli : le
+  // comportement est alors identique a avant. La definir invalide les sessions
+  // en cours (chacun se reconnecte une fois) et ferme l'usurpation decrite
+  // au-dessus de orgSignKey().
+  ORG_SIGN_KEY?: string;
 }
 
 function genId(): string {
@@ -31,6 +37,26 @@ function genId(): string {
 // Rôles superviseurs : vérification des tâches + tous les privilèges expert.
 function isSupervisor(role: string): boolean {
   return role === 'expert' || role === 'manager';
+}
+
+// Duree de vie du jeton du cabinet (en-tete Authorization: Bearer).
+// Elle etait de 24 h : l'utilisateur devait retaper email + mot de passe chaque
+// jour, et un jeton perime le renvoyait a l'ecran de connexion sans prevenir.
+// Le cabinet est deja protege a chaque ouverture par le code d'acces
+// (AccessGate, cote web) : le jeton vit donc un an, pour rester connecte.
+export const ORG_TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+
+// Cle de signature des jetons du cabinet.
+//
+// Elle vivait en dur ici. Or ce depot est PUBLIC : quiconque le lit peut
+// forger un jeton valide pour n'importe quel utilisateur (le garde-fou de
+// verifyOrgToken() est la signature, pas un mot de passe) et donc lire ou
+// modifier tout le cabinet. La variable de Worker ORG_SIGN_KEY prime desormais
+// sur la constante : tant qu'elle n'est pas definie, le comportement reste
+// STRICTEMENT identique (aucune session invalidee) ; la definir ferme la
+// faille et deconnecte tout le monde une fois.
+export function orgSignKey(env: Env): string {
+  return env.ORG_SIGN_KEY || 'eurex_org_secret_2026';
 }
 
 // Heures pointees d'un utilisateur : vues days (7 derniers) / month (1..aujourd'hui) / year (mois).
@@ -114,12 +140,34 @@ function exportScopeKeeps(scopeJson: any, exportStatus: any): boolean {
   return arr.includes(exportStatus || 'non_exportatrice');
 }
 
-// Avancement d'un dossier : seules les taches portees par le client entrent dans le cache
+// --- Perimetre des avancements -------------------------------------------------
+// Mois / annee courants en Tunisie (UTC+1, pas d'heure d'ete).
+function tnMonth(): number { return new Date(Date.now() + 3600000).getUTCMonth() + 1; }
+function tnYear(): number { return new Date(Date.now() + 3600000).getUTCFullYear(); }
+
+// Regle du cabinet : un avancement ne compte que les mois DEJA ECOULES.
+//   - en fevrier -> janvier seul
+//   - en mars    -> janvier + fevrier  (et ainsi de suite)
+// Les taches annuelles (month null : etats financiers, liasse fiscale, PV AGO,
+// RNE...) ne comptent qu'en decembre.
+// Un exercice dont l'annee est passee compte en entier : sinon un exercice
+// cloture resterait bloque a 0 % des le 1er janvier suivant.
+export function monthInScope(month: any, exercice: any, curMonth: number = tnMonth(), curYear: number = tnYear()): boolean {
+  const ex = Number(exercice);
+  if (ex && ex < curYear) return true;
+  if (month === null || month === undefined) return curMonth === 12;
+  return Number(month) < curMonth;
+}
+
+// Avancement d'un dossier : seules les taches portees par le client entrent dans
+// le cache, et seulement celles des mois deja ecoules (monthInScope).
 async function orgRecalcProgress(db: any, dossierId: string) {
-  const { results } = await db.prepare('SELECT t.status, t.export_scope, c.export_status FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(dossierId).all();
+  const { results } = await db.prepare('SELECT t.status, t.export_scope, t.month, c.export_status, d.exercice FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(dossierId).all();
   let total = 0, fait = 0;
+  const cm = tnMonth(), cy = tnYear();
   for (const t of results as any[]) {
     if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
+    if (!monthInScope(t.month, t.exercice, cm, cy)) continue;
     total++; if (t.status === 'fait') fait++;
   }
   const progress = total > 0 ? Math.round(fait / total * 1000) / 10 : 0;
@@ -599,6 +647,23 @@ async function markForwardGap(env: Env, mode: string, entries: MissedWrite[]): P
   }
 }
 
+// Nombre d'ecritures en attente de rejeu. Le drapeau forward_gap et le journal
+// ont des durees de vie SEPAREES : une reparation partielle reecrit le journal
+// (nouveau delai) sans retoucher le drapeau, qui peut donc expirer le premier.
+// Le journal survit alors seul, et sans ce compteur rien ne le rejouerait plus
+// jamais (constate en production le 2026-10-18 : un portal_token en attente
+// depuis le 15, drapeau disparu). Toute copie Supabase -> D1 doit consulter ce
+// compteur, sinon elle ecraserait l'ecriture que D1 a retenue.
+export async function outboxEnAttente(env: Env): Promise<number> {
+  try {
+    const raw = await env.DOCS_KV?.get(OUTBOX_KEY);
+    const box = JSON.parse(raw || '[]') as BoxItem[];
+    return Array.isArray(box) ? box.length : 0;
+  } catch {
+    return 0; // journal illisible : on ne bloque pas la lecture de l'etat
+  }
+}
+
 // Rend la connexion PostgreSQL ouverte pendant cette requete : un socket cree
 // dans le contexte d'une requete ne peut pas etre reutilise par la suivante.
 // No-op quand on est reste sur D1.
@@ -783,14 +848,20 @@ async function resyncAndFlipBack(env: Env): Promise<void> {
     //    peut se lever que lorsque D1 sert : si on testait le mode en premier,
     //    on sortirait par "deja sur D1" et le drapeau resterait leve jusqu'a
     //    son expiration de sept jours, abandonnant chaque nuit pour rien.
+    //    Le seul drapeau ne suffit pas : le journal de rejeu peut lui survivre
+    //    (delais separes, cf. outboxEnAttente). Tant qu'il reste des ecritures
+    //    en attente, une copie Supabase -> D1 les effacerait : on examine donc
+    //    les deux temoins, et on s'abstient tant que le rejeu n'a pas abouti.
     const fwd = await env.DOCS_KV.get(FWD_GAP_KEY);
-    if (fwd) {
+    const reliquat = await outboxEnAttente(env);
+    const origine = fwd || 'journal de rejeu';
+    if (fwd || reliquat > 0) {
       const rep = await repairForwardGap(env, (m) => console.log('[reparation]', m));
       if (!rep.ok) {
         // On s'abstient : copier Supabase -> D1 ecraserait (et purgerait) une
         // ecriture que D1 a bien retenue. D1 reste primaire et sert
         // correctement — un retard, pas une perte. Le cron suivant reprend.
-        console.error('[resync] abandonnee : ecart inverse non repare (' + (rep.error || '?') + ') depuis ' + fwd);
+        console.error('[resync] abandonnee : ecart inverse non repare (' + (rep.error || '?') + ') depuis ' + origine);
         return;
       }
       await env.DOCS_KV.delete(FWD_GAP_KEY);
@@ -952,7 +1023,7 @@ async function handleInternal(request: Request, env: Env, path: string): Promise
       // ...et ce qu'il reste a REJOUPER pour le lever. Zero alors que
       // forward_gap est renseigne = rien de conserve, donc rien que le rejeu
       // puisse resoudre (traitement manuel).
-      outbox: (JSON.parse((await kv.get(OUTBOX_KEY)) || '[]') as BoxItem[]).length,
+      outbox: await outboxEnAttente(env),
     });
   }
 
@@ -967,21 +1038,26 @@ async function handleInternal(request: Request, env: Env, path: string): Promise
     // detruire. Faire ici ce que le cron faisait seul evite d'etre bloque
     // jusqu'a minuit pour une reparation pourtant faisable a la main.
     const fwd = await kv.get(FWD_GAP_KEY);
+    // Le journal suffit a lui seul : voir outboxEnAttente (le drapeau peut
+    // avoir expire avant lui). Sans cette seconde condition, une copie
+    // Supabase -> D1 ecraserait l'ecriture que D1 a retenue.
+    const reliquat = await outboxEnAttente(env);
+    const origine = fwd || 'journal de rejeu';
     let repair: { ok: boolean; error?: string; rows?: number } | null = null;
-    if (fwd && body?.dry) {
+    if ((fwd || reliquat > 0) && body?.dry) {
       return json({
-        ok: false, dry: true, forward_gap: fwd,
+        ok: false, dry: true, forward_gap: origine, outbox: reliquat,
         error: "ecart inverse en attente : relancer sans {\"dry\":true} pour reparer D1 -> Supabase avant la copie",
       }, 409);
-    } else if (fwd && body?.allow_forward_gap === true) {
+    } else if ((fwd || reliquat > 0) && body?.allow_forward_gap === true) {
       // Passage outre assume : la copie ecrasera l'ecriture retenue par D1.
       console.warn('[resync] ecart inverse passe outre sur demande : cet ecart sera perdu');
-    } else if (fwd) {
+    } else if (fwd || reliquat > 0) {
       repair = await repairForwardGap(env, (m) => console.log('[reparation]', m));
       if (!repair.ok) {
         return json({
           ok: false,
-          error: 'ecart a reparer en sens inverse depuis ' + fwd + ' : ' + (repair.error || '?') +
+          error: 'ecart a reparer en sens inverse depuis ' + origine + ' : ' + (repair.error || '?') +
                  ". Relancer avec {\"allow_forward_gap\":true} pour passer outre en acceptant la perte.",
           repair,
         }, 409);
@@ -2730,8 +2806,8 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // Rôle affiché : role_label ('manager') prime sur le rôle stocké ('expert')
         const effRole = user.role_label || user.role;
         // Create token
-        const tokenPayload = JSON.stringify({ user_id: user.id, organization_id: user.organization_id, role: effRole, exp: Date.now() + 86400000 });
-        const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('eurex_org_secret_2026'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const tokenPayload = JSON.stringify({ user_id: user.id, organization_id: user.organization_id, role: effRole, exp: Date.now() + ORG_TOKEN_TTL_MS });
+        const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(orgSignKey(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
         const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(tokenPayload));
         const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
         const token = btoa(tokenPayload).replace(/=/g, '') + '.' + sigHex;
@@ -2749,7 +2825,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const [dataB64, sigHex] = token.split('.');
           if (!dataB64 || !sigHex) return null;
           const data = atob(dataB64);
-          const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('eurex_org_secret_2026'), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+          const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(orgSignKey(env)), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
           const sigBytes = new Uint8Array(sigHex.match(/.{2}/g)!.map(h => parseInt(h, 16)));
           const valid = await crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(data));
           if (!valid) return null;
@@ -2810,9 +2886,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
       // Avancement des cartes dashboard : seuls les MOIS ECOULES entrent dans le calcul
       // (mois en cours exclu — en février on ne compte que janvier, en mars janvier+février).
       // Les tâches annuelles (sans mois) ne sont comptées qu'à fin d'année (décembre).
-      const currentMonthTn = new Date(Date.now() + 3600000).getUTCMonth() + 1;
-      const inDashboardScope = (month: any): boolean =>
-        month === null || month === undefined ? currentMonthTn === 12 : Number(month) < currentMonthTn;
+      // Voir monthInScope (portee module) : meme regle pour la Vue globale et le cache.
+      const currentMonthTn = tnMonth();
+      const currentYearTn = tnYear();
+      const inDashboardScope = (month: any, exercice: any = null): boolean =>
+        monthInScope(month, exercice, currentMonthTn, currentYearTn);
 
       // --- ORG: ME ---
       if (path === '/api/org/auth/me' && method === 'GET') {
@@ -2931,16 +3009,21 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const d = dosByClient.get(c.id) || null;
           let taskStats = { total: 0, fait: 0, en_cours: 0, bloque_client: 0 };
           let docStats = { total: 0, received: 0 };
+          // Verification : compteurs HORS perimetre d'export et HORS perimetre de
+          // mois (meme regle que /api/org/comptables) — une tâche rendue attend sa
+          // validation quel que soit son mois.
+          const verifyCounts = { validated: 0, pending: 0 };
           if (d) {
             for (const t of (tasksByDossier.get(d.id) || []) as any[]) {
+              if (t.status === 'fait') verifyCounts.validated++; else if (t.status === 'a_verifier') verifyCounts.pending++;
               if (!exportScopeKeeps(t.export_scope, c.export_status)) continue;
-              if (!inDashboardScope(t.month)) continue;
+              if (!inDashboardScope(t.month, d.exercice)) continue;
               taskStats.total++; if (t.status === 'fait') taskStats.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') taskStats.en_cours++; else if (t.status === 'bloque_client') taskStats.bloque_client++;
             }
             const ds = docByDossier.get(d.id);
             if (ds) { docStats.total = ds.total || 0; docStats.received = ds.received || 0; }
           }
-          return { ...c, dossier_actuel: d, task_stats: taskStats, doc_stats: docStats, progress: taskStats.total > 0 ? Math.round(taskStats.fait / taskStats.total * 100 * 10) / 10 : 0 };
+          return { ...c, dossier_actuel: d, task_stats: taskStats, verify_counts: verifyCounts, doc_stats: docStats, progress: taskStats.total > 0 ? Math.round(taskStats.fait / taskStats.total * 100 * 10) / 10 : 0 };
         });
         return json(enriched.filter(Boolean));
       }
@@ -3184,10 +3267,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!await orgCanAccessClient(user, orgClientDossiersMatch[1])) return json({ error: 'Accès refusé' }, 403);
         const { results } = await env.DB.prepare('SELECT * FROM org_dossiers WHERE client_id = ? ORDER BY exercice DESC').bind(orgClientDossiersMatch[1]).all();
         const enriched = await Promise.all(results.map(async (d: any) => {
-          const { results: tasks } = await env.DB.prepare('SELECT t.status, t.export_scope, c.export_status FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
+          const { results: tasks } = await env.DB.prepare('SELECT t.status, t.export_scope, t.month, c.export_status FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
           const s = { total: 0, fait: 0, en_cours: 0, bloque_client: 0 };
           for (const t of tasks as any[]) {
             if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
+            if (!monthInScope(t.month, d.exercice)) continue;
             s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
           }
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0 };
@@ -4635,8 +4719,12 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // Presence : derniere activite (< 3 min = connecte) + heures pointees du jour (journée locale TN = UTC+1)
         const { results: dayRows } = await env.DB.prepare("SELECT user_id, COALESCE(SUM(duration_seconds),0) AS secs FROM org_time_entries WHERE stopped_at IS NOT NULL AND started_at >= datetime('now','start of day','-60 minutes') GROUP BY user_id").all();
         const dayByUser = new Map((dayRows as any[]).map(r => [r.user_id, r.secs]));
-        const { results: running } = await env.DB.prepare('SELECT user_id, started_at FROM org_time_entries WHERE stopped_at IS NULL').all();
-        const runByUser = new Map((running as any[]).map(r => [r.user_id, r.started_at]));
+        // Chrono en cours (1 requete pour tout le cabinet) : on ramene aussi le
+        // libelle de la tâche pour afficher « ce qu'elle fait maintenant » sur la
+        // carte elle-meme, sans ouvrir sa fiche (LEFT JOIN : un chrono ne doit pas
+        // disparaitre si la tâche a ete supprimee).
+        const { results: running } = await env.DB.prepare('SELECT te.user_id, te.started_at, t.label AS task_label FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL').all();
+        const runByUser = new Map((running as any[]).map(r => [r.user_id, r]));
         const nowS = Math.floor(Date.now() / 1000);
         const parseUtc = (s: any) => s ? Math.floor(Date.parse(String(s).replace(' ', 'T') + 'Z') / 1000) : 0;
         // Norme 8h30 uniquement lun-ven (heure locale TN = UTC+1) ; sam/dim = repos
@@ -4655,7 +4743,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         }
         const tasksByUid = new Map<string, any[]>();
         {
-            const { results: rows } = await pgAll(env, "SELECT " + dossierComp() + " as uid, t.status, t.export_scope, t.month, t.due_date, c.export_status FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE c.organization_id = ? AND c.deleted_at IS NULL AND " + dossierComp() + " IS NOT NULL AND d.status = 'en_cours' AND t.hidden = 0", user.organization_id);
+            const { results: rows } = await pgAll(env, "SELECT " + dossierComp() + " as uid, t.status, t.export_scope, t.month, t.due_date, c.export_status, d.exercice FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE c.organization_id = ? AND c.deleted_at IS NULL AND " + dossierComp() + " IS NOT NULL AND d.status = 'en_cours' AND t.hidden = 0", user.organization_id);
           for (const r of rows as any[]) {
             const list = tasksByUid.get(r.uid);
             if (list) list.push(r); else tasksByUid.set(r.uid, [r]);
@@ -4676,16 +4764,26 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const taskStats = tasksByUid.get(c.id) || [];
           const today = new Date().toISOString().slice(0, 10);
           const s = { total: 0, fait: 0, en_cours: 0, bloque_client: 0, overdue: 0 };
+          // Verification : compteurs volontairement HORS perimetre d'export et HORS
+          // perimetre de mois. Une tâche rendue par le comptable doit etre validee
+          // quel que soit son mois (et la file « a verifier » de l'expert, elle,
+          // n'est filtree ni par mois ni par export) : les deux nombres doivent
+          // parler du meme ensemble, sinon le taux affiche est faux.
+          const vc = { validated: 0, pending: 0 };
           for (const t of taskStats as any[]) {
+            if (t.status === 'fait') vc.validated++; else if (t.status === 'a_verifier') vc.pending++;
             if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
-            if (!inDashboardScope(t.month)) continue;
+            if (!inDashboardScope(t.month, t.exercice)) continue;
             s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
             if (t.status !== 'fait' && t.due_date && String(t.due_date).slice(0, 10) < today) s.overdue++;
           }
-          const runStart = parseUtc(runByUser.get(c.id));
+          const runRow = runByUser.get(c.id);
+          const runStart = parseUtc(runRow?.started_at);
           const qual = qualByUid.get(c.id) || { verified: 0, returned: 0 };
           const qualTotal = qual.verified + qual.returned;
           return { ...c, role: c.role_label || c.role, client_count: clients.length, avg_progress: clients.length > 0 ? Math.round(clients.reduce((sum: number, cl: any) => sum + (cl.cached_progress || 0), 0) / clients.length * 10) / 10 : 0, task_stats: s,
+            verify_counts: vc,
+            active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at } : null,
             verify_stats: { verified: qual.verified, returned: qual.returned, score: qualTotal > 0 ? Math.round((qual.verified / qualTotal) * 100) : null },
             online: parseUtc(c.last_seen_at) >= nowS - 180,
             worked_today_seconds: (Number(dayByUser.get(c.id)) || 0) + Math.max(0, runStart ? nowS - runStart : 0),
@@ -4806,12 +4904,15 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const { results: dossiers } = await env.DB.prepare('SELECT d.*, c.name as client_name FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE ' + dossierComp() + ' = ? AND c.organization_id = ? ORDER BY d.exercice DESC, c.name').bind(compId, user.organization_id).all();
         // Enrich dossiers with task stats
         const enrichedDossiers = await Promise.all(dossiers.map(async (d: any) => {
-          const { results: tasks } = await env.DB.prepare('SELECT t.status, t.export_scope, c.export_status, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
+          const { results: tasks } = await env.DB.prepare('SELECT t.status, t.export_scope, t.month, c.export_status, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
           const s = { total: 0, fait: 0, en_cours: 0, bloque_client: 0 };
           let totalTime = 0;
           for (const t of tasks as any[]) {
             if (!exportScopeKeeps(t.export_scope, t.export_status)) continue;
-            s.total++; totalTime += t.total_time || 0; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
+            // Temps passe : toutes periodes confondues ; avancement : mois ecoules
+            totalTime += t.total_time || 0;
+            if (!monthInScope(t.month, d.exercice)) continue;
+            s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
           }
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0, total_time_seconds: totalTime };
         }));
@@ -4870,7 +4971,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         for (const d of results as any[]) tasksByDossier.set(d.id, []);
         for (const chunk of chunkIds(results.map((d: any) => d.id))) {
           const { results: tasks } = await env.DB.prepare(
-            `SELECT t.dossier_id, t.status, t.export_scope, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+            `SELECT t.dossier_id, t.status, t.export_scope, t.month, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
           ).bind(...chunk).all();
           for (const t of tasks as any[]) tasksByDossier.get(t.dossier_id)!.push(t);
         }
@@ -4880,7 +4981,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           let totalTime = 0;
           for (const t of tasks as any[]) {
             if (!exportScopeKeeps(t.export_scope, d.export_status)) continue;
-            s.total++; totalTime += t.total_time || 0; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
+            // Temps passe : mesure reelle du travail, toutes periodes confondues
+            totalTime += t.total_time || 0;
+            // Avancement : seuls les mois deja ecoules comptent (voir monthInScope)
+            if (!monthInScope(t.month, d.exercice, currentMonthTn, currentYearTn)) continue;
+            s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
           }
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0, total_time_seconds: totalTime };
         });
@@ -5115,10 +5220,24 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         };
 
         // Users
-        const expertHash = await makeHash('expert1234567');
-        const managerHash = await makeHash('manager1234567');
-        const comp1Hash = await makeHash('comptable1234567');
-        const comp2Hash = await makeHash('comptable1234567');
+        // Les mots de passe ne sont plus ecrits en dur : le depot est PUBLIC,
+        // et un mot de passe pousse dans l'historique git est perdu pour
+        // toujours. Ils doivent venir de l'environnement (wrangler secret) ;
+        // a defaut la graine est refusee plutot que de creer des comptes
+        // aux identifiants connus de tous.
+        const seedEnv = env as any;
+        const seedExpert = seedEnv.SEED_EXPERT_PASSWORD as string | undefined;
+        const seedManager = seedEnv.SEED_MANAGER_PASSWORD as string | undefined;
+        const seedComp = seedEnv.SEED_COMP_PASSWORD as string | undefined;
+        if (!seedExpert || !seedManager || !seedComp) {
+          return json({
+            error: 'Grainement refuse : SEED_EXPERT_PASSWORD, SEED_MANAGER_PASSWORD et SEED_COMP_PASSWORD doivent etre fournis via "wrangler secret put".',
+          }, 400);
+        }
+        const expertHash = await makeHash(seedExpert);
+        const managerHash = await makeHash(seedManager);
+        const comp1Hash = await makeHash(seedComp);
+        const comp2Hash = await makeHash(seedComp);
 
         await env.DB.prepare('INSERT INTO org_users (id, organization_id, full_name, email, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)').bind('user_expert_001', orgId, 'Omar', 'expert@eurex.tn', expertHash, 'expert').run();
         // Manager : rôle expert stocké (CHECK DB) + role_label 'manager' pour l'affichage
@@ -5212,7 +5331,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           await orgRecalcProgress(env.DB, dd.id);
         }
 
-        return json({ ok: true, msg: 'Seeded', credentials: { expert: 'expert@eurex.tn / expert1234567', manager: 'manager@eurex.tn / manager1234567', comptable1: 'ahmed@eurex.tn / comptable1234567', comptable2: 'fatma@eurex.tn / comptable1234567' } });
+        // Ne renvoie jamais les mots de passe : l'API ne doit pas servir de
+        // canal d'exposition, meme pour un compte cree a l'instant.
+        return json({ ok: true, msg: 'Seeded', note: 'Mots de passe fournis par l environnement, jamais renvoyes.' });
       }
 
       return json({ error: 'Not found: ' + path }, 404);

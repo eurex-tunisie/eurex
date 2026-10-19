@@ -1,4 +1,5 @@
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
+. "$PSScriptRoot\creds.ps1"
 $B = "https://eurex-api.ezzinesalim21.workers.dev"
 $script:fail = 0
 function OK($cond, $msg) { if ($cond) { "PASS: $msg" } else { $script:fail++; "FAIL: $msg" } }
@@ -22,7 +23,7 @@ function Sql($q) {
 }
 
 # --- logins ---
-$le = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='expert@eurex.tn';password='expert1234567'}) -ContentType 'application/json'
+$le = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.expert.email;password=$CRED.expert.password}) -ContentType 'application/json'
 $H = @{ Authorization = 'Bearer ' + $le.token }
 OK ($le.user.role -eq 'expert') "login expert Omar"
 # Comptable de test JETABLE (cree ici, supprime en fin) : aucun compte reel touche
@@ -33,7 +34,7 @@ Sql "UPDATE org_users SET must_change_password=0 WHERE id='$($qa.id)'" | Out-Nul
 $lt = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$qaMail;password=$qaPwd}) -ContentType 'application/json'
 $Ht = @{ Authorization = 'Bearer ' + $lt.token }
 OK ($lt.user.role -eq 'comptable') "login comptable de test jetable ($qaMail)"
-$ls = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='samar@eurex.tn';password='samar1234567'}) -ContentType 'application/json'
+$ls = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.samar.email;password=$CRED.samar.password}) -ContentType 'application/json'
 $Hs = @{ Authorization = 'Bearer ' + $ls.token }
 
 # --- setup : client ZZ-GRANT assigne a Samar + dossier 2026 ---

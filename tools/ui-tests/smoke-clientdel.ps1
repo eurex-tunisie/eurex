@@ -1,4 +1,5 @@
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
+. "$PSScriptRoot\creds.ps1"
 $B = "https://eurex-api.ezzinesalim21.workers.dev"
 $script:fail = 0
 function OK($cond, $msg) { if ($cond) { "PASS: $msg" } else { $script:fail++; "FAIL: $msg" } }
@@ -17,10 +18,10 @@ function Sql($q) {
 }
 
 # --- logins (comptes reels : aucun compte modifie) ---
-$le = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='expert@eurex.tn';password='expert1234567'}) -ContentType 'application/json'
+$le = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.expert.email;password=$CRED.expert.password}) -ContentType 'application/json'
 $H = @{ Authorization = 'Bearer ' + $le.token }
 OK ($le.user.role -eq 'expert') "login expert"
-$ls = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='samar@eurex.tn';password='samar1234567'}) -ContentType 'application/json'
+$ls = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.samar.email;password=$CRED.samar.password}) -ContentType 'application/json'
 $HS = @{ Authorization = 'Bearer ' + $ls.token }
 OK ($null -ne $ls.token) "login samar (comptable non assigne)"
 

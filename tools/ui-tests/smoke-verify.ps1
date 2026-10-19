@@ -1,12 +1,13 @@
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
+. "$PSScriptRoot\creds.ps1"
 $B = "https://eurex-api.ezzinesalim21.workers.dev"
 $script:fail = 0
 function OK($cond, $msg) { if ($cond) { "PASS: $msg" } else { $script:fail++; "FAIL: $msg" } }
 function Body($o) { ($o | ConvertTo-Json -Compress) }
 
-$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='expert@eurex.tn';password='expert1234567'}) -ContentType 'application/json'
+$lr = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.expert.email;password=$CRED.expert.password}) -ContentType 'application/json'
 $H = @{ Authorization = 'Bearer ' + $lr.token }
-$lc = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='samar@eurex.tn';password='samar1234567'}) -ContentType 'application/json'
+$lc = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.samar.email;password=$CRED.samar.password}) -ContentType 'application/json'
 $Hc = @{ Authorization = 'Bearer ' + $lc.token }
 OK ($null -ne $lr.token -and $null -ne $lc.token) "logins expert + comptable"
 
@@ -72,7 +73,7 @@ OK ($r.te -ge 1) "pointage auto 5 min cree pour l'expert ($($r.te))"
 OK ($r.aud -ge 1) "audit task_verified enregistre ($($r.aud))"
 
 # 6) la validation entre dans les heures du jour (somme expert aujourd'hui)
-$e = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email='expert@eurex.tn';password='expert1234567'}) -ContentType 'application/json'
+$e = Invoke-RestMethod "$B/api/org/auth/login" -Method Post -Body (Body @{email=$CRED.expert.email;password=$CRED.expert.password}) -ContentType 'application/json'
 $me = Invoke-RestMethod "$B/api/org/auth/me" -Headers @{Authorization='Bearer '+$e.token}
 $day = ((npx.cmd wrangler d1 execute eurex-db --remote --json --command "SELECT COALESCE(SUM(duration_seconds),0) as s FROM org_time_entries WHERE user_id='user_expert_001' AND stopped_at IS NOT NULL AND started_at >= datetime('now','start of day','-60 minutes')" 2>$null | Out-String | ConvertFrom-Json)[0]).results[0].s
 OK ($day -ge 300) "heures du jour expert incluent la validation (>= 300s = $day)"

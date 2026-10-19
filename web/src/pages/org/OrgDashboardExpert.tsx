@@ -9,6 +9,7 @@ import OrgAlerts from '../../components/OrgAlerts';
 import MesHeures from '../../components/MesHeures';
 import NouvellesTaches from '../../components/NouvellesTaches';
 import { EXPORT_LABELS } from '../../lib/orgAlerts';
+import { verifyRate, verifyRateTone, pendingRate, pendingVerify, elapsedLabel, VerifyCounts } from '../../lib/orgVerify';
 import { useCardMin } from '../../lib/useCardMin';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
@@ -18,8 +19,11 @@ import { Users, BarChart3, AlertTriangle, Search, Filter, Plus, X, Pencil, Trash
 type Tab = 'comptables' | 'global';
 
 // L'endpoint /org/comptables renvoie tout le personnel (pour la gestion des roles
-// dans Settings) : le dashboard n'affiche que les comptables.
-const onlyComptables = (cs: OrgComptable[]) => cs.filter(c => c.role === 'comptable');
+// dans Settings) : le dashboard affiche les comptables ET le manager. Un manager a
+// exactement les droits d'un expert dans ce cabinet : il faut donc pouvoir suivre
+// sa presence, ses heures et son taux de validation comme ceux d'un comptable.
+// Sans le manager dans cette liste, il n'apparait nulle part sur le dashboard.
+const dashTeam = (cs: OrgComptable[]) => cs.filter(c => c.role === 'comptable' || c.role === 'manager');
 
 // Export CSV client-side (separateur ';' pour Excel FR, BOM pour UTF-8)
 const csvCell = (v: unknown) => {
@@ -36,6 +40,40 @@ const verifyBadge = (h: number | null) => {
   if (h < 1) return { cls: 'bg-orange-100 text-orange-700', label: `${Math.max(1, Math.round(h * 60))} min restantes` };
   return { cls: 'bg-amber-100 text-amber-700', label: `${Math.round(h)} h restantes` };
 };
+
+// Puce « taux de verification » : Validé X% · en attente Y% (— si rien a verifier)
+function VerifyRateBadge({ counts }: { counts?: VerifyCounts | null }) {
+  const tone = verifyRateTone(counts);
+  const rate = verifyRate(counts);
+  const pending = pendingRate(counts);
+  const cls = tone === 'none' ? 'bg-gray-100 text-gray-500'
+    : tone === 'good' ? 'bg-emerald-50 text-emerald-700'
+      : tone === 'warn' ? 'bg-amber-50 text-amber-700'
+        : 'bg-orange-50 text-orange-600';
+  const title = rate == null
+    ? 'Rien à vérifier pour le moment'
+    : `${counts!.validated} validée${counts!.validated > 1 ? 's' : ''} · ${counts!.pending} en attente — part de son travail déjà validé (tous mois confondus)`;
+  return (
+    <span className={`px-2 py-1 rounded-lg font-medium ${cls}`} title={title} data-testid="card-verify-rate">
+      🔍 Validé {rate == null ? '—' : `${rate}%`} · en attente {pending == null ? '—' : `${pending}%`}
+    </span>
+  );
+}
+
+// Puce « N à vérifier » : toujours visible, meme a 0 (l'expert doit voir qu'une
+// validation reste a faire) ; neutre a 0, orange des qu'il y a du travail.
+function VerifyPendingBadge({ counts, fallback, comptableId }: { counts?: VerifyCounts | null; fallback?: number; comptableId: string }) {
+  const pending = pendingVerify(counts, fallback);
+  return (
+    <span
+      className={`px-2 py-1 rounded-lg font-medium ${pending > 0 ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'}`}
+      data-testid={`unverified-comptable-${comptableId}`}
+      title="Tâches rendues en attente de votre validation (tous mois confondus)"
+    >
+      ✅ {pending} à vérifier
+    </span>
+  );
+}
 
 export default function OrgDashboardExpert() {
   const navigate = useNavigate();
@@ -101,10 +139,10 @@ export default function OrgDashboardExpert() {
     const rows = filteredDossiers.map(d => [
       d.client_name, d.exercice, d.comptable_name || '', d.status === 'cloture' ? 'Clôturé' : 'En cours',
       d.progress || 0, d.task_stats?.fait ?? '', d.task_stats?.total ?? '',
-      d.task_stats?.bloque_client ?? '', unverifiedByDossier[d.id] || 0,
+      d.task_stats?.bloque_client ?? '', unverifiedByDossier[d.id] || 0, fmtHm(d.total_time_seconds),
     ]);
     const csv = buildCsv(
-      ['Client', 'Exercice', 'Comptable', 'Statut', 'Avancement %', 'Tâches faites', 'Tâches total', 'Bloquées client', 'À vérifier'],
+      ['Client', 'Exercice', 'Comptable', 'Statut', 'Avancement %', 'Tâches faites', 'Tâches total', 'Bloquées client', 'À vérifier', 'Temps passé'],
       rows
     );
     orgApi.downloadCsv(csv, `dossiers_cabinet_${exercice || 'tout'}.csv`);
@@ -144,7 +182,7 @@ export default function OrgDashboardExpert() {
   // n'est venu.
   const fetchDashboard = async () => {
     const results = await Promise.allSettled([
-      orgApi.getComptables().then(onlyComptables),
+      orgApi.getComptables().then(dashTeam),
       orgApi.getAllDossiers(exercice),
       orgApi.getClients(),
       orgApi.getExercices(),
@@ -184,7 +222,7 @@ export default function OrgDashboardExpert() {
 
   // Presence en direct : rafraichit statut connecte + heures du jour toutes les 60s (pausé si onglet cache)
   useEffect(() => {
-    const tick = () => { if (!document.hidden) orgApi.getComptables().then(cs => setComptables(onlyComptables(cs))).catch(() => {}); };
+    const tick = () => { if (!document.hidden) orgApi.getComptables().then(cs => setComptables(dashTeam(cs))).catch(() => {}); };
     const iv = setInterval(tick, 60000);
     document.addEventListener('visibilitychange', tick);
     return () => { clearInterval(iv); document.removeEventListener('visibilitychange', tick); };
@@ -356,6 +394,19 @@ export default function OrgDashboardExpert() {
     : 0;
   const blockedCount = allDossiers.filter(d => d.task_stats?.bloque_client > 0).length; // used for table badge
 
+  // Synthese du cabinet. Tout est derive des donnees deja chargees : aucune
+  // requete supplementaire, donc aucun cout D1 en plus pour plus de detail.
+  const sumFait = allDossiers.reduce((s, d) => s + (d.task_stats?.fait || 0), 0);
+  const sumTotal = allDossiers.reduce((s, d) => s + (d.task_stats?.total || 0), 0);
+  const sumEnCours = allDossiers.reduce((s, d) => s + (d.task_stats?.en_cours || 0), 0);
+  const sumBloque = allDossiers.reduce((s, d) => s + (d.task_stats?.bloque_client || 0), 0);
+  const sumOverdue = comptables.reduce((s, c) => s + (c.task_stats?.overdue || 0), 0);
+  const sumTime = allDossiers.reduce((s, d) => s + (d.total_time_seconds || 0), 0);
+  const closedDossiers = allDossiers.filter(d => d.status === 'cloture').length;
+  const onlineComptables = comptables.filter(c => c.online).length;
+  const workedTodayAll = comptables.reduce((s, c) => s + (c.worked_today_seconds || 0), 0);
+  const pointingToday = comptables.filter(c => (c.worked_today_seconds || 0) > 0).length;
+
   const filteredDossiers = allDossiers
     .filter(d => filterComptable === 'all' || d.comptable_id === filterComptable)
     .filter(d => !search || d.client_name?.toLowerCase().includes(search.toLowerCase()));
@@ -395,8 +446,8 @@ export default function OrgDashboardExpert() {
 
   if (loading) return (
     <div className="space-y-4">
-      <SkeletonKpiGrid count={4} />
-      <SkeletonRows rows={6} cols={5} />
+      <SkeletonKpiGrid count={8} />
+      <SkeletonRows rows={6} cols={9} />
     </div>
   );
 
@@ -422,19 +473,35 @@ export default function OrgDashboardExpert() {
         </button>
         <ExerciceSelect value={exercice} options={exercices} onChange={setExercice} />
       </div>
-      {/* KPIs — 2 catégories : fait / bloqué client */}
+      {/* KPIs — vue de synthese du cabinet. Les 4 compteurs d'origine sont
+          conserves a l'identique (memes couleurs, meme ordre) ; on leur ajoute
+          une sous-ligne de detail, puis 4 compteurs supplementaires. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Dossiers actifs', value: activeDossiers, icon: '📁', color: 'blue' },
-          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: '📊', color: 'emerald' },
-          { label: 'Bloqué client', value: blockedCount, icon: '🔴', color: 'red' },
-          { label: 'Comptables', value: comptables.length, icon: '👥', color: 'purple' },
+          { label: 'Dossiers actifs', value: activeDossiers, icon: '📁', color: 'blue',
+            sub: `${totalDossiers} au total · ${closedDossiers} clôturé${closedDossiers > 1 ? 's' : ''}` },
+          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: '📊', color: 'emerald',
+            sub: `${sumFait} / ${sumTotal} tâches faites` },
+          { label: 'Bloqué client', value: blockedCount, icon: '🔴', color: 'red',
+            sub: `${sumBloque} tâche${sumBloque > 1 ? 's' : ''} bloquée${sumBloque > 1 ? 's' : ''}` },
+          { label: 'Comptables', value: comptables.length, icon: '👥', color: 'purple',
+            sub: `${onlineComptables} en ligne` },
+          { label: 'Tâches restantes', value: sumTotal - sumFait, icon: '⏳', color: 'gray',
+            sub: `${sumEnCours} en cours · ${sumBloque} bloquée${sumBloque > 1 ? 's' : ''}` },
+          { label: 'En retard', value: sumOverdue, icon: '⏰', color: sumOverdue > 0 ? 'red' : 'gray',
+            sub: sumOverdue > 0 ? 'délais dépassés' : 'aucun retard' },
+          { label: 'À vérifier', value: verifyTasks.length, icon: '✅', color: 'amber',
+            sub: verifyTasks.length > 0 ? 'en attente de validation' : 'rien en attente' },
+          { label: "Pointé aujourd'hui", value: fmtHm(workedTodayAll), icon: '🕒', color: 'indigo',
+            sub: `${pointingToday} comptable${pointingToday > 1 ? 's' : ''} · ${fmtHm(sumTime)} cumulés` },
         ].map((kpi, i) => {
           const bgMap: Record<string, string> = {
             blue: 'bg-blue-50 border-blue-200',
             emerald: 'bg-emerald-50 border-emerald-200',
             red: 'bg-red-50 border-red-200',
             purple: 'bg-purple-50 border-purple-200',
+            amber: 'bg-amber-50 border-amber-200',
+            indigo: 'bg-indigo-50 border-indigo-200',
             gray: 'bg-gray-50 border-gray-200',
           };
           const valMap: Record<string, string> = {
@@ -442,6 +509,8 @@ export default function OrgDashboardExpert() {
             emerald: 'text-emerald-700',
             red: 'text-red-700',
             purple: 'text-purple-700',
+            amber: 'text-amber-700',
+            indigo: 'text-indigo-700',
             gray: 'text-gray-700',
           };
           return (
@@ -451,6 +520,7 @@ export default function OrgDashboardExpert() {
                 <span className="text-xs text-gray-500">{kpi.label}</span>
               </div>
               <p className={`text-2xl font-bold ${valMap[kpi.color] || 'text-gray-800'}`}>{kpi.value}</p>
+              {kpi.sub && <p className="text-[11px] text-gray-500 mt-0.5">{kpi.sub}</p>}
             </div>
           );
         })}
@@ -647,7 +717,7 @@ export default function OrgDashboardExpert() {
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-bold text-gray-800 group-hover:text-purple-700 transition-colors">{c.full_name}</h3>
                   <p className="text-xs text-gray-400 mt-0.5">{c.email}</p>
-                  <div className="flex items-center gap-4 mt-2 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-4 mt-2 text-[11px]">
                     <span className={`flex items-center gap-1.5 font-semibold ${c.online ? 'text-emerald-600' : 'text-gray-400'}`} title={c.online ? 'Présence (activité < 3 min)' : agoFull(c.last_seen_at)}>
                       <span className={`inline-block w-2 h-2 rounded-full ${c.online ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
                       {c.online ? 'Connecté' : <span className="text-gray-400 font-medium">Hors ligne · <span className="text-amber-600 font-semibold">{fmtAgo(c.last_seen_at)}</span></span>}
@@ -656,6 +726,18 @@ export default function OrgDashboardExpert() {
                       <span className="text-gray-500">Aujourd'hui : <b className="text-gray-700">{fmtHm(c.worked_today_seconds)} / 8h30</b></span>
                     ) : (
                       <span className="text-gray-400 italic">Repos (samedi / dimanche){(c.worked_today_seconds || 0) > 0 ? ` · ${fmtHm(c.worked_today_seconds)} pointées` : ''}</span>
+                    )}
+                    {/* Ce qu'elle fait maintenant : chrono en cours (tâche + durée) ou
+                        rien. Affiche en permanence : « connectée » ne veut pas dire
+                        « en train de travailler ». */}
+                    {c.active_timer ? (
+                      <span className="flex items-center gap-1 font-semibold text-purple-600 max-w-[240px]" title={`${c.active_timer.task_label} · chrono actif depuis ${elapsedLabel(c.active_timer.started_at)}`}>
+                        <span className="shrink-0">▶</span>
+                        <span className="truncate">{c.active_timer.task_label}</span>
+                        <span className="shrink-0 font-normal text-purple-400">· {elapsedLabel(c.active_timer.started_at)}</span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic">⏸ Ne travaille pas actuellement</span>
                     )}
                   </div>
                   {c.norm_seconds ? (
@@ -673,7 +755,7 @@ export default function OrgDashboardExpert() {
                       />
                     </div>
                   ) : null}
-                  <div className="flex items-center gap-3 mt-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
                     <button
                       onClick={e => { e.stopPropagation(); navigate(`/cabinet?tab=global&comptable=${c.id}`); }}
                       title="Voir ses dossiers dans la vue globale"
@@ -685,28 +767,38 @@ export default function OrgDashboardExpert() {
                     <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg font-medium">
                       {c.avg_progress}%
                     </span>
-                    {c.verify_stats?.score != null && (
-                      <span
-                        className={`px-2 py-1 rounded-lg font-medium ${
-                          c.verify_stats.score >= 90 ? 'bg-emerald-50 text-emerald-700'
-                          : c.verify_stats.score >= 75 ? 'bg-amber-50 text-amber-700'
-                          : 'bg-red-50 text-red-600'
-                        }`}
-                        title={`Validations vérifiées : ${c.verify_stats.verified} · Renvois en correction : ${c.verify_stats.returned}`}
-                      >
-                        {c.verify_stats.score >= 90 ? '✓' : c.verify_stats.score >= 75 ? '⚠' : '↺'} Qualité {c.verify_stats.score}%
-                      </span>
-                    )}
+                    <span
+                      className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg font-medium"
+                      data-testid={`card-tasks-${c.id}`}
+                      title={`${c.task_stats.fait} faites · ${c.task_stats.en_cours} en cours · ${c.task_stats.bloque_client} bloquées · ${Math.max(0, c.task_stats.total - c.task_stats.fait - c.task_stats.en_cours - c.task_stats.bloque_client)} à faire`}
+                    >
+                      📋 {c.task_stats.fait}/{c.task_stats.total}
+                    </span>
+                    {/* Qualite : toujours affichee, meme sans aucune verification
+                        (avant, la puce disparaissait : l'expert ne voyait pas que
+                        rien n'avait encore ete valide). */}
+                    <span
+                      className={`px-2 py-1 rounded-lg font-medium ${
+                        c.verify_stats?.score == null ? 'bg-gray-100 text-gray-500'
+                        : c.verify_stats.score >= 90 ? 'bg-emerald-50 text-emerald-700'
+                        : c.verify_stats.score >= 75 ? 'bg-amber-50 text-amber-700'
+                        : 'bg-red-50 text-red-600'
+                      }`}
+                      title={c.verify_stats?.score == null
+                        ? 'Aucune validation ni renvoi en correction pour le moment'
+                        : `Validations vérifiées : ${c.verify_stats.verified} · Renvois en correction : ${c.verify_stats.returned}`}
+                    >
+                      {c.verify_stats?.score == null ? '' : c.verify_stats.score >= 90 ? '✓ ' : c.verify_stats.score >= 75 ? '⚠ ' : '↺ '}Qualité {c.verify_stats?.score == null ? '—' : `${c.verify_stats.score}%`}
+                    </span>
+                    {/* Taux de verification : part de son travail deja valide */}
+                    <VerifyRateBadge counts={c.verify_counts} />
                     {c.task_stats.bloque_client > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-1 rounded-lg font-medium animate-pulse">
                         🔴 {c.task_stats.bloque_client} bloqué{c.task_stats.bloque_client > 1 ? 's' : ''} client
                       </span>
                     )}
-                    {(unverifiedByComptable[c.id] || 0) > 0 && (
-                      <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded-lg font-medium" data-testid={`unverified-comptable-${c.id}`}>
-                        ✅ {unverifiedByComptable[c.id]} à vérifier
-                      </span>
-                    )}
+                    {/* Tâches faites pas encore validées : toujours affichee, meme a 0 */}
+                    <VerifyPendingBadge counts={c.verify_counts} fallback={unverifiedByComptable[c.id]} comptableId={c.id} />
                     {(c.task_stats.overdue || 0) > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-1 rounded-lg font-medium" data-testid={`overdue-comptable-${c.id}`} title="Tâches en retard sur ses dossiers en cours">
                         ⏰ {c.task_stats.overdue} retard{c.task_stats.overdue! > 1 ? 's' : ''}
@@ -778,6 +870,8 @@ export default function OrgDashboardExpert() {
                   <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Exercice</th>
                   <th className="text-left px-5 py-3.5 font-semibold text-gray-600">Comptable</th>
                   <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Avancement</th>
+                  <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Tâches</th>
+                  <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Temps passé</th>
                   <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Statut</th>
                   <th className="text-center px-5 py-3.5 font-semibold text-gray-600">Bloqué client</th>
                   <th className="text-center px-5 py-3.5 font-semibold text-gray-600">À vérifier</th>
@@ -843,6 +937,18 @@ export default function OrgDashboardExpert() {
                         </div>
                         <span className="text-xs font-bold text-gray-700 w-10 text-right">{d.progress || 0}%</span>
                       </div>
+                    </td>
+                    <td className="px-5 py-4 text-center text-xs whitespace-nowrap">
+                      <span className="font-semibold text-gray-800">{d.task_stats?.fait ?? 0}</span>
+                      <span className="text-gray-400"> / {d.task_stats?.total ?? 0}</span>
+                      {(d.task_stats?.bloque_client || 0) > 0 && (
+                        <span className="ml-1 font-semibold text-red-600" title={`${d.task_stats.bloque_client} tâche(s) bloquée(s) par le client`}>
+                          ({d.task_stats.bloque_client} ⛔)
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-center text-xs text-gray-600 font-mono whitespace-nowrap">
+                      {fmtHm(d.total_time_seconds)}
                     </td>
                     <td className="px-5 py-4 text-center">
                       {d.status === 'cloture' && (

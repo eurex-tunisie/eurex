@@ -1,3 +1,5 @@
+import type { VerifyCounts } from './orgVerify';
+
 const BASE = import.meta.env.VITE_API_URL || 'https://eurex-api.ezzinesalim21.workers.dev/api';
 
 function getToken(): string | null {
@@ -30,6 +32,9 @@ export interface OrgClient {
   contact_phone?: string | null;
   dossier_actuel: OrgDossier | null;
   task_stats: { total: number; fait: number; en_cours: number; bloque_client: number };
+  // File de validation : taches faites/en attente de validation, tous mois et
+  // hors perimetre d'export confondus (une tache rendue doit etre validee).
+  verify_counts?: VerifyCounts;
   doc_stats: { total: number; received: number };
   progress: number;
 }
@@ -62,6 +67,9 @@ export interface OrgDossier {
   progress: number;
   time_entries: any[];
   time_by_user: { user_name: string; seconds: number }[];
+  // Renvoye par /api/org/dossiers (liste) : somme des temps de toutes les
+  // taches du dossier. Absent de la reponse unitaire.
+  total_time_seconds?: number;
   is_granted?: boolean;
   grants?: OrgGrant[];
   running_timers?: OrgRunningTimer[];
@@ -299,7 +307,12 @@ export interface OrgComptable {
   client_count: number;
   avg_progress: number;
   task_stats: { total: number; fait: number; en_cours: number; bloque_client: number; overdue?: number };
+  // validated = tâches deja validees par l'expert ; pending = tâches rendues
+  // « a verifier ». Tous mois confondus (une tâche rendue doit etre validee).
+  verify_counts?: VerifyCounts;
   verify_stats?: { verified: number; returned: number; score: number | null };
+  // Chrono en cours : ce qu'elle fait maintenant (null = ne travaille pas)
+  active_timer?: { task_label: string; started_at: string } | null;
   last_seen_at?: string | null;
   online?: boolean;
   worked_today_seconds?: number;

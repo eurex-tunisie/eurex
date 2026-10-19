@@ -65,5 +65,8 @@ api/local/dump-pdf.mjs
 api/local/test-scan-parser.mjs
 api/local/sync-docs-pg.mjs
 
+# Identifiants des tests UI - jamais versionnes (le depot est PUBLIC)
+tools/ui-tests/.credentials.json
+
 # Wrangler auto-generated
 api/worker-configuration.d.ts

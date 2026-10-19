@@ -3,12 +3,13 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { orgApi, OrgClient, OrgMyGrant } from '../../lib/orgApi';
 import { t } from '../../lib/orgI18n';
 import ProgressDonut, { DonutLegend } from '../../components/ProgressDonut';
-import Skeleton, { SkeletonCardGrid } from '../../components/Skeleton';
+import Skeleton, { SkeletonCardGrid, SkeletonKpiGrid } from '../../components/Skeleton';
 import OrgAccountButton from '../../components/OrgAccount';
 import OrgAlerts from '../../components/OrgAlerts';
 import MesHeures from '../../components/MesHeures';
 import NouvellesTaches from '../../components/NouvellesTaches';
 import { EXPORT_LABELS } from '../../lib/orgAlerts';
+import { verifyRate } from '../../lib/orgVerify';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
 import { FolderOpen, AlertTriangle, Clock, ArrowUpDown, Search } from 'lucide-react';
@@ -74,6 +75,25 @@ export default function OrgDashboardComptable() {
   // Renforts limites a l'exercice affiche
   const grantsVisible = myGrants.filter(g => !g.exercice || g.exercice === exercice);
 
+  // Synthese de ma charge. Derive des clients deja charges : aucune requete
+  // supplementaire, donc aucun cout D1 en plus pour plus de detail.
+  const sumTotal = clients.reduce((s, c) => s + (c.task_stats?.total || 0), 0);
+  const sumFait = clients.reduce((s, c) => s + (c.task_stats?.fait || 0), 0);
+  const sumBloque = clients.reduce((s, c) => s + (c.task_stats?.bloque_client || 0), 0);
+  const blockedClients = clients.filter(c => (c.task_stats?.bloque_client || 0) > 0).length;
+  const docsTotal = clients.reduce((s, c) => s + (c.doc_stats?.total || 0), 0);
+  const docsRecus = clients.reduce((s, c) => s + (c.doc_stats?.received || 0), 0);
+  const docsMissing = Math.max(0, docsTotal - docsRecus);
+  const closedClients = clients.filter(c => c.dossier_actuel?.status === 'cloture').length;
+  const avgProgress = clients.length > 0
+    ? Math.round(clients.reduce((s, c) => s + (c.progress || 0), 0) / clients.length * 10) / 10
+    : 0;
+  // File de validation : ce que j'ai rendu et qui attend la validation de l'expert
+  // (tous mois confondus). Derive des clients deja charges : aucune requete en plus.
+  const sumValidated = clients.reduce((s, c) => s + (c.verify_counts?.validated || 0), 0);
+  const sumPending = clients.reduce((s, c) => s + (c.verify_counts?.pending || 0), 0);
+  const validationRate = verifyRate({ validated: sumValidated, pending: sumPending });
+
   if (loading) return (
     <div className="space-y-4">
       <Skeleton className="h-7 w-48" />
@@ -81,6 +101,7 @@ export default function OrgDashboardComptable() {
         <Skeleton className="h-9 w-64" />
         <Skeleton className="h-9 w-28" />
       </div>
+      <SkeletonKpiGrid count={7} />
       <SkeletonCardGrid count={6} />
     </div>
   );
@@ -103,6 +124,55 @@ export default function OrgDashboardComptable() {
           <button onClick={load} className="shrink-0 px-3 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors">Réessayer</button>
         </div>
       )}
+
+      {/* KPIs — synthese de ma charge : clients, avancement, reste a faire,
+          blocages, documents manquants. Avant, ce tableau de bord n'avait
+          aucun compteur : on ne voyait le retard qu'en parcourant les cartes. */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {[
+          { label: 'Mes clients', value: clients.length, icon: '📁', color: 'blue',
+            sub: `${closedClients} clôturé${closedClients > 1 ? 's' : ''} · ${filtered.length} affiché${filtered.length > 1 ? 's' : ''}` },
+          { label: 'Avancement moyen', value: `${avgProgress}%`, icon: '📊', color: 'emerald',
+            sub: `${sumFait} / ${sumTotal} tâches faites` },
+          { label: 'Tâches restantes', value: sumTotal - sumFait, icon: '⏳', color: 'gray',
+            sub: `sur ${sumTotal} tâches au total` },
+          { label: 'Bloqué client', value: sumBloque, icon: '🔴', color: sumBloque > 0 ? 'red' : 'gray',
+            sub: `${blockedClients} client${blockedClients > 1 ? 's' : ''} concerné${blockedClients > 1 ? 's' : ''}` },
+          { label: 'Documents manquants', value: docsMissing, icon: '📄', color: docsMissing > 0 ? 'orange' : 'gray',
+            sub: `${docsRecus} / ${docsTotal} reçus` },
+          { label: 'Clients clôturés', value: closedClients, icon: '✅', color: 'emerald',
+            sub: `sur ${clients.length} au total` },
+          { label: 'En attente de validation', value: sumPending, icon: '🔍', color: sumPending > 0 ? 'amber' : 'gray',
+            sub: validationRate == null ? 'rien encore passé en validation' : `${validationRate}% validé · ${sumValidated} validée${sumValidated > 1 ? 's' : ''}` },
+        ].map((kpi, i) => {
+          const bgMap: Record<string, string> = {
+            blue: 'bg-blue-50 border-blue-200',
+            emerald: 'bg-emerald-50 border-emerald-200',
+            red: 'bg-red-50 border-red-200',
+            amber: 'bg-amber-50 border-amber-200',
+            orange: 'bg-orange-50 border-orange-200',
+            gray: 'bg-gray-50 border-gray-200',
+          };
+          const valMap: Record<string, string> = {
+            blue: 'text-blue-700',
+            emerald: 'text-emerald-700',
+            red: 'text-red-700',
+            amber: 'text-amber-700',
+            orange: 'text-orange-600',
+            gray: 'text-gray-700',
+          };
+          return (
+            <div key={i} className={`${bgMap[kpi.color] || 'bg-white border-gray-200'} border rounded-xl p-4`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">{kpi.icon}</span>
+                <span className="text-xs text-gray-500">{kpi.label}</span>
+              </div>
+              <p className={`text-2xl font-bold ${valMap[kpi.color] || 'text-gray-800'}`}>{kpi.value}</p>
+              {kpi.sub && <p className="text-[11px] text-gray-500 mt-0.5">{kpi.sub}</p>}
+            </div>
+          );
+        })}
+      </div>
 
       {/* Nouvelles tâches — dernières tâches ajoutées aux dossiers accessibles */}
       <NouvellesTaches exercice={exercice} />
@@ -245,6 +315,23 @@ export default function OrgDashboardComptable() {
                     🔴 {client.task_stats.bloque_client} bloqué{client.task_stats.bloque_client > 1 ? 's' : ''} client
                   </span>
                 )}
+              </div>
+
+              {/* Detail par client : deux chiffres absents de la carte. La
+                  pastille ci-dessus donne les taches restantes et la legende
+                  les taches faites ; il manquait le total et les documents
+                  attendus (doc_stats, deja renvoye par /api/org/clients). */}
+              <div className="grid grid-cols-2 gap-2 text-center text-[11px] mb-3">
+                <div className="bg-gray-50 rounded-lg py-1.5">
+                  <div className="font-bold text-gray-800">{client.task_stats.total}</div>
+                  <div className="text-gray-400">Tâches</div>
+                </div>
+                <div className={`rounded-lg py-1.5 ${hasMissingDocs ? 'bg-orange-50' : 'bg-gray-50'}`}>
+                  <div className={`font-bold ${hasMissingDocs ? 'text-orange-600' : 'text-gray-800'}`}>
+                    {client.doc_stats.received}<span className="text-gray-400 font-normal">/{client.doc_stats.total}</span>
+                  </div>
+                  <div className={hasMissingDocs ? 'text-orange-500' : 'text-gray-400'}>Documents</div>
+                </div>
               </div>
 
               {/* Legend */}

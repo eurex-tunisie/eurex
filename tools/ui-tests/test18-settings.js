@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const CRED = require('./creds');
 const BASE = process.env.BASE;
 const API = 'https://eurex-api.ezzinesalim21.workers.dev';
 let fails = 0;
@@ -23,7 +24,7 @@ async function j(url, opt) {
   const MAIL = 'zz-role-' + ts + '@test.eurex.tn';
   const PWD = 'roleTest1234567';
 
-  const le = await j(API + '/api/org/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'expert@eurex.tn', password: 'expert1234567' }) });
+  const le = await j(API + '/api/org/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: CRED.expert.email, password: CRED.expert.password }) });
   const H = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + le.token };
   const findTest = async () => (await j(API + '/api/org/comptables', { headers: H })).find(c => c.email === MAIL);
 
@@ -35,8 +36,8 @@ async function j(url, opt) {
   await p.evaluate(() => sessionStorage.setItem('eurex_authorized', '1'));
   await p.goto(BASE + '/cabinet', { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('input[name="email"]', { timeout: 20000 });
-  await p.fill('input[name="email"]', 'expert@eurex.tn');
-  await p.fill('input[name="password"]', 'expert1234567');
+  await p.fill('input[name="email"]', CRED.expert.email);
+  await p.fill('input[name="password"]', CRED.expert.password);
   await p.click('button[type="submit"]');
   await p.waitForTimeout(1500);
 
@@ -64,7 +65,7 @@ async function j(url, opt) {
   ok(tb.includes('Expert'), 'S3c: badge Expert visible');
   ok(tb.includes('Comptable'), 'S3d: badge Comptable visible');
   ok(tb.includes('Votre compte'), 'S3e: ligne "Votre compte" (auto-protection)');
-  const myRow = p.locator('xpath=//p[normalize-space(.)="expert@eurex.tn"]/ancestor::div[contains(@class,"rounded-xl")][1]');
+  const myRow = p.locator('xpath=//p[normalize-space(.)=CRED.expert.email]/ancestor::div[contains(@class,"rounded-xl")][1]');
   ok((await myRow.count()) === 1, 'S3f: une seule ligne trouvee pour expert@eurex.tn');
   const myPencils = await myRow.locator('button[title^="Modifier"]').count();
   ok(myPencils === 0, 'S3g: aucun bouton Modifier sur sa propre ligne');

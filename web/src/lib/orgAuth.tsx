@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { doitOublierSession } from './orgSession';
 
 const BASE = import.meta.env.VITE_API_URL || 'https://eurex-api.ezzinesalim21.workers.dev/api';
 
@@ -9,6 +10,24 @@ export interface OrgUser {
   role: 'expert' | 'manager' | 'comptable';
   must_change_password: number;
   organization: string;
+}
+
+const TOKEN_KEY = 'eurex_org_token';
+const USER_KEY = 'eurex_org_user';
+
+// Utilisateur deja connu sur cet appareil (dernier /org/auth/me reussi).
+function lireUtilisateurEnCache(): OrgUser | null {
+  try {
+    const brut = localStorage.getItem(USER_KEY);
+    return brut ? JSON.parse(brut) : null;
+  } catch {
+    return null;
+  }
+}
+
+function oublierSession(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 interface OrgAuthState {
@@ -27,28 +46,34 @@ const OrgAuthContext = createContext<{
 
 export function OrgAuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OrgAuthState>(() => {
-    const token = localStorage.getItem('eurex_org_token');
-    const userStr = localStorage.getItem('eurex_org_user');
+    const token = localStorage.getItem(TOKEN_KEY);
     return {
       token,
-      user: userStr ? JSON.parse(userStr) : null,
+      user: token ? lireUtilisateurEnCache() : null,
       loading: !!token,
     };
   });
 
   const refreshMe = useCallback(async () => {
-    const token = localStorage.getItem('eurex_org_token');
+    const token = localStorage.getItem(TOKEN_KEY);
     if (!token) { setState({ token: null, user: null, loading: false }); return; }
+    const enCache = lireUtilisateurEnCache();
     try {
       const r = await fetch(`${BASE}/org/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        // Seul un refus du serveur (401) deconnecte. Un 500, un Worker
+        // indisponible ou un reseau coupe laissent la session en place : on
+        // repart de l'utilisateur deja connu sur cet appareil.
+        if (doitOublierSession(r.status)) { oublierSession(); setState({ token: null, user: null, loading: false }); return; }
+        setState({ token, user: enCache, loading: false });
+        return;
+      }
       const user = await r.json();
-      localStorage.setItem('eurex_org_user', JSON.stringify(user));
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
       setState({ token, user, loading: false });
     } catch {
-      localStorage.removeItem('eurex_org_token');
-      localStorage.removeItem('eurex_org_user');
-      setState({ token: null, user: null, loading: false });
+      // Reseau indisponible (telephone hors ligne) : la session reste ouverte.
+      setState({ token, user: enCache, loading: false });
     }
   }, []);
 
@@ -69,14 +94,13 @@ export function OrgAuthProvider({ children }: { children: ReactNode }) {
         await navigator.credentials.store(new w.PasswordCredential({ id: email, password }));
       }
     } catch { /* API non supportee ou refusee par le navigateur */ }
-    localStorage.setItem('eurex_org_token', data.token);
-    localStorage.setItem('eurex_org_user', JSON.stringify(data.user));
+    localStorage.setItem(TOKEN_KEY, data.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
     setState({ token: data.token, user: data.user, loading: false });
   };
 
   const logout = () => {
-    localStorage.removeItem('eurex_org_token');
-    localStorage.removeItem('eurex_org_user');
+    oublierSession();
     setState({ token: null, user: null, loading: false });
   };
 
@@ -90,7 +114,7 @@ export function OrgAuthProvider({ children }: { children: ReactNode }) {
     if (!r.ok) throw new Error(data.error || 'Erreur');
     // Update local state
     const updatedUser = { ...state.user!, must_change_password: 0 };
-    localStorage.setItem('eurex_org_user', JSON.stringify(updatedUser));
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
     setState(s => ({ ...s, user: updatedUser }));
   };
 
