@@ -3478,6 +3478,15 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         return json({ ok: true });
       }
 
+      // --- ORG: RENFORT — tous les acces temporaires actifs du cabinet (expert/manager) ---
+      if (path === '/api/org/grants' && method === 'GET') {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorise' }, 401);
+        if (!isSupervisor(user.role)) return json({ error: 'Reserve a l\'expert/manager' }, 403);
+        const { results } = await env.DB.prepare(`SELECT g.id, g.dossier_id, d.client_id, d.exercice, d.status, c.name as client_name, g.granted_to, u.full_name as granted_to_name, ub.full_name as granted_by_name, g.reason, g.days, g.expires_at, g.created_at FROM org_dossier_grants g JOIN org_dossiers d ON g.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_users u ON g.granted_to = u.id LEFT JOIN org_users ub ON g.granted_by = ub.id WHERE c.organization_id = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now')) ORDER BY g.created_at DESC LIMIT 200`).bind(user.organization_id).all();
+        return json(results);
+      }
+
       // --- ORG: RENFORT — mes dossiers en renfort (comptable) ---
       if (path === '/api/org/grants/mine' && method === 'GET') {
         const user = await verifyOrgToken(request);

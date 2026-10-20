@@ -99,6 +99,14 @@ export interface OrgGrant {
   revoked_at?: string | null;
 }
 
+export interface OrgGrantRow extends OrgGrant {
+  client_id: string;
+  client_name: string;
+  exercice: number;
+  status: string;
+  granted_by_name?: string | null;
+}
+
 export interface OrgMyGrant {
   id: string;
   dossier_id: string;
@@ -403,6 +411,7 @@ export const orgApi = {
   getGrants: (dossierId: string) => req<OrgGrant[]>(`/org/dossiers/${dossierId}/grants`),
   revokeGrant: (dossierId: string, grantId: string) =>
     req<{ ok: boolean }>(`/org/dossiers/${dossierId}/grants/${grantId}`, { method: 'DELETE' }),
+  getGrantsAll: () => req<OrgGrantRow[]>('/org/grants'),
   getMyGrants: () => req<OrgMyGrant[]>('/org/grants/mine'),
 
   // Collaboration : taguer un comptable sur une tache (acces auto au dossier)

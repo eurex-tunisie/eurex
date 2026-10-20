@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { orgApi, OrgComptable, OrgDossier, OrgClient, OrgVerifyTask } from '../../lib/orgApi';
+import { orgApi, OrgComptable, OrgDossier, OrgClient, OrgVerifyTask, OrgGrantRow } from '../../lib/orgApi';
 import { t } from '../../lib/orgI18n';
 import ProgressDonut, { DonutLegend } from '../../components/ProgressDonut';
 import { SkeletonKpiGrid, SkeletonRows } from '../../components/Skeleton';
@@ -14,7 +14,7 @@ import { useCardMin } from '../../lib/useCardMin';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
 import ClientsImport from '../../components/ClientsImport';
-import { Users, BarChart3, AlertTriangle, Search, Filter, Plus, X, Pencil, Trash2, Save, ChevronUp, ChevronDown, Hourglass, Clock, CheckCircle2, Timer, Folder, User, Download } from 'lucide-react';
+import { Users, BarChart3, AlertTriangle, Search, Filter, Plus, X, Pencil, Trash2, Save, ChevronUp, ChevronDown, Hourglass, Clock, CheckCircle2, Timer, Folder, User, Download, Wrench } from 'lucide-react';
 
 type Tab = 'comptables' | 'global';
 
@@ -84,6 +84,16 @@ export default function OrgDashboardExpert() {
   const [allDossiers, setAllDossiers] = useState<any[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [allClients, setAllClients] = useState<OrgClient[]>([]);
+  const [allGrants, setAllGrants] = useState<OrgGrantRow[]>([]);
+  const [grantComp, setGrantComp] = useState<OrgComptable | null>(null);
+  const [grantClient, setGrantClient] = useState('');
+  const [grantDossiers, setGrantDossiers] = useState<OrgDossier[]>([]);
+  const [grantIds, setGrantIds] = useState<string[]>([]);
+  const [grantDays, setGrantDays] = useState(7);
+  const [grantReason, setGrantReason] = useState('');
+  const [grantBusy, setGrantBusy] = useState(false);
+  const [grantError, setGrantError] = useState('');
+  const [grantNotice, setGrantNotice] = useState('');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [filterComptable, setFilterComptable] = useState<string>(searchParams.get('comptable') || 'all');
@@ -186,11 +196,13 @@ export default function OrgDashboardExpert() {
       orgApi.getAllDossiers(exercice),
       orgApi.getClients(),
       orgApi.getExercices(),
+      orgApi.getGrantsAll(),
     ]);
-    const [rc, rd, rcl, rex] = results;
+    const [rc, rd, rcl, rex, rg] = results;
     if (rc.status === 'fulfilled') setComptables(rc.value);
     if (rd.status === 'fulfilled') setAllDossiers(rd.value);
     if (rcl.status === 'fulfilled') setAllClients(rcl.value);
+    if (rg.status === 'fulfilled') setAllGrants(rg.value);
     if (rex.status === 'fulfilled') {
       const list = rex.value.exercices || [];
       setExercices(list);
@@ -203,6 +215,67 @@ export default function OrgDashboardExpert() {
   };
 
   useEffect(() => { fetchDashboard(); }, [exercice]);
+
+  // Renfort : ouvrir un acces temporaire directement depuis le dashboard (expert)
+  const openRenfort = (c: OrgComptable) => {
+    setGrantComp(c);
+    setGrantClient('');
+    setGrantDossiers([]);
+    setGrantIds([]);
+    setGrantDays(7);
+    setGrantReason('');
+    setGrantError('');
+  };
+
+  const pickGrantClient = async (clientId: string) => {
+    setGrantClient(clientId);
+    setGrantIds([]);
+    setGrantDossiers([]);
+    setGrantError('');
+    if (!clientId) return;
+    try {
+      const ds = await orgApi.getClientDossiers(clientId);
+      setGrantDossiers(ds);
+      const already = new Set(allGrants.filter(g => g.granted_to === grantComp?.id).map(g => g.dossier_id));
+      setGrantIds(ds.filter(d => d.status === 'en_cours' && !already.has(d.id)).map(d => d.id));
+    } catch (err: any) {
+      setGrantError(err?.message || 'Impossible de charger les dossiers du client');
+    }
+  };
+
+  const submitRenfort = async () => {
+    if (!grantComp || !grantIds.length || !grantReason.trim() || grantBusy) return;
+    setGrantBusy(true);
+    setGrantError('');
+    let ok = 0;
+    const errs: string[] = [];
+    for (const id of grantIds) {
+      try {
+        await orgApi.createGrant(id, { granted_to: grantComp.id, days: grantDays, reason: grantReason.trim() });
+        ok++;
+      } catch (err: any) {
+        const msg = String(err?.message || 'Erreur');
+        if (!/d[ée]j[àa]/i.test(msg)) errs.push(msg);
+      }
+    }
+    setGrantBusy(false);
+    if (ok) {
+      try { setAllGrants(await orgApi.getGrantsAll()); } catch { /* la liste se rafraichira au prochain chargement */ }
+      setGrantComp(null);
+      setGrantNotice('Accès ouvert à ' + ok + (ok > 1 ? ' dossiers' : ' dossier'));
+    }
+    if (errs.length) setGrantError(errs.join(' - '));
+  };
+
+  const revokeRenfort = async (g: OrgGrantRow) => {
+    if (!confirm("Révoquer l'accès de " + (g.granted_to_name || 'ce comptable') + ' au dossier ' + g.client_name + ' (' + g.exercice + ') ?')) return;
+    try {
+      await orgApi.revokeGrant(g.dossier_id, g.id);
+      setAllGrants(await orgApi.getGrantsAll());
+    } catch (err: any) {
+      alert(err?.message || 'Erreur');
+    }
+  };
 
   // Tâches non vérifiées par dossier / par comptable (depuis verifyTasks)
   const unverifiedByDossier = useMemo(() => {
@@ -695,6 +768,44 @@ export default function OrgDashboardExpert() {
         </div>
       </div>
 
+      {/* Renforts en cours : accès temporaires ouverts dans le cabinet */}
+      <div className="card rounded-2xl p-4" data-testid="renforts-encours">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+            <Wrench size={15} className="text-amber-600" />
+            Renforts en cours
+            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-lg text-[11px] font-semibold">{allGrants.length}</span>
+          </h3>
+          {grantNotice && <span className="text-[11px] font-medium text-emerald-600" data-testid="renfort-notice">{grantNotice}</span>}
+        </div>
+        {allGrants.length === 0 ? (
+          <p className="text-xs text-gray-400 mt-2" data-testid="renforts-empty">
+            Aucun accès temporaire. Cliquez sur « Renfort » sur la carte d'un comptable pour lui ouvrir un ou plusieurs dossiers.
+          </p>
+        ) : (
+          <div className="mt-3 divide-y divide-gray-100">
+            {allGrants.map(g => (
+              <div key={g.id} className="flex items-center gap-3 py-2 text-xs" data-testid={`renfort-row-${g.dossier_id}`}>
+                <span className="font-semibold text-gray-700 truncate max-w-[220px]" title={g.client_name}>{g.client_name}</span>
+                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg font-medium">{g.exercice}</span>
+                <span className="text-gray-500 flex items-center gap-1"><User size={12} /> {g.granted_to_name || '—'}</span>
+                <span className="text-gray-400 truncate max-w-[200px]" title={g.reason || ''}>{g.reason || 'Sans motif'}</span>
+                <span className="text-gray-400 ml-auto whitespace-nowrap flex items-center gap-1">
+                  <Clock size={12} /> {g.expires_at ? new Date(g.expires_at.replace(' ', 'T') + 'Z').toLocaleDateString('fr-FR') : 'Sans limite'}
+                </span>
+                <button
+                  onClick={() => revokeRenfort(g)}
+                  data-testid={`renfort-revoke-${g.id}`}
+                  className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg font-semibold"
+                >
+                  Révoquer
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Tab: Comptables */}
       {tab === 'comptables' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -812,6 +923,14 @@ export default function OrgDashboardExpert() {
                       className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg hover:bg-purple-100 transition-colors"
                     >
                       <Plus size={12} /> Client
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); openRenfort(c); }}
+                      title={'Ouvrir à ' + c.full_name + ' un accès temporaire à des dossiers (renfort)'}
+                      data-testid={`card-renfort-${c.id}`}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg hover:bg-amber-100 transition-colors"
+                    >
+                      <Wrench size={12} /> Renfort
                     </button>
                   </div>
                 </div>
@@ -982,6 +1101,110 @@ export default function OrgDashboardExpert() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Renfort — ouvrir des dossiers à un comptable */}
+      {grantComp && (
+        <div className="modal-overlay" onClick={() => { if (!grantBusy) setGrantComp(null); }}>
+          <div className="bg-white rounded-2xl shadow-modal animate-rise w-full max-w-lg p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <Wrench size={18} className="text-amber-600" />
+                  Renfort
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">Ouvrir des dossiers à <b className="text-gray-700">{grantComp.full_name}</b></p>
+              </div>
+              <button onClick={() => setGrantComp(null)} disabled={grantBusy} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Client</label>
+                <select
+                  value={grantClient}
+                  onChange={e => pickGrantClient(e.target.value)}
+                  className="input-field w-full px-4 py-2.5 text-sm"
+                  data-testid="renfort-client"
+                >
+                  <option value="">— Sélectionner un client —</option>
+                  {allClients.slice().sort((a, b) => a.name.localeCompare(b.name)).map(cl => (
+                    <option key={cl.id} value={cl.id}>{cl.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {grantClient && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Dossiers à ouvrir</label>
+                  {grantDossiers.length === 0 ? (
+                    <p className="text-xs text-gray-400">Aucun dossier pour ce client.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {grantDossiers.map(d => {
+                        const opened = allGrants.some(g => g.granted_to === grantComp.id && g.dossier_id === d.id);
+                        const on = grantIds.includes(d.id);
+                        const label = d.status === 'en_cours' ? 'en cours' : d.status === 'cloture' ? 'clôturé' : d.status;
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            disabled={opened}
+                            onClick={() => setGrantIds(prev => on ? prev.filter(x => x !== d.id) : [...prev, d.id])}
+                            data-testid={`renfort-dossier-${d.id}`}
+                            className={
+                              opened ? 'px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 cursor-not-allowed'
+                                : on ? 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white'
+                                  : 'px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }
+                          >
+                            {d.exercice} · {label}{opened ? ' · déjà ouvert' : ''}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Durée</label>
+                  <select value={grantDays} onChange={e => setGrantDays(Number(e.target.value))} className="input-field w-full px-4 py-2.5 text-sm">
+                    {[1, 3, 7, 14, 30].map(d => <option key={d} value={d}>{d} jour{d > 1 ? 's' : ''}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Motif</label>
+                  <input
+                    value={grantReason}
+                    onChange={e => setGrantReason(e.target.value)}
+                    placeholder="Ex : absence, surcharge…"
+                    className="input-field w-full px-4 py-2.5 text-sm"
+                    data-testid="renfort-reason"
+                  />
+                </div>
+              </div>
+
+              {grantError && <p className="text-xs text-red-600" data-testid="renfort-error">{grantError}</p>}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button onClick={() => setGrantComp(null)} disabled={grantBusy} className="btn btn-ghost px-4 py-2 text-sm">Annuler</button>
+              <button
+                onClick={submitRenfort}
+                disabled={grantBusy || grantIds.length === 0 || !grantReason.trim()}
+                className="btn btn-orange flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-40"
+                data-testid="renfort-submit"
+              >
+                <Wrench size={15} />
+                {grantBusy ? 'Ouverture…' : `Ouvrir ${grantIds.length || ''}`}
+              </button>
+            </div>
           </div>
         </div>
       )}
