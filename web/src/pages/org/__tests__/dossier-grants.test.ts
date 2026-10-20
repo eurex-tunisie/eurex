@@ -8,6 +8,11 @@ describe('Renfort : le comptable choisit ses dossiers', () => {
     expect(dashboard).toContain('data-testid={`pick-dossier-${d.exercice}`}');
   });
 
+  it('garde la section visible meme sans renfort actif', () => {
+    expect(dashboard).toContain('data-testid="renfort-empty"');
+    expect(dashboard).toContain('Aucun renfort actif');
+  });
+
   it('ouvre lui-meme le grant sur les dossiers non inclus', () => {
     expect(dashboard).toContain('const grantedHere = new Set(');
     expect(dashboard).toContain('togglePickDossier');

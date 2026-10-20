@@ -219,14 +219,29 @@ export default function OrgDashboardComptable() {
       {/* Échéances fiscales — alertes dates butoirs */}
       <OrgAlerts />
 
-      {/* Dossiers en renfort (acces temporaire ouvert par l'expert) */}
-      {grantsVisible.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 mb-2">
-            <Wrench size={14} />
-            Dossiers en renfort
-            <span className="text-gray-400 font-normal">— accès temporaire ouvert par l'expert</span>
-          </h3>
+      {/* Dossiers en renfort : section toujours visible (le comptable y choisit
+          lui-meme les dossiers du client des qu'un acces temporaire est ouvert) */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 mb-2">
+          <Wrench size={14} />
+          Dossiers en renfort
+          <span className="text-gray-400 font-normal">
+            {grantsVisible.length > 0
+              ? `— ${grantsVisible.length} accès temporaire${grantsVisible.length > 1 ? 's' : ''}, choisissez vos dossiers`
+              : '— accès temporaire ouvert par l\'expert'}
+          </span>
+        </h3>
+        {grantsVisible.length === 0 ? (
+          <div className="card p-4 flex items-center gap-3" data-testid="renfort-empty">
+            <span className="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <Wrench size={16} />
+            </span>
+            <p className="text-xs text-gray-500">
+              Aucun renfort actif. Quand l'expert vous ouvre un accès, votre client apparaît ici et vous
+              choisissez vous-même les dossiers (exercices) à traiter.
+            </p>
+          </div>
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {grantsVisible.map(g => (
               <Link
@@ -253,8 +268,8 @@ export default function OrgDashboardComptable() {
               </Link>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Search + Sort */}
       <div className="flex items-center gap-3">
