@@ -88,7 +88,7 @@ export default function OrgDashboardExpert() {
   const [grantComp, setGrantComp] = useState<OrgComptable | null>(null);
   const [grantClient, setGrantClient] = useState('');
   const [grantDossiers, setGrantDossiers] = useState<OrgDossier[]>([]);
-  const [grantIds, setGrantIds] = useState<string[]>([]);
+  const [grantPicked, setGrantPicked] = useState<{ id: string; client_id: string; client_name: string; exercice: number; status: string }[]>([]);
   const [grantDays, setGrantDays] = useState(7);
   const [grantReason, setGrantReason] = useState('');
   const [grantBusy, setGrantBusy] = useState(false);
@@ -221,7 +221,7 @@ export default function OrgDashboardExpert() {
     setGrantComp(c);
     setGrantClient('');
     setGrantDossiers([]);
-    setGrantIds([]);
+    setGrantPicked([]);
     setGrantDays(7);
     setGrantReason('');
     setGrantError('');
@@ -229,7 +229,6 @@ export default function OrgDashboardExpert() {
 
   const pickGrantClient = async (clientId: string) => {
     setGrantClient(clientId);
-    setGrantIds([]);
     setGrantDossiers([]);
     setGrantError('');
     if (!clientId) return;
@@ -239,21 +238,29 @@ export default function OrgDashboardExpert() {
       const already = new Set(allGrants.filter(g => g.granted_to === grantComp?.id).map(g => g.dossier_id));
       // Le dossier sur lequel ce comptable travaille en ce moment est ajoute lui aussi
       const activeDossier = grantComp?.active_timer?.dossier_id;
-      setGrantIds(ds.filter(d => (d.status === 'en_cours' || d.id === activeDossier) && !already.has(d.id)).map(d => d.id));
+      // Selection multi-clients : les dossiers deja choisis sur d'autres clients sont conserves
+      const clientName = allClients.find(cl => cl.id === clientId)?.name || '';
+      setGrantPicked(prev => {
+        const seen = new Set(prev.map(x => x.id));
+        const add = ds
+          .filter(d => (d.status === 'en_cours' || d.id === activeDossier) && !already.has(d.id) && !seen.has(d.id))
+          .map(d => ({ id: d.id, client_id: clientId, client_name: clientName, exercice: d.exercice, status: d.status }));
+        return [...prev, ...add];
+      });
     } catch (err: any) {
       setGrantError(err?.message || 'Impossible de charger les dossiers du client');
     }
   };
 
   const submitRenfort = async () => {
-    if (!grantComp || !grantIds.length || !grantReason.trim() || grantBusy) return;
+    if (!grantComp || !grantPicked.length || !grantReason.trim() || grantBusy) return;
     setGrantBusy(true);
     setGrantError('');
     let ok = 0;
     const errs: string[] = [];
-    for (const id of grantIds) {
+    for (const p of grantPicked) {
       try {
-        await orgApi.createGrant(id, { granted_to: grantComp.id, days: grantDays, reason: grantReason.trim() });
+        await orgApi.createGrant(p.id, { granted_to: grantComp.id, days: grantDays, reason: grantReason.trim() });
         ok++;
       } catch (err: any) {
         const msg = String(err?.message || 'Erreur');
@@ -1142,21 +1149,25 @@ export default function OrgDashboardExpert() {
 
               {grantClient && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Dossiers à ouvrir</label>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    Dossiers à ouvrir <span className="font-normal text-gray-400">(changez de client pour en ajouter d'autres)</span>
+                  </label>
                   {grantDossiers.length === 0 ? (
                     <p className="text-xs text-gray-400">Aucun dossier pour ce client.</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {grantDossiers.map(d => {
                         const opened = allGrants.some(g => g.granted_to === grantComp.id && g.dossier_id === d.id);
-                        const on = grantIds.includes(d.id);
+                        const on = grantPicked.some(x => x.id === d.id);
                         const label = d.status === 'en_cours' ? 'en cours' : d.status === 'cloture' ? 'clôturé' : d.status;
                         return (
                           <button
                             key={d.id}
                             type="button"
                             disabled={opened}
-                            onClick={() => setGrantIds(prev => on ? prev.filter(x => x !== d.id) : [...prev, d.id])}
+                            onClick={() => setGrantPicked(prev => on
+                              ? prev.filter(x => x.id !== d.id)
+                              : [...prev, { id: d.id, client_id: grantClient, client_name: allClients.find(cl => cl.id === grantClient)?.name || '', exercice: d.exercice, status: d.status }])}
                             data-testid={`renfort-dossier-${d.id}`}
                             className={
                               opened ? 'px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 cursor-not-allowed'
@@ -1170,6 +1181,27 @@ export default function OrgDashboardExpert() {
                       })}
                     </div>
                   )}
+                </div>
+              )}
+
+              {grantPicked.length > 0 && (
+                <div data-testid="renfort-selected">
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Sélection ({grantPicked.length})</label>
+                  <div className="flex flex-wrap gap-2">
+                    {grantPicked.map(p => (
+                      <span key={p.id} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 text-amber-800 text-xs font-medium">
+                        {p.client_name} · {p.exercice}
+                        <button
+                          type="button"
+                          onClick={() => setGrantPicked(prev => prev.filter(x => x.id !== p.id))}
+                          data-testid={`renfort-remove-${p.id}`}
+                          className="text-amber-600 hover:text-amber-900"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -1208,12 +1240,12 @@ export default function OrgDashboardExpert() {
               <button onClick={() => setGrantComp(null)} disabled={grantBusy} className="btn btn-ghost px-4 py-2 text-sm">Annuler</button>
               <button
                 onClick={submitRenfort}
-                disabled={grantBusy || grantIds.length === 0 || !grantReason.trim()}
+                disabled={grantBusy || grantPicked.length === 0 || !grantReason.trim()}
                 className="btn btn-orange flex items-center gap-2 px-4 py-2 text-sm disabled:opacity-40"
                 data-testid="renfort-submit"
               >
                 <Wrench size={15} />
-                {grantBusy ? 'Ouverture…' : `Ouvrir ${grantIds.length || ''}`}
+                {grantBusy ? 'Ouverture…' : `Ouvrir ${grantPicked.length || ''}`}
               </button>
             </div>
           </div>

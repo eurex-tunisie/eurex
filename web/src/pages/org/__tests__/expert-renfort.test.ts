@@ -18,6 +18,13 @@ describe('Renfort depuis le dashboard expert', () => {
     expect(dashboard).toContain("label: 'À vie'");
   });
 
+  it('permet de selectionner des dossiers sur plusieurs clients', () => {
+    expect(dashboard).toContain('data-testid="renfort-selected"');
+    expect(dashboard).toContain('data-testid={`renfort-remove-${p.id}`}');
+    expect(dashboard).toContain("prev.filter(x => x.id !== d.id)");
+    expect(dashboard).not.toContain('grantIds');
+  });
+
   it('liste les renforts en cours et permet de les revoquer', () => {
     expect(dashboard).toContain('data-testid="renforts-encours"');
     expect(dashboard).toContain('data-testid="renforts-empty"');
