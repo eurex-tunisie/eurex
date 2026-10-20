@@ -321,7 +321,7 @@ export interface OrgComptable {
   verify_counts?: VerifyCounts;
   verify_stats?: { verified: number; returned: number; score: number | null };
   // Chrono en cours : ce qu'elle fait maintenant (null = ne travaille pas)
-  active_timer?: { task_label: string; started_at: string } | null;
+  active_timer?: { task_label: string; started_at: string; dossier_id?: string | null } | null;
   last_seen_at?: string | null;
   online?: boolean;
   worked_today_seconds?: number;

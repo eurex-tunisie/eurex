@@ -3439,7 +3439,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           reason = reason || 'Renfort : dossier choisi par le comptable';
           targetName = user.full_name;
         } else {
-          if (![1, 7, 30, 180, 365, 0].includes(grantDays)) return json({ error: 'Durée invalide (1, 7, 30, 180, 365 jours ou à vie)' }, 400);
+          if (![1, 3, 7, 14, 30, 180, 365, 0].includes(grantDays)) return json({ error: 'Durée invalide (1, 3, 7, 14, 30, 180, 365 jours ou à vie)' }, 400);
           if (!reason) return json({ error: 'Motif du renfort requis' }, 400);
           const target = await env.DB.prepare('SELECT id, full_name FROM org_users WHERE id = ? AND organization_id = ? AND role = ? AND is_active = 1').bind(granted_to, user.organization_id, 'comptable').first() as any;
           if (!target) return json({ error: 'Comptable introuvable' }, 400);
@@ -3526,7 +3526,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const grantDays = body?.days === undefined || body?.days === null ? 7 : Number(body.days);
         if (!targetId) return json({ error: 'Comptable requis' }, 400);
         if (targetId === user.id) return json({ error: 'Vous êtes déjà sur cette tâche' }, 400);
-        if (![1, 7, 30, 180, 365, 0].includes(grantDays)) return json({ error: 'Durée invalide (1, 7, 30, 180, 365 jours ou à vie)' }, 400);
+        if (![1, 3, 7, 14, 30, 180, 365, 0].includes(grantDays)) return json({ error: 'Durée invalide (1, 3, 7, 14, 30, 180, 365 jours ou à vie)' }, 400);
         const target = await env.DB.prepare("SELECT id, full_name FROM org_users WHERE id = ? AND organization_id = ? AND role = 'comptable' AND is_active = 1").bind(targetId, user.organization_id).first() as any;
         if (!target) return json({ error: 'Comptable introuvable' }, 400);
         const dup = await env.DB.prepare('SELECT 1 AS x FROM org_task_collaborators WHERE task_id = ? AND user_id = ?').bind(taskId, targetId).first();
@@ -4752,7 +4752,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // libelle de la tâche pour afficher « ce qu'elle fait maintenant » sur la
         // carte elle-meme, sans ouvrir sa fiche (LEFT JOIN : un chrono ne doit pas
         // disparaitre si la tâche a ete supprimee).
-        const { results: running } = await env.DB.prepare('SELECT te.user_id, te.started_at, t.label AS task_label FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL').all();
+        const { results: running } = await env.DB.prepare('SELECT te.user_id, te.started_at, t.label AS task_label, t.dossier_id AS dossier_id FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL').all();
         const runByUser = new Map((running as any[]).map(r => [r.user_id, r]));
         const nowS = Math.floor(Date.now() / 1000);
         const parseUtc = (s: any) => s ? Math.floor(Date.parse(String(s).replace(' ', 'T') + 'Z') / 1000) : 0;
@@ -4812,7 +4812,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const qualTotal = qual.verified + qual.returned;
           return { ...c, role: c.role_label || c.role, client_count: clients.length, avg_progress: clients.length > 0 ? Math.round(clients.reduce((sum: number, cl: any) => sum + (cl.cached_progress || 0), 0) / clients.length * 10) / 10 : 0, task_stats: s,
             verify_counts: vc,
-            active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at } : null,
+            active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at, dossier_id: runRow.dossier_id || null } : null,
             verify_stats: { verified: qual.verified, returned: qual.returned, score: qualTotal > 0 ? Math.round((qual.verified / qualTotal) * 100) : null },
             online: parseUtc(c.last_seen_at) >= nowS - 180,
             worked_today_seconds: (Number(dayByUser.get(c.id)) || 0) + Math.max(0, runStart ? nowS - runStart : 0),

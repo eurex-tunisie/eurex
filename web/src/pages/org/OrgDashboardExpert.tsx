@@ -237,7 +237,9 @@ export default function OrgDashboardExpert() {
       const ds = await orgApi.getClientDossiers(clientId);
       setGrantDossiers(ds);
       const already = new Set(allGrants.filter(g => g.granted_to === grantComp?.id).map(g => g.dossier_id));
-      setGrantIds(ds.filter(d => d.status === 'en_cours' && !already.has(d.id)).map(d => d.id));
+      // Le dossier sur lequel ce comptable travaille en ce moment est ajoute lui aussi
+      const activeDossier = grantComp?.active_timer?.dossier_id;
+      setGrantIds(ds.filter(d => (d.status === 'en_cours' || d.id === activeDossier) && !already.has(d.id)).map(d => d.id));
     } catch (err: any) {
       setGrantError(err?.message || 'Impossible de charger les dossiers du client');
     }
@@ -791,7 +793,7 @@ export default function OrgDashboardExpert() {
                 <span className="text-gray-500 flex items-center gap-1"><User size={12} /> {g.granted_to_name || '—'}</span>
                 <span className="text-gray-400 truncate max-w-[200px]" title={g.reason || ''}>{g.reason || 'Sans motif'}</span>
                 <span className="text-gray-400 ml-auto whitespace-nowrap flex items-center gap-1">
-                  <Clock size={12} /> {g.expires_at ? new Date(g.expires_at.replace(' ', 'T') + 'Z').toLocaleDateString('fr-FR') : 'Sans limite'}
+                  <Clock size={12} /> {g.days === 0 ? 'À vie' : g.expires_at ? new Date(g.expires_at.replace(' ', 'T') + 'Z').toLocaleDateString('fr-FR') : 'Sans limite'}
                 </span>
                 <button
                   onClick={() => revokeRenfort(g)}
@@ -1162,7 +1164,7 @@ export default function OrgDashboardExpert() {
                                   : 'px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }
                           >
-                            {d.exercice} · {label}{opened ? ' · déjà ouvert' : ''}
+                            {d.exercice} · {label}{d.id === grantComp.active_timer?.dossier_id ? ' · en cours' : ''}{opened ? ' · déjà ouvert' : ''}
                           </button>
                         );
                       })}
@@ -1174,8 +1176,17 @@ export default function OrgDashboardExpert() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Durée</label>
-                  <select value={grantDays} onChange={e => setGrantDays(Number(e.target.value))} className="input-field w-full px-4 py-2.5 text-sm">
-                    {[1, 3, 7, 14, 30].map(d => <option key={d} value={d}>{d} jour{d > 1 ? 's' : ''}</option>)}
+                  <select value={grantDays} onChange={e => setGrantDays(Number(e.target.value))} className="input-field w-full px-4 py-2.5 text-sm" data-testid="renfort-days">
+                    {[
+                      { d: 1, label: '1 jour' },
+                      { d: 3, label: '3 jours' },
+                      { d: 7, label: '7 jours' },
+                      { d: 14, label: '14 jours' },
+                      { d: 30, label: '1 mois' },
+                      { d: 180, label: '6 mois' },
+                      { d: 365, label: '1 an' },
+                      { d: 0, label: 'À vie' },
+                    ].map(o => <option key={o.d} value={o.d}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>

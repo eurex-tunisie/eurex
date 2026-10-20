@@ -78,6 +78,6 @@ describe('carte « En attente de validation » (dashboard comptable)', () => {
 describe('contrat API consomme par les deux pages', () => {
   test('les types exposent verify_counts et active_timer', () => {
     expect(orgApiSrc).toContain('verify_counts?: VerifyCounts;');
-    expect(orgApiSrc).toContain('active_timer?: { task_label: string; started_at: string } | null;');
+    expect(orgApiSrc).toContain('active_timer?: { task_label: string; started_at: string; dossier_id?: string | null } | null;');
   });
 });

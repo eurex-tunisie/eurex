@@ -49,7 +49,7 @@ test('les compteurs de validation ignorent le mois et le perimetre d export', ()
 });
 
 test('le chrono en cours vient d une seule requete pour tout le cabinet', () => {
-  assert.ok(SRC.includes('SELECT te.user_id, te.started_at, t.label AS task_label FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL'),
+  assert.ok(SRC.includes('SELECT te.user_id, te.started_at, t.label AS task_label, t.dossier_id AS dossier_id FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL'),
     'le libelle de la tâche doit venir de la meme requete que le chrono');
   assert.ok(!SRC.includes('new Map((running as any[]).map(r => [r.user_id, r.started_at]))'),
     'runByUser doit porter la ligne (debut + libelle), pas le seul started_at');

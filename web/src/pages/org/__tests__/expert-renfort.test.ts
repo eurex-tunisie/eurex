@@ -9,8 +9,13 @@ describe('Renfort depuis le dashboard expert', () => {
 
   it('ouvre les dossiers choisis au comptable selectionne', () => {
     expect(dashboard).toContain('orgApi.getClientDossiers(clientId)');
+    expect(dashboard).toContain('const activeDossier = grantComp?.active_timer?.dossier_id');
+    expect(dashboard).toContain("d.id === activeDossier");
     expect(dashboard).toContain('granted_to: grantComp.id');
     expect(dashboard).toContain('data-testid="renfort-submit"');
+    expect(dashboard).toContain("label: '6 mois'");
+    expect(dashboard).toContain("label: '1 an'");
+    expect(dashboard).toContain("label: 'À vie'");
   });
 
   it('liste les renforts en cours et permet de les revoquer', () => {
