@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Table2, Trash2, Download, Zap, Upload, CheckCircle, ShieldCheck, Wrench, Database } from 'lucide-react';
 import { api } from '../../lib/api';
 import { extractTextFromPDF } from '../../lib/pdf';
+import { buildLibelle } from '../../lib/scanEcritures';
 
 type Tab = 'factures' | 'ecritures' | 'export';
 
@@ -309,8 +310,7 @@ export default function ScanDossierPage() {
       const fodec = f.fodec || 0;
       const timbre = f.timbre || 0;
       const isAvoir = !!f.is_avoir;
-      const prefix = isAvoir ? 'AVR' : 'FAC';
-      const lib = `${prefix} ${facNum}/${clientName}`;
+      const lib = buildLibelle(facNum, clientName);
       // D = sum of all C amounts (ensures balance)
       const totalCredit = ht19 + ht0 + tva + fodec + timbre;
       const r = (v: number) => Math.round(v * 1000) / 1000;
