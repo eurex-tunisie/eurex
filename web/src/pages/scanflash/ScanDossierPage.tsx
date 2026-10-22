@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, Table2, Trash2, Download, Zap, Upload, CheckCircle, ShieldCheck, Wrench, Database } from 'lucide-react';
 import { api } from '../../lib/api';
 import { extractTextFromPDF } from '../../lib/pdf';
-import { buildLibelle } from '../../lib/scanEcritures';
+import { buildLibelle, formatNumero } from '../../lib/scanEcritures';
 
 type Tab = 'factures' | 'ecritures' | 'export';
 
@@ -567,6 +567,7 @@ export default function ScanDossierPage() {
                   <th className="px-3 py-2 text-left">Client</th>
                   <th className="px-3 py-2 text-left">Code</th>
                   <th className="px-3 py-2 text-left">Compte</th>
+                  <th className="px-3 py-2 text-right">HT 0%</th>
                   <th className="px-3 py-2 text-right">HT 19%</th>
                   <th className="px-3 py-2 text-right">TVA</th>
                   <th className="px-3 py-2 text-right">FODEC</th>
@@ -578,12 +579,13 @@ export default function ScanDossierPage() {
                 {localFactures.map(f => (
                   <tr key={f.id} className="row-hover">
                     <td className="px-3 py-1.5 font-mono text-xs">
-                      {f.is_avoir ? <span className="text-red-600 font-bold">AVR</span> : 'FAC'} {f.numero}
+                      <span className={f.is_avoir ? 'text-red-600 font-bold' : ''}>{formatNumero(f.numero, !!f.is_avoir)}</span>
                     </td>
                     <td className="px-3 py-1.5 text-xs">{f.date_facture}</td>
                     <td className="px-3 py-1.5 text-xs">{f.client}</td>
                     <td className="px-3 py-1.5 font-mono text-xs text-gray-500">{f.code_client}</td>
                     <td className="px-3 py-1.5 font-mono text-xs">{f.compte_client}</td>
+                    <td className="px-3 py-1.5 text-right font-mono">{(f.total_ht_0 || 0).toFixed(3)}</td>
                     <td className="px-3 py-1.5 text-right font-mono">{(f.total_ht_19 || 0).toFixed(3)}</td>
                     <td className="px-3 py-1.5 text-right font-mono">{(f.tva_19 || 0).toFixed(3)}</td>
                     <td className="px-3 py-1.5 text-right font-mono">{(f.fodec || 0).toFixed(3)}</td>
@@ -591,18 +593,18 @@ export default function ScanDossierPage() {
                     <td className="px-3 py-1.5 text-right font-mono font-semibold">{(f.total_ttc || 0).toFixed(3)}</td>
                   </tr>
                 ))}
-                {localFactures.length === 0 && <tr><td colSpan={10} className="text-center text-gray-400 py-6">Aucune facture</td></tr>}
+                {localFactures.length === 0 && <tr><td colSpan={11} className="text-center text-gray-400 py-6">Aucune facture</td></tr>}
               </tbody>
             </table>
           </div>
 
           {/* Generate button */}
-          {factures.length > 0 && (
+          {localFactures.length > 0 && (
             <div className="flex justify-center">
               <button onClick={handleGenerate} disabled={generating}
                 className="btn btn-emerald px-6 py-3 rounded-lg font-semibold disabled:opacity-50 flex items-center gap-2">
                 <Zap size={18} />
-                {generating ? 'Generation...' : `Generer VT (${factures.length} factures)`}
+                {generating ? 'Generation...' : `Generer VT (${localFactures.length} factures)`}
               </button>
             </div>
           )}
