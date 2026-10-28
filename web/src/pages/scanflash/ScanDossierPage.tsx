@@ -101,7 +101,7 @@ export default function ScanDossierPage() {
     const code = newPlanCode.trim() || nextClientCode(plan);
     const updated = addClientAccount(plan, code, newPlanLibelle);
     if (!updated) {
-      setPlanError('Compte 411XXX invalide, libellé manquant ou compte déjà présent.');
+      setPlanError('Compte 411XXX (6 chiffres) invalide, libellé manquant ou compte déjà présent.');
       return;
     }
     localStorage.setItem('scan_plan_comptable', JSON.stringify(updated));

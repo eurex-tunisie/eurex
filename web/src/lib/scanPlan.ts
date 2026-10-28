@@ -59,21 +59,34 @@ export function resolveClientAccount(
   return findClientAccount(plan, clientName) || '411000';
 }
 
-// Prochain numero de compte client libre (411XXX).
+// Un compte client SCANFLASH est un code a 6 chiffres : 411XXX.
+export function isValidClientCode(code: string | null | undefined): boolean {
+  return /^411\d{3}$/.test((code || '').trim());
+}
+
+// Prochain numero de compte client libre (411XXX, 6 chiffres). Si la plage est
+// saturee (411999 deja pris), on redescend pour trouver le premier libre.
 export function nextClientCode(plan: PlanAccount[]): string {
-  let max = 0;
+  const used = new Set<number>();
   for (const a of plan || []) {
-    const m = a.code.match(/^411(\d+)$/);
-    if (m) max = Math.max(max, Number(m[1]));
+    if (isValidClientCode(a.code)) used.add(Number(a.code.slice(3)));
   }
-  return '411' + String(max + 1).padStart(3, '0');
+  let n = 1;
+  for (const v of used) n = Math.max(n, v + 1);
+  while (n <= 999 && used.has(n)) n++;
+  if (n > 999) {
+    n = 999;
+    while (n >= 1 && used.has(n)) n--;
+  }
+  if (n < 1) return '411000';
+  return '411' + String(n).padStart(3, '0');
 }
 
 // Ajoute un compte client au plan. Renvoie null si code/libelle invalide ou doublon.
 export function addClientAccount(plan: PlanAccount[], code: string, libelle: string): PlanAccount[] | null {
   const c = (code || '').trim();
   const l = (libelle || '').trim();
-  if (!/^411\d{3,}$/.test(c) || !l) return null;
+  if (!isValidClientCode(c) || !l) return null;
   if ((plan || []).some(a => a.code === c)) return null;
   return [...(plan || []), { code: c, libelle: l }].sort((a, b) => a.code.localeCompare(b.code));
 }

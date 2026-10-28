@@ -66,12 +66,19 @@ describe('plan comptable par defaut (embarque dans l app)', () => {
 describe('ajout d un nouveau compte client', () => {
   const plan = defaultPlanJson as PlanAccount[];
 
-  it('suggere le prochain numero libre', () => {
-    const last = plan[plan.length - 1].code;
+  it('suggere le prochain numero libre (6 chiffres, 411999 inclus dans le plan)', () => {
     const next = nextClientCode(plan);
-    expect(/^411\d{3,}$/.test(next)).toBe(true);
-    expect(Number(next.slice(3))).toBeGreaterThan(Number(last.slice(3)));
+    expect(next).toMatch(/^411\d{3}$/);
     expect(plan.some(a => a.code === next)).toBe(false);
+    expect(next).toBe('411998');
+  });
+
+  it('ne sort jamais de la plage 411XXX meme si 411999 est pris', () => {
+    for (const a of [900, 901, 902].map(n => ({ code: '411' + n, libelle: 'X' + n }))) {
+      expect(nextClientCode([a])).toMatch(/^411\d{3}$/);
+    }
+    const full = Array.from({ length: 1000 }, (_, i) => ({ code: '411' + String(i).padStart(3, '0'), libelle: 'C' + i }));
+    expect(nextClientCode(full)).toBe('411000');
   });
 
   it('ajoute un compte et le rend trouvable par nom', () => {
@@ -84,6 +91,8 @@ describe('ajout d un nouveau compte client', () => {
 
   it('refuse un code invalide, un libelle vide ou un doublon', () => {
     expect(addClientAccount(plan, '512000', 'Banque')).toBeNull();
+    expect(addClientAccount(plan, '4111000', 'Trop long')).toBeNull();
+    expect(addClientAccount(plan, '41199', 'Trop court')).toBeNull();
     expect(addClientAccount(plan, '411999', '')).toBeNull();
     expect(addClientAccount(plan, plan[1].code, 'Doublon')).toBeNull();
   });
