@@ -1,0 +1,2150 @@
+[
+ {
+  "code": "411000",
+  "libelle": "CLIENTS ORDINAIRES"
+ },
+ {
+  "code": "411001",
+  "libelle": "HEALTY TECHNOLOGY SERVICES"
+ },
+ {
+  "code": "411002",
+  "libelle": "MILLESIMA TRAVEL"
+ },
+ {
+  "code": "411003",
+  "libelle": "ALKAZ'ART"
+ },
+ {
+  "code": "411004",
+  "libelle": "DESIGN AND & TRADING COMPANY"
+ },
+ {
+  "code": "411005",
+  "libelle": "SCE"
+ },
+ {
+  "code": "411006",
+  "libelle": "AMBASSADE DES ETATS-UNIS"
+ },
+ {
+  "code": "411007",
+  "libelle": "Centre Arabe De Recherches et Etude"
+ },
+ {
+  "code": "411008",
+  "libelle": "VENDAS"
+ },
+ {
+  "code": "411009",
+  "libelle": "DESITUNIS"
+ },
+ {
+  "code": "411010",
+  "libelle": "STE SCARA B AGENCY"
+ },
+ {
+  "code": "411011",
+  "libelle": "ART ET COLEURS"
+ },
+ {
+  "code": "411012",
+  "libelle": "MEDIA SERVICES"
+ },
+ {
+  "code": "411013",
+  "libelle": "K RE IMPRESSION"
+ },
+ {
+  "code": "411014",
+  "libelle": "JOUR J"
+ },
+ {
+  "code": "411015",
+  "libelle": "TUNIPRINT"
+ },
+ {
+  "code": "411016",
+  "libelle": "GAT MARZOUKI"
+ },
+ {
+  "code": "411017",
+  "libelle": "MEDITEC NMC"
+ },
+ {
+  "code": "411018",
+  "libelle": "MANZINI"
+ },
+ {
+  "code": "411019",
+  "libelle": "IMP BOUSSAA"
+ },
+ {
+  "code": "411020",
+  "libelle": "GALERIE MARSA"
+ },
+ {
+  "code": "411021",
+  "libelle": "MOEZ SPORT"
+ },
+ {
+  "code": "411022",
+  "libelle": "STE NEPTUNE MOSAIC"
+ },
+ {
+  "code": "411023",
+  "libelle": "TEINTREX"
+ },
+ {
+  "code": "411024",
+  "libelle": "ALICE EVENTS"
+ },
+ {
+  "code": "411025",
+  "libelle": "SCANFLASH +"
+ },
+ {
+  "code": "411026",
+  "libelle": "STE SERPHADOM"
+ },
+ {
+  "code": "411027",
+  "libelle": "SOBITEX"
+ },
+ {
+  "code": "411028",
+  "libelle": "L'ATELIER"
+ },
+ {
+  "code": "411029",
+  "libelle": "PRIMA"
+ },
+ {
+  "code": "411030",
+  "libelle": "GOETH INSTITUT"
+ },
+ {
+  "code": "411031",
+  "libelle": "OVERPRINT"
+ },
+ {
+  "code": "411032",
+  "libelle": "RICAMOTEX"
+ },
+ {
+  "code": "411033",
+  "libelle": "STE STANTEX"
+ },
+ {
+  "code": "411034",
+  "libelle": "HAMZA HELAL"
+ },
+ {
+  "code": "411035",
+  "libelle": "VTL SA"
+ },
+ {
+  "code": "411036",
+  "libelle": "STE LOFT PRINT"
+ },
+ {
+  "code": "411037",
+  "libelle": "EXPORAMA"
+ },
+ {
+  "code": "411038",
+  "libelle": "STE ADDVALUE"
+ },
+ {
+  "code": "411039",
+  "libelle": "IMAGE IN"
+ },
+ {
+  "code": "411040",
+  "libelle": "MEGA PRINTING"
+ },
+ {
+  "code": "411041",
+  "libelle": "GENERAL PRINT"
+ },
+ {
+  "code": "411042",
+  "libelle": "CREATION CHOUETTE"
+ },
+ {
+  "code": "411043",
+  "libelle": "4 MK L'AUTOCOLLANT"
+ },
+ {
+  "code": "411044",
+  "libelle": "SERICAM TUNISIA"
+ },
+ {
+  "code": "411045",
+  "libelle": "WADI MHIRI"
+ },
+ {
+  "code": "411046",
+  "libelle": "STANTEC SA/NV"
+ },
+ {
+  "code": "411047",
+  "libelle": "COM.IN"
+ },
+ {
+  "code": "411048",
+  "libelle": "SOTRAPIL"
+ },
+ {
+  "code": "411049",
+  "libelle": "ELECTRO DIESEL TUNIS"
+ },
+ {
+  "code": "411050",
+  "libelle": "SOCOBAT"
+ },
+ {
+  "code": "411051",
+  "libelle": "MAGHREB CORPORATE"
+ },
+ {
+  "code": "411052",
+  "libelle": "10  VERSIONS"
+ },
+ {
+  "code": "411053",
+  "libelle": "3ICH TOUNSI"
+ },
+ {
+  "code": "411054",
+  "libelle": "MIT"
+ },
+ {
+  "code": "411055",
+  "libelle": "GRAPHIPUB"
+ },
+ {
+  "code": "411056",
+  "libelle": "FORTUNE PROMOSEVEN MC CANN"
+ },
+ {
+  "code": "411057",
+  "libelle": "STE EMBLEME"
+ },
+ {
+  "code": "411058",
+  "libelle": "COMSOLUTIONS"
+ },
+ {
+  "code": "411059",
+  "libelle": "STE PRINTESCURE"
+ },
+ {
+  "code": "411060",
+  "libelle": "BSP PLUS"
+ },
+ {
+  "code": "411061",
+  "libelle": "STE NOVARINO TUNISIE"
+ },
+ {
+  "code": "411062",
+  "libelle": "STE SO-ON"
+ },
+ {
+  "code": "411063",
+  "libelle": "ARTWORDS PRODUCTION"
+ },
+ {
+  "code": "411064",
+  "libelle": "BEE CONCEPT"
+ },
+ {
+  "code": "411065",
+  "libelle": "ASSURANCES COMAR"
+ },
+ {
+  "code": "411066",
+  "libelle": "ALLIANCE FRACAISE TUNIS"
+ },
+ {
+  "code": "411067",
+  "libelle": "INITIATIVE MENA"
+ },
+ {
+  "code": "411068",
+  "libelle": "SIDOMMO MOMTAZA"
+ },
+ {
+  "code": "411069",
+  "libelle": "NEUF DOUZE"
+ },
+ {
+  "code": "411070",
+  "libelle": "ASSURANCES MAGHREBIA"
+ },
+ {
+  "code": "411071",
+  "libelle": "SIDHET RADISSON"
+ },
+ {
+  "code": "411072",
+  "libelle": "ASSOCIATION AMAVI"
+ },
+ {
+  "code": "411073",
+  "libelle": "AMBASSADE DU BULGARIE TN"
+ },
+ {
+  "code": "411074",
+  "libelle": "SELMA FERIANI GALLERY"
+ },
+ {
+  "code": "411075",
+  "libelle": "ECLIPSE"
+ },
+ {
+  "code": "411076",
+  "libelle": "BOPUB"
+ },
+ {
+  "code": "411077",
+  "libelle": "NOVITA"
+ },
+ {
+  "code": "411078",
+  "libelle": "SIBAC"
+ },
+ {
+  "code": "411079",
+  "libelle": "STE SUDDART"
+ },
+ {
+  "code": "411080",
+  "libelle": "STE PRIMA RENT A CAR"
+ },
+ {
+  "code": "411081",
+  "libelle": "CASAVERDE"
+ },
+ {
+  "code": "411082",
+  "libelle": "PRISMA"
+ },
+ {
+  "code": "411083",
+  "libelle": "UM UNIVERSAL MEDIA"
+ },
+ {
+  "code": "411084",
+  "libelle": "ULYSSE SPARE PARTS"
+ },
+ {
+  "code": "411085",
+  "libelle": "AMVPPC"
+ },
+ {
+  "code": "411086",
+  "libelle": "L'ART EST CENTRAL"
+ },
+ {
+  "code": "411087",
+  "libelle": "MGT"
+ },
+ {
+  "code": "411088",
+  "libelle": "ID GRAPHIC"
+ },
+ {
+  "code": "411089",
+  "libelle": "BIJOUTERIE BEN JANNET"
+ },
+ {
+  "code": "411090",
+  "libelle": "OGSO TUNISIE"
+ },
+ {
+  "code": "411091",
+  "libelle": "TUNISIA CINEMA FONDATION"
+ },
+ {
+  "code": "411092",
+  "libelle": "SOIXANTE DIX HUIT \"OLFA TRABELSI\""
+ },
+ {
+  "code": "411093",
+  "libelle": "LA MAISON DE LA PATISSERIE INDUS"
+ },
+ {
+  "code": "411094",
+  "libelle": "MARBRERIE DESIGN ET OBJETS"
+ },
+ {
+  "code": "411095",
+  "libelle": "FAZET"
+ },
+ {
+  "code": "411096",
+  "libelle": "GRAFIPUB"
+ },
+ {
+  "code": "411097",
+  "libelle": "ASSOCIATION AMIS DU BELVEDERE"
+ },
+ {
+  "code": "411098",
+  "libelle": "S.B.H"
+ },
+ {
+  "code": "411099",
+  "libelle": "STE TUN MEDECINE INTERNE"
+ },
+ {
+  "code": "411100",
+  "libelle": "STE CULTUREL"
+ },
+ {
+  "code": "411101",
+  "libelle": "ONLY EVENTS"
+ },
+ {
+  "code": "411102",
+  "libelle": "STE SMART SOFT PRO"
+ },
+ {
+  "code": "411103",
+  "libelle": "ECHOCOM"
+ },
+ {
+  "code": "411104",
+  "libelle": "ADCOM"
+ },
+ {
+  "code": "411105",
+  "libelle": "ECREATION"
+ },
+ {
+  "code": "411106",
+  "libelle": "WELL COM"
+ },
+ {
+  "code": "411107",
+  "libelle": "STE SOFABI"
+ },
+ {
+  "code": "411108",
+  "libelle": "S DECO"
+ },
+ {
+  "code": "411109",
+  "libelle": "FEDERATION TN D'ESCRIME"
+ },
+ {
+  "code": "411110",
+  "libelle": "HASNAWI PRINT"
+ },
+ {
+  "code": "411111",
+  "libelle": "NEXT EVENTS"
+ },
+ {
+  "code": "411112",
+  "libelle": "BANNI BANNI"
+ },
+ {
+  "code": "411113",
+  "libelle": "JAWHER CHTIOUI"
+ },
+ {
+  "code": "411114",
+  "libelle": "GIZ"
+ },
+ {
+  "code": "411116",
+  "libelle": "TOP EVENTS TUNISIE"
+ },
+ {
+  "code": "411117",
+  "libelle": "THE PAPER CRAFT STUDIO"
+ },
+ {
+  "code": "411118",
+  "libelle": "GENERALE CONSERVE ALIMENTIARE"
+ },
+ {
+  "code": "411119",
+  "libelle": "HANIA PRODUCTION"
+ },
+ {
+  "code": "411120",
+  "libelle": "C.R.O.P"
+ },
+ {
+  "code": "411121",
+  "libelle": "STE 32 BIS"
+ },
+ {
+  "code": "411122",
+  "libelle": "ROOTS TRAVEL"
+ },
+ {
+  "code": "411123",
+  "libelle": "DMO TUNIS CARTHAG"
+ },
+ {
+  "code": "411124",
+  "libelle": "CREA EVENTS"
+ },
+ {
+  "code": "411125",
+  "libelle": "FROCLIMA"
+ },
+ {
+  "code": "411126",
+  "libelle": "STE BEN AMAR DISTRIBUTION"
+ },
+ {
+  "code": "411127",
+  "libelle": "TIM'S INFINITY GRAPHIC"
+ },
+ {
+  "code": "411128",
+  "libelle": "HIKMAT CHATTA"
+ },
+ {
+  "code": "411129",
+  "libelle": "LA BOITE SARL"
+ },
+ {
+  "code": "411130",
+  "libelle": "DR MOHAMED AYACHI"
+ },
+ {
+  "code": "411131",
+  "libelle": "Hyve Travel & Events"
+ },
+ {
+  "code": "411132",
+  "libelle": "LEFRI9I COMPANY"
+ },
+ {
+  "code": "411133",
+  "libelle": "MINISTERE DES AFFAIRES CULTURELLES"
+ },
+ {
+  "code": "411134",
+  "libelle": "EMILE GARCON"
+ },
+ {
+  "code": "411135",
+  "libelle": "kylara"
+ },
+ {
+  "code": "411136",
+  "libelle": "DF DAHLIA FLOWERS"
+ },
+ {
+  "code": "411137",
+  "libelle": "TPM"
+ },
+ {
+  "code": "411138",
+  "libelle": "GALERIE LA MARSA"
+ },
+ {
+  "code": "411139",
+  "libelle": "SERIDERM"
+ },
+ {
+  "code": "411140",
+  "libelle": "STE GENERALE DE BEAUTE"
+ },
+ {
+  "code": "411141",
+  "libelle": "Ecole Paul Verlaine"
+ },
+ {
+  "code": "411142",
+  "libelle": "SPICY PROD"
+ },
+ {
+  "code": "411143",
+  "libelle": "Alfa Zeta Software"
+ },
+ {
+  "code": "411144",
+  "libelle": "GHARBI KHALIL NOX DESGN"
+ },
+ {
+  "code": "411145",
+  "libelle": "OXFAM NOVIB TUNISIE"
+ },
+ {
+  "code": "411146",
+  "libelle": "ASSO DE SOUTIEN AUX TART-UPS TECH E"
+ },
+ {
+  "code": "411147",
+  "libelle": "HINOILEV"
+ },
+ {
+  "code": "411148",
+  "libelle": "Bdar SMAA"
+ },
+ {
+  "code": "411149",
+  "libelle": "Agence DGRAPHIC"
+ },
+ {
+  "code": "411150",
+  "libelle": "GRAPHIC TUNITEC"
+ },
+ {
+  "code": "411151",
+  "libelle": "Sté Research Light"
+ },
+ {
+  "code": "411152",
+  "libelle": "BARAA DESIGN"
+ },
+ {
+  "code": "411153",
+  "libelle": "M'RABET KHALED"
+ },
+ {
+  "code": "411154",
+  "libelle": "IGD COMMUNICATION"
+ },
+ {
+  "code": "411155",
+  "libelle": "STIAL"
+ },
+ {
+  "code": "411156",
+  "libelle": "SAVEURS SÉLECTION BY NB"
+ },
+ {
+  "code": "411157",
+  "libelle": "HABIB BERGAOUI"
+ },
+ {
+  "code": "411158",
+  "libelle": "IRINA ABRAMOVA"
+ },
+ {
+  "code": "411159",
+  "libelle": "BICC"
+ },
+ {
+  "code": "411160",
+  "libelle": "M GIOVANNI PAVESI"
+ },
+ {
+  "code": "411161",
+  "libelle": "C COM"
+ },
+ {
+  "code": "411162",
+  "libelle": "CELINE PHARMA"
+ },
+ {
+  "code": "411163",
+  "libelle": "KEBIRA HAYDER"
+ },
+ {
+  "code": "411164",
+  "libelle": "BAUGRAV"
+ },
+ {
+  "code": "411165",
+  "libelle": "MIRALAND"
+ },
+ {
+  "code": "411166",
+  "libelle": "PASSAGER"
+ },
+ {
+  "code": "411167",
+  "libelle": "TUNISIE IMPRESSION"
+ },
+ {
+  "code": "411168",
+  "libelle": "JCI CONGRES MONDIAL 2025"
+ },
+ {
+  "code": "411169",
+  "libelle": "KAMEL LAZAAR FONDATION"
+ },
+ {
+  "code": "411170",
+  "libelle": "SOCIETE GYMBOX"
+ },
+ {
+  "code": "411171",
+  "libelle": "CRK STORES"
+ },
+ {
+  "code": "411172",
+  "libelle": "MARCHANDIZING IMPACT TEAM"
+ },
+ {
+  "code": "411173",
+  "libelle": "FLASH PRINT"
+ },
+ {
+  "code": "411175",
+  "libelle": "STE SITALU"
+ },
+ {
+  "code": "411176",
+  "libelle": "CENTRE ARABE DE RECHERCHE"
+ },
+ {
+  "code": "411177",
+  "libelle": "TUNISIE PORCELAINE"
+ },
+ {
+  "code": "411178",
+  "libelle": "TEXTE PRINT"
+ },
+ {
+  "code": "411179",
+  "libelle": "INCO TUNISIE TUNISIE"
+ },
+ {
+  "code": "411180",
+  "libelle": "SIBEM"
+ },
+ {
+  "code": "411181",
+  "libelle": "ZORBA COM"
+ },
+ {
+  "code": "411182",
+  "libelle": "BA STUDIO"
+ },
+ {
+  "code": "411183",
+  "libelle": "LA JEUNE CHAMBRE ECONOMIQUE"
+ },
+ {
+  "code": "411184",
+  "libelle": "WIFAK BANK"
+ },
+ {
+  "code": "411185",
+  "libelle": "AGENZIA ITALIANA PER LA COOPERAZIONE"
+ },
+ {
+  "code": "411186",
+  "libelle": "GYM BOX"
+ },
+ {
+  "code": "411187",
+  "libelle": "ARTWORKS PRODUCTION"
+ },
+ {
+  "code": "411189",
+  "libelle": "TRAGEDEL"
+ },
+ {
+  "code": "411190",
+  "libelle": "DECATHLON TUNISIE"
+ },
+ {
+  "code": "411191",
+  "libelle": "MODULE"
+ },
+ {
+  "code": "411192",
+  "libelle": "EL PADEL INVEST"
+ },
+ {
+  "code": "411193",
+  "libelle": "EKLECTIC"
+ },
+ {
+  "code": "411194",
+  "libelle": "L.I.V ADVISORY"
+ },
+ {
+  "code": "411195",
+  "libelle": "STE DARNA"
+ },
+ {
+  "code": "411196",
+  "libelle": "SWIFT CONCEPTION"
+ },
+ {
+  "code": "411197",
+  "libelle": "KALYS DISTRIBUTION"
+ },
+ {
+  "code": "411198",
+  "libelle": "MIM EDITION"
+ },
+ {
+  "code": "411199",
+  "libelle": "TUNITEC LABELS SARL"
+ },
+ {
+  "code": "411200",
+  "libelle": "L'ART RUE"
+ },
+ {
+  "code": "411201",
+  "libelle": "WLT"
+ },
+ {
+  "code": "411202",
+  "libelle": "LA PREFORME"
+ },
+ {
+  "code": "411203",
+  "libelle": "SOTULAIFROM"
+ },
+ {
+  "code": "411204",
+  "libelle": "PACHA INVEST"
+ },
+ {
+  "code": "411205",
+  "libelle": "ART PACKAGING"
+ },
+ {
+  "code": "411206",
+  "libelle": "LOUNGE MANAGEMENT COMPANY"
+ },
+ {
+  "code": "411207",
+  "libelle": "BROKLANDS JEANS"
+ },
+ {
+  "code": "411208",
+  "libelle": "PUBLICREATION"
+ },
+ {
+  "code": "411209",
+  "libelle": "SILDAR"
+ },
+ {
+  "code": "411210",
+  "libelle": "ACTIVE TRAVEL"
+ },
+ {
+  "code": "411211",
+  "libelle": "STE COCCINELLE"
+ },
+ {
+  "code": "411212",
+  "libelle": "STAR WATCH"
+ },
+ {
+  "code": "411213",
+  "libelle": "ATSC"
+ },
+ {
+  "code": "411214",
+  "libelle": "ATB"
+ },
+ {
+  "code": "411215",
+  "libelle": "CLIMODPRO"
+ },
+ {
+  "code": "411216",
+  "libelle": "MM PACKAGING TUNISIE SARL"
+ },
+ {
+  "code": "411217",
+  "libelle": "PEARTECH"
+ },
+ {
+  "code": "411218",
+  "libelle": "G.R.G OFICINA SARL"
+ },
+ {
+  "code": "411219",
+  "libelle": "STE STAR SERGIGRAPHIE"
+ },
+ {
+  "code": "411220",
+  "libelle": "ATVYL TUNISIE"
+ },
+ {
+  "code": "411221",
+  "libelle": "C.S.D.S"
+ },
+ {
+  "code": "411222",
+  "libelle": "POLY PACK"
+ },
+ {
+  "code": "411223",
+  "libelle": "GLAMIVER"
+ },
+ {
+  "code": "411224",
+  "libelle": "ECOLE CANADIENNE DE TUNIS"
+ },
+ {
+  "code": "411225",
+  "libelle": "CLAIRE FONTAINE"
+ },
+ {
+  "code": "411226",
+  "libelle": "CLIENTS DIVERS"
+ },
+ {
+  "code": "411227",
+  "libelle": "365 EVENTS"
+ },
+ {
+  "code": "411228",
+  "libelle": "PRINT PLUS"
+ },
+ {
+  "code": "411229",
+  "libelle": "BOIS ET BARQUETTES"
+ },
+ {
+  "code": "411230",
+  "libelle": "GMM"
+ },
+ {
+  "code": "411231",
+  "libelle": "L'AMBASSADE D'ITALIA EN TUNISIE"
+ },
+ {
+  "code": "411232",
+  "libelle": "EXPOSIGNES"
+ },
+ {
+  "code": "411233",
+  "libelle": "LE CREATEUR"
+ },
+ {
+  "code": "411234",
+  "libelle": "MODERN DISTRIBUTION"
+ },
+ {
+  "code": "411235",
+  "libelle": "EDICHEM"
+ },
+ {
+  "code": "411236",
+  "libelle": "STE L'IMPRIM'HEURE"
+ },
+ {
+  "code": "411237",
+  "libelle": "HELIAPACK"
+ },
+ {
+  "code": "411238",
+  "libelle": "STE BDF DEVELOPPEMENT"
+ },
+ {
+  "code": "411239",
+  "libelle": "UNOBIO"
+ },
+ {
+  "code": "411240",
+  "libelle": "TUNIS DATA SERVICES"
+ },
+ {
+  "code": "411241",
+  "libelle": "STE ATELIER GLIBETT"
+ },
+ {
+  "code": "411242",
+  "libelle": "PROTAGRI"
+ },
+ {
+  "code": "411243",
+  "libelle": "LUFTHANSA GROUP"
+ },
+ {
+  "code": "411244",
+  "libelle": "STE LE COIN BLEU"
+ },
+ {
+  "code": "411245",
+  "libelle": "BOUTIQUE VI"
+ },
+ {
+  "code": "411246",
+  "libelle": "HEINRICH BOLL STLFUNG"
+ },
+ {
+  "code": "411247",
+  "libelle": "SBA \"ZEITOUN CHOUIGUI\""
+ },
+ {
+  "code": "411248",
+  "libelle": "FLASH DELIVERY"
+ },
+ {
+  "code": "411249",
+  "libelle": "WORLD LEADERS TRAINING"
+ },
+ {
+  "code": "411250",
+  "libelle": "EDITION ESSALEM"
+ },
+ {
+  "code": "411252",
+  "libelle": "STE BYBIO"
+ },
+ {
+  "code": "411253",
+  "libelle": "PBR RATING"
+ },
+ {
+  "code": "411254",
+  "libelle": "STE TAREMMANT"
+ },
+ {
+  "code": "411255",
+  "libelle": "SALMA TOUMI"
+ },
+ {
+  "code": "411256",
+  "libelle": "STE BLEUBELL DESGIN"
+ },
+ {
+  "code": "411257",
+  "libelle": "LABORATOIRE ELLOUMI"
+ },
+ {
+  "code": "411258",
+  "libelle": "STE HYGIENE ET PREVENTION"
+ },
+ {
+  "code": "411259",
+  "libelle": "OOREDO TUNISIE"
+ },
+ {
+  "code": "411260",
+  "libelle": "ID 2 GENIE"
+ },
+ {
+  "code": "411261",
+  "libelle": "STE I GRAPHIC DESIGN"
+ },
+ {
+  "code": "411262",
+  "libelle": "TISOPIA"
+ },
+ {
+  "code": "411263",
+  "libelle": "AGENCE 109"
+ },
+ {
+  "code": "411264",
+  "libelle": "CASUAL BET"
+ },
+ {
+  "code": "411265",
+  "libelle": "NAMECO HEALTH CARE"
+ },
+ {
+  "code": "411266",
+  "libelle": "STE DIYYAN JEEVAN"
+ },
+ {
+  "code": "411267",
+  "libelle": "OLAF"
+ },
+ {
+  "code": "411268",
+  "libelle": "EIGHT PROD"
+ },
+ {
+  "code": "411269",
+  "libelle": "BEN KHALIFA CABINET MBC INC"
+ },
+ {
+  "code": "411270",
+  "libelle": "STE NATALISTA"
+ },
+ {
+  "code": "411271",
+  "libelle": "NATHALIE GARCON"
+ },
+ {
+  "code": "411272",
+  "libelle": "ENPFMCA"
+ },
+ {
+  "code": "411273",
+  "libelle": "IMPRIMERIE BOUSAA"
+ },
+ {
+  "code": "411274",
+  "libelle": "LUMEN"
+ },
+ {
+  "code": "411275",
+  "libelle": "PCS"
+ },
+ {
+  "code": "411276",
+  "libelle": "ONIONSKINS"
+ },
+ {
+  "code": "411277",
+  "libelle": "ACADEMIE TAML-IN"
+ },
+ {
+  "code": "411278",
+  "libelle": "MIM TUNISIE"
+ },
+ {
+  "code": "411279",
+  "libelle": "PUSTERLA TUNISIE"
+ },
+ {
+  "code": "411280",
+  "libelle": "716"
+ },
+ {
+  "code": "411281",
+  "libelle": "RAHMANI ADVERTISING COMPANY"
+ },
+ {
+  "code": "411283",
+  "libelle": "STE ARCELEN BRODERIE SERIGRAPHIE"
+ },
+ {
+  "code": "411284",
+  "libelle": "DOUSS PRINT"
+ },
+ {
+  "code": "411286",
+  "libelle": "GESTHOTEL"
+ },
+ {
+  "code": "411287",
+  "libelle": "STE NEW STAR"
+ },
+ {
+  "code": "411288",
+  "libelle": "ENOYA DESIGN ET COMMUNICATION"
+ },
+ {
+  "code": "411289",
+  "libelle": "STE B2 PRINT"
+ },
+ {
+  "code": "411290",
+  "libelle": "ASSOCIATION FOCUS GABES"
+ },
+ {
+  "code": "411291",
+  "libelle": "EYA BOURAOUI"
+ },
+ {
+  "code": "411292",
+  "libelle": "MADE IN TUNISIA EVENTS"
+ },
+ {
+  "code": "411294",
+  "libelle": "STE TRINITY MANAGEMENT"
+ },
+ {
+  "code": "411295",
+  "libelle": "UTIQUE DE COMMERCE"
+ },
+ {
+  "code": "411296",
+  "libelle": "GLS"
+ },
+ {
+  "code": "411298",
+  "libelle": "STE KORART"
+ },
+ {
+  "code": "411299",
+  "libelle": "ALWEN PRINT"
+ },
+ {
+  "code": "411300",
+  "libelle": "MILLESIMA"
+ },
+ {
+  "code": "411301",
+  "libelle": "COFAT"
+ },
+ {
+  "code": "411302",
+  "libelle": "STE ALMA"
+ },
+ {
+  "code": "411303",
+  "libelle": "ALYSSA INDUSTRIELLE"
+ },
+ {
+  "code": "411304",
+  "libelle": "ITAL PUBLIC"
+ },
+ {
+  "code": "411305",
+  "libelle": "VIZIUM GROUP"
+ },
+ {
+  "code": "411306",
+  "libelle": "AMINE ANIMATION ET LOI"
+ },
+ {
+  "code": "411307",
+  "libelle": "PLAN B"
+ },
+ {
+  "code": "411308",
+  "libelle": "M Bey Management"
+ },
+ {
+  "code": "411309",
+  "libelle": "Benetton Industrielle Tunisie Sarl"
+ },
+ {
+  "code": "411310",
+  "libelle": "HOTEL CLUB PRESIDENT"
+ },
+ {
+  "code": "411311",
+  "libelle": "JTC"
+ },
+ {
+  "code": "411312",
+  "libelle": "STAMPA"
+ },
+ {
+  "code": "411313",
+  "libelle": "AVANCE SAL HOUCINE ELHICHRI"
+ },
+ {
+  "code": "411315",
+  "libelle": "CARACTERE"
+ },
+ {
+  "code": "411316",
+  "libelle": "FORTUNE PROMOSEVEN MC CANN"
+ },
+ {
+  "code": "411322",
+  "libelle": "UM"
+ },
+ {
+  "code": "411327",
+  "libelle": "KAMEL LAZAAR FONDATION"
+ },
+ {
+  "code": "411329",
+  "libelle": "HARMONIE"
+ },
+ {
+  "code": "411332",
+  "libelle": "TIME STORY"
+ },
+ {
+  "code": "411333",
+  "libelle": "LANTERNS"
+ },
+ {
+  "code": "411335",
+  "libelle": "Lounge Management Company SARL"
+ },
+ {
+  "code": "411337",
+  "libelle": "ANDREA GISSARA"
+ },
+ {
+  "code": "411338",
+  "libelle": "STE YBM CORP"
+ },
+ {
+  "code": "411341",
+  "libelle": "Mega Printing and Packaging"
+ },
+ {
+  "code": "411343",
+  "libelle": "NOVITA"
+ },
+ {
+  "code": "411344",
+  "libelle": "ETIQUETTES & ACCESSOIRES"
+ },
+ {
+  "code": "411346",
+  "libelle": "LE POINT"
+ },
+ {
+  "code": "411347",
+  "libelle": "OVERPRINT"
+ },
+ {
+  "code": "411349",
+  "libelle": "L'IMPRIM'HEURE"
+ },
+ {
+  "code": "411350",
+  "libelle": "L'ATELIER GRAPHIC"
+ },
+ {
+  "code": "411352",
+  "libelle": "DESIGN AND & TRADING COMPANY"
+ },
+ {
+  "code": "411356",
+  "libelle": "PROPAGANDA PRODUCTION"
+ },
+ {
+  "code": "411357",
+  "libelle": "Expertise France"
+ },
+ {
+  "code": "411358",
+  "libelle": "Brewing Solution."
+ },
+ {
+  "code": "411359",
+  "libelle": "Ste BOPUB"
+ },
+ {
+  "code": "411360",
+  "libelle": "StÃ© CinÃ© 7Ã©me Art"
+ },
+ {
+  "code": "411361",
+  "libelle": "DEVOO DEVELOPPEMENT AND CONSULTING"
+ },
+ {
+  "code": "411364",
+  "libelle": "STE SOUL AND PLANET"
+ },
+ {
+  "code": "411367",
+  "libelle": "STE TUN MEDECINE INTERNE"
+ },
+ {
+  "code": "411368",
+  "libelle": "STE MILLESIMA TECHNOLOGIES"
+ },
+ {
+  "code": "411370",
+  "libelle": "Telnet Incorporation"
+ },
+ {
+  "code": "411371",
+  "libelle": "STE HR PRO HOUSE INTERNATIONAL"
+ },
+ {
+  "code": "411372",
+  "libelle": "Imprimerie Print Shine Company"
+ },
+ {
+  "code": "411373",
+  "libelle": "Conseil de l'ordre des médecins den"
+ },
+ {
+  "code": "411374",
+  "libelle": "STE SPIRIT"
+ },
+ {
+  "code": "411376",
+  "libelle": "Greenmind Cosmetics"
+ },
+ {
+  "code": "411378",
+  "libelle": "STE CAMELEO DESIGN"
+ },
+ {
+  "code": "411379",
+  "libelle": "STE KSART"
+ },
+ {
+  "code": "411380",
+  "libelle": "CO ACCESS DISTRIUBUTION"
+ },
+ {
+  "code": "411381",
+  "libelle": "ADIX +"
+ },
+ {
+  "code": "411382",
+  "libelle": "DACKT INDUSTRY"
+ },
+ {
+  "code": "411383",
+  "libelle": "STE HYGIENE ET PREVENTION"
+ },
+ {
+  "code": "411385",
+  "libelle": "StÃ© Star Serigraphie"
+ },
+ {
+  "code": "411386",
+  "libelle": "DESIGN STORE"
+ },
+ {
+  "code": "411387",
+  "libelle": "ASSOCIATION ROTARY TUNIS MEDINA"
+ },
+ {
+  "code": "411388",
+  "libelle": "MAISON DES ARTS LE BELVÉDÈRE"
+ },
+ {
+  "code": "411389",
+  "libelle": "Carat Tunisie"
+ },
+ {
+  "code": "411390",
+  "libelle": "STE ZEINA FOOD"
+ },
+ {
+  "code": "411391",
+  "libelle": "Focus Technology Solution"
+ },
+ {
+  "code": "411392",
+  "libelle": "DIGITAL IRIS PRODUCTION AUDIOVISUEL"
+ },
+ {
+  "code": "411393",
+  "libelle": "LORENZO CIARLO"
+ },
+ {
+  "code": "411394",
+  "libelle": "AFRIQUE EMBALLAGE"
+ },
+ {
+  "code": "411395",
+  "libelle": "ARCELENE BRODERIE ET SERIGRAPHIE"
+ },
+ {
+  "code": "411396",
+  "libelle": "CONSERVATOIRE MELODY"
+ },
+ {
+  "code": "411397",
+  "libelle": "AGORA JERBA"
+ },
+ {
+  "code": "411398",
+  "libelle": "STE OTOSURE"
+ },
+ {
+  "code": "411399",
+  "libelle": "TUNISIAN PRINT TEXTIL"
+ },
+ {
+  "code": "411400",
+  "libelle": "STEFANIA MSELLATI"
+ },
+ {
+  "code": "411401",
+  "libelle": "Ste Ksibi De Promotion Immobiliere"
+ },
+ {
+  "code": "411403",
+  "libelle": "CINQUIEME NUMERIQUE"
+ },
+ {
+  "code": "411404",
+  "libelle": "CHEIL"
+ },
+ {
+  "code": "411405",
+  "libelle": "MACAM TUNISIE"
+ },
+ {
+  "code": "411406",
+  "libelle": "SIKA TUNISIA SARL"
+ },
+ {
+  "code": "411407",
+  "libelle": "Ste crea events"
+ },
+ {
+  "code": "411408",
+  "libelle": "STE NEGANOR FFT"
+ },
+ {
+  "code": "411410",
+  "libelle": "MILLESIMA EXPERIENCE"
+ },
+ {
+  "code": "411411",
+  "libelle": "GINGER"
+ },
+ {
+  "code": "411413",
+  "libelle": "STE KORART"
+ },
+ {
+  "code": "411414",
+  "libelle": "VIP INCOMING"
+ },
+ {
+  "code": "411415",
+  "libelle": "Aviator Travel Service"
+ },
+ {
+  "code": "411416",
+  "libelle": "FOLK STORIES COMPANY"
+ },
+ {
+  "code": "411417",
+  "libelle": "Ste Sibem"
+ },
+ {
+  "code": "411418",
+  "libelle": "STE AL MADHAK BGH SA"
+ },
+ {
+  "code": "411419",
+  "libelle": "SSC"
+ },
+ {
+  "code": "411420",
+  "libelle": "Romanus De Production Audio-Visuelle"
+ },
+ {
+  "code": "411421",
+  "libelle": "CNOT"
+ },
+ {
+  "code": "411422",
+  "libelle": "Ambassade d'Italie en Tunisie"
+ },
+ {
+  "code": "411423",
+  "libelle": "BORN TO LEAD BTL"
+ },
+ {
+  "code": "411424",
+  "libelle": "STE BEN AMAR FAOUZI"
+ },
+ {
+  "code": "411426",
+  "libelle": "Objet Mot"
+ },
+ {
+  "code": "411427",
+  "libelle": "MBS"
+ },
+ {
+  "code": "411428",
+  "libelle": "AGRIPROTEC"
+ },
+ {
+  "code": "411429",
+  "libelle": "Malek Ben Ali"
+ },
+ {
+  "code": "411430",
+  "libelle": "ARCANE GRAFIK"
+ },
+ {
+  "code": "411431",
+  "libelle": "SANDRA OSMANI DESIGN"
+ },
+ {
+  "code": "411432",
+  "libelle": "EXIT PRODUCTION"
+ },
+ {
+  "code": "411433",
+  "libelle": "SKINRIVE"
+ },
+ {
+  "code": "411434",
+  "libelle": "ALBERTON MEDICAL"
+ },
+ {
+  "code": "411435",
+  "libelle": "CLUB AFRICAIN"
+ },
+ {
+  "code": "411436",
+  "libelle": "Ok Events"
+ },
+ {
+  "code": "411437",
+  "libelle": "ARTEC"
+ },
+ {
+  "code": "411438",
+  "libelle": "La France Insoumise - LFI Tunisie Libye"
+ },
+ {
+  "code": "411439",
+  "libelle": "STE KREO GALERIE ART KGA SARL"
+ },
+ {
+  "code": "411440",
+  "libelle": "MAICOM MC"
+ },
+ {
+  "code": "411441",
+  "libelle": "LMDK AGENCY"
+ },
+ {
+  "code": "411442",
+  "libelle": "Déclic"
+ },
+ {
+  "code": "411443",
+  "libelle": "SOCIETE IMMOBILIERE MAAMER"
+ },
+ {
+  "code": "411444",
+  "libelle": "STELLA & CO BARISTA S&B"
+ },
+ {
+  "code": "411445",
+  "libelle": "PRINTIZI"
+ },
+ {
+  "code": "411446",
+  "libelle": "STE BEN HASSINE TEXTILE PLUS SARL"
+ },
+ {
+  "code": "411447",
+  "libelle": "SYMPHONIE DU JUS FRAIS"
+ },
+ {
+  "code": "411448",
+  "libelle": "Ambassade des Pays-Bas en Tunisie"
+ },
+ {
+  "code": "411449",
+  "libelle": "GALERIE A. GORGI"
+ },
+ {
+  "code": "411450",
+  "libelle": "COM UNIQUE"
+ },
+ {
+  "code": "411451",
+  "libelle": "ASSOCIATION DESIGNERS OF TOMORROW"
+ },
+ {
+  "code": "411452",
+  "libelle": "QUANTA TUNISIE"
+ },
+ {
+  "code": "411453",
+  "libelle": "Unité de recherche ( TIM ) ESSTED"
+ },
+ {
+  "code": "411454",
+  "libelle": "BAYA DESIGN"
+ },
+ {
+  "code": "411455",
+  "libelle": "GALIOCARE SARL"
+ },
+ {
+  "code": "411456",
+  "libelle": "INNOVATION IMMOBILIERE"
+ },
+ {
+  "code": "411457",
+  "libelle": "DELOITTE CONSEIL TUNISIE"
+ },
+ {
+  "code": "411458",
+  "libelle": "BALTHAZAR"
+ },
+ {
+  "code": "411459",
+  "libelle": "MMT"
+ },
+ {
+  "code": "411460",
+  "libelle": "LUMI'NA STUDIO"
+ },
+ {
+  "code": "411461",
+  "libelle": "TWO S COMPANY DATING"
+ },
+ {
+  "code": "411462",
+  "libelle": "HBB DESIGN"
+ },
+ {
+  "code": "411463",
+  "libelle": "S'print"
+ },
+ {
+  "code": "411464",
+  "libelle": "ELPIZO DESIGN"
+ },
+ {
+  "code": "411465",
+  "libelle": "ESCAPADE TUNISIE"
+ },
+ {
+  "code": "411466",
+  "libelle": "LE CUIR CRK MEZGHANI DANIELLE"
+ },
+ {
+  "code": "411467",
+  "libelle": "LA MAROQUINERIE SARL"
+ },
+ {
+  "code": "411468",
+  "libelle": "AMBRE"
+ },
+ {
+  "code": "411469",
+  "libelle": "STE YER STUDIO"
+ },
+ {
+  "code": "411470",
+  "libelle": "MB GLOBAL EVENTS"
+ },
+ {
+  "code": "411471",
+  "libelle": "SOCIETE PATCHWORK CREATIVE"
+ },
+ {
+  "code": "411472",
+  "libelle": "Ealan Advertising"
+ },
+ {
+  "code": "411473",
+  "libelle": "Ben Abdallah Mohamed"
+ },
+ {
+  "code": "411474",
+  "libelle": "BRANDSPECTIVE"
+ },
+ {
+  "code": "411475",
+  "libelle": "STE CAPSULE"
+ },
+ {
+  "code": "411476",
+  "libelle": "INITIATIVE MEDIA"
+ },
+ {
+  "code": "411477",
+  "libelle": "Telnet Holding"
+ },
+ {
+  "code": "411478",
+  "libelle": "THÉÂTRE DE L’OPÉRA"
+ },
+ {
+  "code": "411479",
+  "libelle": "Common Sense"
+ },
+ {
+  "code": "411480",
+  "libelle": "RYBSEN"
+ },
+ {
+  "code": "411481",
+  "libelle": "TRANSRAIL LIGHTING LMITED"
+ },
+ {
+  "code": "411482",
+  "libelle": "STE BIG PICTURE"
+ },
+ {
+  "code": "411483",
+  "libelle": "Laboratoire QCMM"
+ },
+ {
+  "code": "411484",
+  "libelle": "STE BULLEDIDEE"
+ },
+ {
+  "code": "411485",
+  "libelle": "SOCIETE RUMAMI"
+ },
+ {
+  "code": "411486",
+  "libelle": "STE MAGIC REAL SOLUTIONS MRS"
+ },
+ {
+  "code": "411487",
+  "libelle": "FEDERATION TUNISIENNE DE FOOTBAL"
+ },
+ {
+  "code": "411488",
+  "libelle": "STE T-S FAMILY CENTER"
+ },
+ {
+  "code": "411489",
+  "libelle": "GOLDEN MOMENT EVENT"
+ },
+ {
+  "code": "411490",
+  "libelle": "TRIWEB"
+ },
+ {
+  "code": "411491",
+  "libelle": "STE RAYHANETTE CONSULTING MAR ET COM"
+ },
+ {
+  "code": "411492",
+  "libelle": "Darna"
+ },
+ {
+  "code": "411493",
+  "libelle": "IDEA CONSULT INTERNATIONAL"
+ },
+ {
+  "code": "411494",
+  "libelle": "EDITIONS FIL"
+ },
+ {
+  "code": "411495",
+  "libelle": "MY WAY PRODUCTIONS"
+ },
+ {
+  "code": "411496",
+  "libelle": "Association Rawafed de l'Art Théâtral de Moknine"
+ },
+ {
+  "code": "411497",
+  "libelle": "Société Cafés Ben Yedder"
+ },
+ {
+  "code": "411498",
+  "libelle": "DILETTO"
+ },
+ {
+  "code": "411499",
+  "libelle": "MA-LOUKA BAZAR"
+ },
+ {
+  "code": "411500",
+  "libelle": "STE LA CREATION ENFANTINE"
+ },
+ {
+  "code": "411501",
+  "libelle": "COMITE NATIONAL OLYMPIQUE TUNISIEN"
+ },
+ {
+  "code": "411502",
+  "libelle": "STUDIO BARGUELLIL"
+ },
+ {
+  "code": "411503",
+  "libelle": "BEN AMAR FAOUZI"
+ },
+ {
+  "code": "411504",
+  "libelle": "STE SOTER"
+ },
+ {
+  "code": "411505",
+  "libelle": "NEOMEDIS INTERNATIONAL"
+ },
+ {
+  "code": "411506",
+  "libelle": "SOCIETE\"GARCI COM\" SARL"
+ },
+ {
+  "code": "411507",
+  "libelle": "STE BAYYOU LAB"
+ },
+ {
+  "code": "411509",
+  "libelle": "IMMOBILIERE MAAMER"
+ },
+ {
+  "code": "411510",
+  "libelle": "GORGI AICHA GALERIE AMMAR FARH"
+ },
+ {
+  "code": "411511",
+  "libelle": "BEN RHOUMA KHEMAIS OU MEJDA"
+ },
+ {
+  "code": "411512",
+  "libelle": "AMIN SNOUSSI"
+ },
+ {
+  "code": "411513",
+  "libelle": "PATCHWORK CREATIVE"
+ },
+ {
+  "code": "411514",
+  "libelle": "STE TOURISTIQUE LA SELECTON"
+ },
+ {
+  "code": "411515",
+  "libelle": "Gen Marketing Luna Marketing"
+ },
+ {
+  "code": "411516",
+  "libelle": "STE AROME LINGERIE"
+ },
+ {
+  "code": "411517",
+  "libelle": "C.H.O AD DHIYA"
+ },
+ {
+  "code": "411518",
+  "libelle": "PROMOTION IMMOBILIERE LOGGIA"
+ },
+ {
+  "code": "411519",
+  "libelle": "JEUX BITOUNSI"
+ },
+ {
+  "code": "411520",
+  "libelle": "HAMDI SALMA"
+ },
+ {
+  "code": "411521",
+  "libelle": "STE LA CENTRALE OPTIC"
+ },
+ {
+  "code": "411522",
+  "libelle": "STE D GRAPHIC"
+ },
+ {
+  "code": "411523",
+  "libelle": "STE 109"
+ },
+ {
+  "code": "411524",
+  "libelle": "BANQUE INTERNATIONAL  ARABE DE TUNISIE"
+ },
+ {
+  "code": "411525",
+  "libelle": "STE ROYALE DE TRANSF  ORMAT DE CAFE TAMAB"
+ },
+ {
+  "code": "411526",
+  "libelle": "STE TNNE DE VETEMENT DE TRAVAIL LOISIR"
+ },
+ {
+  "code": "411527",
+  "libelle": "LOFT PRINT"
+ },
+ {
+  "code": "411528",
+  "libelle": "GS COMMUICATION"
+ },
+ {
+  "code": "411529",
+  "libelle": "STE RUMANI"
+ },
+ {
+  "code": "411530",
+  "libelle": "SHADOW FILMS SERVICES"
+ },
+ {
+  "code": "411531",
+  "libelle": "KHALIL FARES"
+ },
+ {
+  "code": "411532",
+  "libelle": "THEATRE NATIONAL TUNISIEN"
+ },
+ {
+  "code": "411533",
+  "libelle": "ANISSA AIDA STUDIO"
+ },
+ {
+  "code": "411534",
+  "libelle": "KAYZA DESIGN TUNISIA"
+ },
+ {
+  "code": "411535",
+  "libelle": "DAHLIA FLOWERS"
+ },
+ {
+  "code": "411536",
+  "libelle": "SARA JOMAA"
+ },
+ {
+  "code": "411537",
+  "libelle": "LABORATOIRE ELLA DERMOCOSMETIQUE"
+ },
+ {
+  "code": "411538",
+  "libelle": "TOP PRINTING"
+ },
+ {
+  "code": "411539",
+  "libelle": "BARDO COLLECTIONS"
+ },
+ {
+  "code": "411540",
+  "libelle": "BAYYOU LABS"
+ },
+ {
+  "code": "411541",
+  "libelle": "SCHEIDT- BACHMANN MAGHREB"
+ },
+ {
+  "code": "411542",
+  "libelle": "MY COM"
+ },
+ {
+  "code": "411543",
+  "libelle": "DESKTOP COMMUNICATION"
+ },
+ {
+  "code": "411544",
+  "libelle": "GELIAMO"
+ },
+ {
+  "code": "411545",
+  "libelle": "EXPERT CALL CENTER+"
+ },
+ {
+  "code": "411546",
+  "libelle": "SONO MUSIC STORE"
+ },
+ {
+  "code": "411547",
+  "libelle": "SEAGRAINS INTERNATIONAL"
+ },
+ {
+  "code": "411548",
+  "libelle": "ASSOCIATION ROSE D'EL MENZAH"
+ },
+ {
+  "code": "411549",
+  "libelle": "SAS Les éditrices"
+ },
+ {
+  "code": "411550",
+  "libelle": "IMAGE & ACTIONS"
+ },
+ {
+  "code": "411551",
+  "libelle": "GIUSEPPE DANNA"
+ },
+ {
+  "code": "411552",
+  "libelle": "ALESSANDRO PRUNAS (Ambassadeur D'Italie)"
+ },
+ {
+  "code": "411553",
+  "libelle": "STE LALLA HADRIA EDTIONS"
+ },
+ {
+  "code": "411554",
+  "libelle": "JER LOISIRS"
+ },
+ {
+  "code": "411555",
+  "libelle": "CAMCE"
+ },
+ {
+  "code": "411557",
+  "libelle": "La Compagnie Fromagére"
+ },
+ {
+  "code": "411559",
+  "libelle": "CELLA CODERS"
+ },
+ {
+  "code": "411560",
+  "libelle": "ASSOCIATION LA SAISON BLEUE"
+ },
+ {
+  "code": "411561",
+  "libelle": "COUNTRY FREINDS"
+ },
+ {
+  "code": "411562",
+  "libelle": "TENNIS CLUB DE TUNIS"
+ },
+ {
+  "code": "411563",
+  "libelle": "M. SIDALY BEN MINNIH"
+ },
+ {
+  "code": "411564",
+  "libelle": "GOPA Partners in Action for Change and Engagement"
+ },
+ {
+  "code": "411565",
+  "libelle": "CENTRALE OPTIQUE"
+ },
+ {
+  "code": "411566",
+  "libelle": "SOCIETE DE TOURISME ET DE CONGRES"
+ },
+ {
+  "code": "411567",
+  "libelle": "OEZ EVENTS"
+ },
+ {
+  "code": "411568",
+  "libelle": "FEINMETALL"
+ },
+ {
+  "code": "411569",
+  "libelle": "Centre D'Etudes Maghrébines à Tunis"
+ },
+ {
+  "code": "411570",
+  "libelle": "Chaire Unesco université de la Manouba ISCAE"
+ },
+ {
+  "code": "411571",
+  "libelle": "ENDA TAMWEEL"
+ },
+ {
+  "code": "411572",
+  "libelle": "GARICOM"
+ },
+ {
+  "code": "411573",
+  "libelle": "ELYSSA TRADING"
+ },
+ {
+  "code": "411574",
+  "libelle": "Phenomene Joyeux"
+ },
+ {
+  "code": "411575",
+  "libelle": "FORMSCAPE"
+ },
+ {
+  "code": "411576",
+  "libelle": "OZ TUNISIA"
+ },
+ {
+  "code": "411577",
+  "libelle": "STE CGM"
+ },
+ {
+  "code": "411578",
+  "libelle": "MEDACTIS"
+ },
+ {
+  "code": "411579",
+  "libelle": "SIUDALY BEN MINH"
+ },
+ {
+  "code": "411580",
+  "libelle": "IMPRIMERIE MAGHREB EDITION"
+ },
+ {
+  "code": "411581",
+  "libelle": "CENTRE DES ARTS DE LA CULTURE ET DES LETTRES"
+ },
+ {
+  "code": "411700",
+  "libelle": "Clients - retenues de garantie"
+ },
+ {
+  "code": "411999",
+  "libelle": "Clients Divers"
+ }
+]

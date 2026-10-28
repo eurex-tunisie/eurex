@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { extractTextFromPDF } from '../../lib/pdf';
 import { buildLibelle, formatNumero } from '../../lib/scanEcritures';
 import { pickClientAccounts, resolveClientAccount, type PlanAccount } from '../../lib/scanPlan';
+import defaultPlanJson from '../../lib/scanPlanDefault.json';
 
 type Tab = 'factures' | 'ecritures' | 'export';
 
@@ -76,14 +77,22 @@ export default function ScanDossierPage() {
     localStorage.setItem('scan_client_map', JSON.stringify(map));
   };
 
-  // Plan comptable clients (411XXX) importe depuis un XLSX, stocke en localStorage
+  // Plan comptable clients (411XXX) : plan par defaut embarque dans l'app,
+  // remplacable par un import XLSX (stocke en localStorage).
+  const DEFAULT_PLAN = defaultPlanJson as PlanAccount[];
   const [plan, setPlan] = useState<PlanAccount[]>(() => {
     try {
       const raw = JSON.parse(localStorage.getItem('scan_plan_comptable') || '[]');
-      return Array.isArray(raw) ? raw : [];
-    } catch { return []; }
+      return Array.isArray(raw) && raw.length ? raw : DEFAULT_PLAN;
+    } catch { return DEFAULT_PLAN; }
   });
   const [planImporting, setPlanImporting] = useState(false);
+  const [planCustom, setPlanCustom] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('scan_plan_comptable') || '[]');
+      return Array.isArray(raw) && raw.length > 0;
+    } catch { return false; }
+  });
 
   const handleImportPlan = async (file: File) => {
     setPlanImporting(true);
@@ -100,6 +109,7 @@ export default function ScanDossierPage() {
       const unique = accounts.filter((a, i) => accounts.findIndex(x => x.code === a.code) === i);
       localStorage.setItem('scan_plan_comptable', JSON.stringify(unique));
       setPlan(unique);
+      setPlanCustom(true);
       alert(`${unique.length} comptes clients 411XXX importes.`);
     } catch (e: any) {
       alert('Erreur lecture plan comptable: ' + (e?.message || 'fichier invalide'));
@@ -553,7 +563,7 @@ export default function ScanDossierPage() {
               <h3 className="font-semibold text-gray-700 text-sm">Mapping client → compte 411XXX</h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400" data-testid="plan-count">
-                  {plan.length > 0 ? `${plan.length} comptes clients` : 'Plan comptable non importé'}
+                  {plan.length} comptes clients{planCustom ? ' (importé)' : ' (plan par défaut)'}
                 </span>
                 <label className="btn btn-outline px-3 py-1.5 text-xs cursor-pointer">
                   <Upload size={13} className="inline mr-1" />
@@ -566,12 +576,12 @@ export default function ScanDossierPage() {
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleImportPlan(f); e.target.value = ''; }}
                   />
                 </label>
-                {plan.length > 0 && (
+                {planCustom && (
                   <button
-                    onClick={() => { localStorage.removeItem('scan_plan_comptable'); setPlan([]); }}
-                    className="text-red-400 hover:text-red-600 text-xs"
+                    onClick={() => { localStorage.removeItem('scan_plan_comptable'); setPlan(DEFAULT_PLAN); setPlanCustom(false); }}
+                    className="text-gray-400 hover:text-gray-600 text-xs"
                   >
-                    Vider
+                    Plan par défaut
                   </button>
                 )}
               </div>
