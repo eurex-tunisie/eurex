@@ -5,62 +5,13 @@ import { api } from '../lib/api';
 import { extractTextFromPDF, extractTextItemsFromPDF } from '../lib/pdf';
 import { parseDMIItems, validateFISC } from '../lib/fisc';
 import { parseRapport } from '../lib/rapportParser';
+import { parseInvoice } from '../lib/vtInvoice';
 import SplitPdfTool from '../components/SplitPdfTool';
 
 let XLSXModule: typeof import('xlsx') | null = null;
 async function loadXLSX() {
   if (!XLSXModule) XLSXModule = await import('xlsx');
   return XLSXModule;
-}
-
-function parseInvoice(rawText: string) {
-  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
-
-  let numero = '';
-  let date = '';
-  let client = '';
-  let ht0 = 0, ht19 = 0, tva19 = 0, ttc = 0, timbre = 1.0;
-  const p = (s: string) => { try { return parseFloat(s.replace(/ /g, '').replace(',', '.')); } catch { return 0; } };
-
-  for (const line of lines) {
-    if (!numero) {
-      const m = line.match(/FACTURE\s*N[°o∞.]\s*:\s*(\d{4})\s*\/\s*(\d+)/);
-      if (m) numero = m[1] + '/' + m[2];
-    }
-    if (!date) {
-      const m = line.match(/LE\s*:?\s*(\d{2})\/(\d{2})\/(\d{4})/);
-      if (m) date = m[3] + '-' + m[2] + '-' + m[1];
-    }
-    if (!client) {
-      const m = line.match(/^Client\s*:\s*(.+)/);
-      if (m) {
-        const c = m[1].trim();
-        client = c.toUpperCase().includes('PASSAGERS') ? 'CLIENTS PASSAGERS' : c;
-      }
-    }
-    // HT 0%: "AMOUNT  0%  NET H.TVA  :  TOTAL"
-    if (!ht0) {
-      const m = line.match(/([\d][\d ]*,\d+)\s+0%\s+NET\s+H\.TVA\s*:\s*([\d ][\d ]*,\d+)/);
-      if (m) { ht0 = p(m[1]); }
-    }
-    // HT 19%: "AMOUNT  19%  TVA_AMOUNT"
-    if (!ht19) {
-      const m = line.match(/([\d][\d ]*,\d+)\s+19%\s+([\d ]*,\d+)/);
-      if (m) { ht19 = p(m[1]); tva19 = p(m[2]); }
-    }
-    // Timbre
-    if (timbre === 1.0) {
-      const m = line.match(/TIMBRE\s+FIS\.?\s*:\s*([\d ]*,\d+)/);
-      if (m) timbre = p(m[1]);
-    }
-    // TTC
-    if (!ttc) {
-      const m = line.match(/NET\s+T\.T\.C\.?\s+([\d ]*,\d+)/);
-      if (m) ttc = p(m[1]);
-    }
-  }
-
-  return { date, numero, client, ht0, ht19, tva19, timbre, ttc };
 }
 
 function VerificationTVA({ ecritures, journal, dossierId, reload }: { ecritures: any[]; journal: string | null; dossierId: string; reload: () => void }) {
