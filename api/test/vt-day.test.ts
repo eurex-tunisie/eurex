@@ -59,6 +59,14 @@ test('journee sans negatif : bons d achat au debit, piece equilibree', () => {
   assert.ok(r.lines.some((l: any) => l.compte === '436711' && l.montant === 58.884));
 });
 
+test('mode credit (vente a credit) : ligne 411000 au debit, piece equilibree', () => {
+  const modes = { especes: 100, cheques: 0, tpe: 0, bonsAchat: 0, avoir: 0, credit: 50 };
+  const r = buildDayEcritures('2026-02-17', [facture], modes, 'CLTS PASSAGERS', 'VT C');
+  const cred = r.lines.find((l: any) => l.compte === '411000');
+  assert.equal(cred.sens, 'D');
+  assert.equal(cred.montant, 50);
+  assert.equal(sum(r.lines, 'D'), sum(r.lines, 'C'));
+});
 test('encaissement negatif (remboursement especes) : ligne au credit', () => {
   const modes = { especes: -20, cheques: 0, tpe: 0, bonsAchat: 0, avoir: 0, credit: 0 };
   const r = buildDayEcritures('2026-02-17', [facture], modes, 'CLTS PASSAGERS', 'VT C');

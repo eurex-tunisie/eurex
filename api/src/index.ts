@@ -1154,7 +1154,7 @@ export function buildDayEcritures(date: string, dayFactures: any[], modes: any, 
   const tva19 = Math.round(dayFactures.reduce((s: number, f: any) => s + (f.tva_19 || 0), 0) * 1000) / 1000;
   const timbres = dayFactures.reduce((s: number, f: any) => s + (f.timbre || 1), 0);
   const avoir709 = (modes.bonsAchat || 0) + (modes.avoir || 0);
-  const debitSum = (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + avoir709;
+  const debitSum = (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + avoir709 + (modes.credit || 0);
   const creditSum = tva19 + timbres + totalHT0 + totalHT19;
   const ecart = Math.round((debitSum - creditSum) * 1000) / 1000;
 
@@ -1176,6 +1176,7 @@ export function buildDayEcritures(date: string, dayFactures: any[], modes: any, 
   push('411004', modes.especes || 0, 'D');
   push('411005', modes.tpe || 0, 'D');
   push('411003', modes.cheques || 0, 'D');
+  push('411000', modes.credit || 0, 'D'); // ventes a credit (client ordinaire)
 
   const byClient: Record<string, { ht0: number; ht19: number }> = {};
   for (const f of dayFactures) {

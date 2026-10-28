@@ -226,29 +226,35 @@ export default function DossierPage() {
     try {
       if (journal === 'VT J.C') {
         // Client-side: extract factures from each PDF
-        let ok = 0;
+        let ok = 0, skipped = 0;
+        const seenNums = new Set(factures.map(f => f.numero_facture));
         for (const file of Array.from(files)) {
           const text = await extractTextFromPDF(file);
           // Parse invoice from text (client-side)
           const inv = parseInvoice(text);
           if (!inv.numero) inv.numero = file.name.replace(/[^0-9]/g, '');
+          if (seenNums.has(inv.numero)) { skipped++; continue; }
+          seenNums.add(inv.numero);
           await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc });
           ok++;
         }
-        setOcrProgress(ok + ' facture(s) extraite(s). Generation VT J.C...');
+        setOcrProgress(ok + ' facture(s) extraite(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + '. Generation VT J.C...');
         await api.generateVTJC(id);
         setOcrProgress('Termine! ' + ok + ' facture(s) + ecritures generees');
       } else if (journal === 'VT C') {
         // Client-side: parse each invoice like VT J.C, then generate VT C entries
-        let ok = 0;
+        let ok = 0, skipped = 0;
+        const seenNums2 = new Set(factures.map(f => f.numero_facture));
         for (const file of Array.from(files)) {
           const text = await extractTextFromPDF(file);
           const inv = parseInvoice(text);
           if (!inv.numero) inv.numero = file.name.replace(/[^0-9]/g, '');
+          if (seenNums2.has(inv.numero)) { skipped++; continue; }
+          seenNums2.add(inv.numero);
           await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc });
           ok++;
         }
-        setOcrProgress(ok + ' facture(s) extraitee(s). Generation VT C...');
+        setOcrProgress(ok + ' facture(s) extraitee(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + '. Generation VT C...');
         const r = await api.generateVTJC(id, 'VT C');
         setOcrProgress('Termine! ' + ok + ' facture(s), ' + (r.days || 0) + ' jour(s)');
       } else if (journal === 'FISC') {
