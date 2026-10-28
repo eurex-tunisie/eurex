@@ -4,6 +4,7 @@ import { Upload, Plus, Trash2, Download, ArrowLeft, FileText, Zap, Loader2, Aler
 import { api } from '../lib/api';
 import { extractTextFromPDF, extractTextItemsFromPDF } from '../lib/pdf';
 import { parseDMIItems, validateFISC } from '../lib/fisc';
+import { parseRapport } from '../lib/rapportParser';
 import SplitPdfTool from '../components/SplitPdfTool';
 
 let XLSXModule: typeof import('xlsx') | null = null;
@@ -380,20 +381,6 @@ export default function DossierPage() {
     setTimeout(() => setOcrProgress(''), 3000);
   };
 
-  function parseRapport(text: string) {
-    const modes: Record<string, any> = {};
-    const p = (s: string) => parseFloat(s.replace(/ /g, '').replace(',', '.')) || 0;
-    const num = '\\d[\\d ]*\\d,\\d+|\\d,\\d+';
-    const sep = '\\s*[|]?\\s*';
-    const re = new RegExp('(\\d{2})\\/(\\d{2})\\/(\\d{4})' + sep + '(' + num + ')' + sep + '(' + num + ')' + sep + '(' + num + ')' + sep + '(' + num + ')' + sep + '(' + num + ')' + sep + '(' + num + ')' + sep + '(' + num + ')');
-    for (const line of text.split('\n')) {
-      const m = line.match(re);
-      if (!m) continue;
-      const date = m[3] + '-' + m[2] + '-' + m[1];
-      modes[date] = { especes: p(m[4]), cheques: p(m[5]), tpe: p(m[6]), bonsAchat: p(m[7]), avoir: p(m[8]), credit: p(m[9]) };
-    }
-    return modes;
-  }
   const delRapport = async () => { if (!id || !confirm('Supprimer rapport?')) return; await api.deleteRapport(id); reload(); };
 
   const loadAnalyse = async () => {

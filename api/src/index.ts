@@ -1141,7 +1141,7 @@ const EXCLUDED_DAYS = new Set([
 ]);
 const CLIENT_NAMES: Record<string, string> = { '99': 'CLTS PASSAGERS', '111': 'STE WEZIGN', '122': 'NESRINE BACCAR' };
 
-function buildDayEcritures(date: string, dayFactures: any[], modes: any, defaultLibelle: string, journal: 'VT J.C' | 'VT C' = 'VT J.C') {
+export function buildDayEcritures(date: string, dayFactures: any[], modes: any, defaultLibelle: string, journal: 'VT J.C' | 'VT C' = 'VT J.C') {
   const isJC = journal !== 'VT C';
   const COMPTE_VENTE0 = isJC ? '707200' : '707100';
   const COMPTE_VENTE19 = isJC ? '707219' : '707119';
@@ -1159,9 +1159,23 @@ function buildDayEcritures(date: string, dayFactures: any[], modes: any, default
   const ecart = Math.round((debitSum - creditSum) * 1000) / 1000;
 
   const lines: any[] = [];
-  if ((modes.especes || 0) > 0) lines.push({ compte: '411004', montant: Math.round(modes.especes * 1000) / 1000, sens: 'D' });
-  if ((modes.tpe || 0) > 0) lines.push({ compte: '411005', montant: Math.round(modes.tpe * 1000) / 1000, sens: 'D' });
-  if ((modes.cheques || 0) > 0) lines.push({ compte: '411003', montant: Math.round(modes.cheques * 1000) / 1000, sens: 'D' });
+  // Un montant negatif (avoir, remboursement) bascule de sens : la piece doit
+  // rester equilibree, l'ecart ne doit pas porter l'anomalie a lui seul.
+  const push = (compte: string, montant: number, sensPos: 'D' | 'C', libelle?: string) => {
+    const m = Math.round((montant || 0) * 1000) / 1000;
+    if (!m) return;
+    const line: any = {
+      compte,
+      montant: Math.abs(m),
+      sens: m > 0 ? sensPos : (sensPos === 'D' ? 'C' : 'D'),
+    };
+    if (libelle) line.libelle = libelle;
+    lines.push(line);
+  };
+
+  push('411004', modes.especes || 0, 'D');
+  push('411005', modes.tpe || 0, 'D');
+  push('411003', modes.cheques || 0, 'D');
 
   const byClient: Record<string, { ht0: number; ht19: number }> = {};
   for (const f of dayFactures) {
@@ -1175,13 +1189,13 @@ function buildDayEcritures(date: string, dayFactures: any[], modes: any, default
     const rht0 = Math.round(amt.ht0 * 1000) / 1000;
     const rht19 = Math.round(amt.ht19 * 1000) / 1000;
     const lib = tierKeys.length > 1 ? (CLIENT_NAMES[cc] || cc) : defaultLibelle;
-    if (rht0 > 0) lines.push({ compte: COMPTE_VENTE0, montant: rht0, sens: 'C', libelle: lib });
-    if (rht19 > 0) lines.push({ compte: COMPTE_VENTE19, montant: rht19, sens: 'C', libelle: lib });
+    push(COMPTE_VENTE0, rht0, 'C', lib);
+    push(COMPTE_VENTE19, rht19, 'C', lib);
   }
-  if (tva19 > 0) lines.push({ compte: COMPTE_TVA, montant: tva19, sens: 'C' });
-  lines.push({ compte: '437500', montant: timbres, sens: 'C' });
-  if (avoir709 > 0) lines.push({ compte: '709500', montant: Math.round(avoir709 * 1000) / 1000, sens: 'D' });
-  if (ecart !== 0) lines.push({ compte: '634500', montant: Math.abs(ecart), sens: ecart > 0 ? 'C' : 'D' });
+  push(COMPTE_TVA, tva19, 'C');
+  push('437500', timbres, 'C');
+  push('709500', avoir709, 'D');
+  push('634500', ecart, 'C');
 
   let anomaly = null;
   if (Math.abs(ecart) > 3) {
