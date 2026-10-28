@@ -4,6 +4,7 @@ import { ArrowLeft, FileText, Table2, Trash2, Download, Zap, Upload, CheckCircle
 import { api } from '../../lib/api';
 import { extractTextFromPDF } from '../../lib/pdf';
 import { buildLibelle, formatNumero } from '../../lib/scanEcritures';
+import { pickClientAccounts, resolveClientAccount, type PlanAccount } from '../../lib/scanPlan';
 
 type Tab = 'factures' | 'ecritures' | 'export';
 
@@ -73,6 +74,38 @@ export default function ScanDossierPage() {
   const saveClientMap = (map: Record<string, string>) => {
     setClientMap(map);
     localStorage.setItem('scan_client_map', JSON.stringify(map));
+  };
+
+  // Plan comptable clients (411XXX) importe depuis un XLSX, stocke en localStorage
+  const [plan, setPlan] = useState<PlanAccount[]>(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('scan_plan_comptable') || '[]');
+      return Array.isArray(raw) ? raw : [];
+    } catch { return []; }
+  });
+  const [planImporting, setPlanImporting] = useState(false);
+
+  const handleImportPlan = async (file: File) => {
+    setPlanImporting(true);
+    try {
+      const XLSXMod = await import('xlsx');
+      const XLSX = XLSXMod.default || XLSXMod;
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const accounts: PlanAccount[] = [];
+      for (const sheetName of wb.SheetNames) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, blankrows: false }) as any[][];
+        accounts.push(...pickClientAccounts(rows));
+      }
+      const unique = accounts.filter((a, i) => accounts.findIndex(x => x.code === a.code) === i);
+      localStorage.setItem('scan_plan_comptable', JSON.stringify(unique));
+      setPlan(unique);
+      alert(`${unique.length} comptes clients 411XXX importes.`);
+    } catch (e: any) {
+      alert('Erreur lecture plan comptable: ' + (e?.message || 'fichier invalide'));
+    } finally {
+      setPlanImporting(false);
+    }
   };
 
   const parseAmount = (s: string): number => {
@@ -246,8 +279,8 @@ export default function ScanDossierPage() {
     // AVR : TVA negative (-3.358) → on utilise Math.abs pour detecter
     const hasTVA = Math.abs(tva19) > 0;
 
-    // Map code_client → 411XXX
-    const compteClient = clientMap[codeClient] || '411000';
+    // Mapping manuel par code client, sinon plan comptable par nom de client, sinon 411000
+    const compteClient = resolveClientAccount(clientMap, plan, codeClient, clientName);
 
     return {
       numero, date_facture: date, client: clientName || codeClient, code_client: codeClient,
@@ -516,7 +549,36 @@ export default function ScanDossierPage() {
 
           {/* Client mapping */}
           <div className="card p-4">
-            <h3 className="font-semibold text-gray-700 mb-3 text-sm">Mapping Code Client → Compte 411XXX</h3>
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+              <h3 className="font-semibold text-gray-700 text-sm">Mapping client → compte 411XXX</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400" data-testid="plan-count">
+                  {plan.length > 0 ? `${plan.length} comptes clients` : 'Plan comptable non importé'}
+                </span>
+                <label className="btn btn-outline px-3 py-1.5 text-xs cursor-pointer">
+                  <Upload size={13} className="inline mr-1" />
+                  {planImporting ? 'Import...' : 'Plan comptable XLSX'}
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    data-testid="plan-file"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleImportPlan(f); e.target.value = ''; }}
+                  />
+                </label>
+                {plan.length > 0 && (
+                  <button
+                    onClick={() => { localStorage.removeItem('scan_plan_comptable'); setPlan([]); }}
+                    className="text-red-400 hover:text-red-600 text-xs"
+                  >
+                    Vider
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-400 mb-2">
+              411000 par défaut ; le compte est choisi automatiquement par nom de client dans le plan importé, ou via le mapping ci-dessous.
+            </p>
             <div className="flex gap-2 items-end mb-2">
               <input placeholder="Code client (ex: CLT0626-1187)" value={newClientCode} onChange={e => setNewClientCode(e.target.value)} className="flex-1 input-sm" />
               <input placeholder="Compte 411XXX" value={newClientAccount} onChange={e => setNewClientAccount(e.target.value)} className="w-32 input-sm" />
