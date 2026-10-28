@@ -4,7 +4,7 @@ import { ArrowLeft, FileText, Table2, Trash2, Download, Zap, Upload, CheckCircle
 import { api } from '../../lib/api';
 import { extractTextFromPDF } from '../../lib/pdf';
 import { buildLibelle, formatNumero } from '../../lib/scanEcritures';
-import { pickClientAccounts, resolveClientAccount, type PlanAccount } from '../../lib/scanPlan';
+import { pickClientAccounts, resolveClientAccount, nextClientCode, addClientAccount, type PlanAccount } from '../../lib/scanPlan';
 import defaultPlanJson from '../../lib/scanPlanDefault.json';
 
 type Tab = 'factures' | 'ecritures' | 'export';
@@ -93,6 +93,24 @@ export default function ScanDossierPage() {
       return Array.isArray(raw) && raw.length > 0;
     } catch { return false; }
   });
+  const [newPlanCode, setNewPlanCode] = useState('');
+  const [newPlanLibelle, setNewPlanLibelle] = useState('');
+  const [planError, setPlanError] = useState('');
+
+  const addPlanAccount = () => {
+    const code = newPlanCode.trim() || nextClientCode(plan);
+    const updated = addClientAccount(plan, code, newPlanLibelle);
+    if (!updated) {
+      setPlanError('Compte 411XXX invalide, libellé manquant ou compte déjà présent.');
+      return;
+    }
+    localStorage.setItem('scan_plan_comptable', JSON.stringify(updated));
+    setPlan(updated);
+    setPlanCustom(true);
+    setNewPlanCode('');
+    setNewPlanLibelle('');
+    setPlanError('');
+  };
 
   const handleImportPlan = async (file: File) => {
     setPlanImporting(true);
@@ -587,7 +605,7 @@ export default function ScanDossierPage() {
               </div>
             </div>
             <p className="text-[11px] text-gray-400 mb-2">
-              411000 par défaut ; le compte est choisi automatiquement par nom de client dans le plan importé, ou via le mapping ci-dessous.
+              411000 par défaut ; le compte est choisi automatiquement par nom de client dans le plan, ou via le mapping ci-dessous. Un client absent peut être ajouté au plan.
             </p>
             <div className="flex gap-2 items-end mb-2">
               <input placeholder="Code client (ex: CLT0626-1187)" value={newClientCode} onChange={e => setNewClientCode(e.target.value)} className="flex-1 input-sm" />
@@ -609,6 +627,34 @@ export default function ScanDossierPage() {
                 ))}
               </div>
             )}
+
+            <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--separator)' }}>
+              <h4 className="text-xs font-semibold text-gray-600 mb-2">Nouveau compte client dans le plan</h4>
+              <div className="flex gap-2 items-end">
+                <input
+                  placeholder={`Compte (ex: ${nextClientCode(plan)})`}
+                  value={newPlanCode}
+                  onChange={e => { setNewPlanCode(e.target.value); setPlanError(''); }}
+                  className="w-48 input-sm"
+                  data-testid="plan-new-code"
+                />
+                <input
+                  placeholder="Nom du client (libellé)"
+                  value={newPlanLibelle}
+                  onChange={e => { setNewPlanLibelle(e.target.value); setPlanError(''); }}
+                  className="flex-1 input-sm"
+                  data-testid="plan-new-libelle"
+                />
+                <button
+                  onClick={addPlanAccount}
+                  data-testid="plan-add"
+                  className="btn btn-emerald px-3 py-1.5 rounded text-sm hover:bg-emerald-600"
+                >
+                  + Ajouter
+                </button>
+              </div>
+              {planError && <p className="text-xs text-red-600 mt-1" data-testid="plan-error">{planError}</p>}
+            </div>
           </div>
 
           {/* Manual add */}

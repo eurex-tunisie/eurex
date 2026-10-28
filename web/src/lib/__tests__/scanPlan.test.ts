@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickClientAccounts, findClientAccount, resolveClientAccount, type PlanAccount } from '../scanPlan';
+import { pickClientAccounts, findClientAccount, resolveClientAccount, nextClientCode, addClientAccount, type PlanAccount } from '../scanPlan';
 import defaultPlanJson from '../scanPlanDefault.json';
 
 const rows: any[][] = [
@@ -60,5 +60,31 @@ describe('plan comptable par defaut (embarque dans l app)', () => {
   it('retombe sur 411000 pour un client absent du plan', () => {
     expect(findClientAccount(plan, 'CLIENT QUI N EXISTE PAS')).toBeNull();
     expect(resolveClientAccount({}, plan, '', 'CLIENT QUI N EXISTE PAS')).toBe('411000');
+  });
+});
+
+describe('ajout d un nouveau compte client', () => {
+  const plan = defaultPlanJson as PlanAccount[];
+
+  it('suggere le prochain numero libre', () => {
+    const last = plan[plan.length - 1].code;
+    const next = nextClientCode(plan);
+    expect(/^411\d{3,}$/.test(next)).toBe(true);
+    expect(Number(next.slice(3))).toBeGreaterThan(Number(last.slice(3)));
+    expect(plan.some(a => a.code === next)).toBe(false);
+  });
+
+  it('ajoute un compte et le rend trouvable par nom', () => {
+    const next = nextClientCode(plan);
+    const updated = addClientAccount(plan, next, 'Nouveau Client SARL');
+    expect(updated).not.toBeNull();
+    expect(updated!.some(a => a.code === next)).toBe(true);
+    expect(findClientAccount(updated!, 'Nouveau Client SARL')).toBe(next);
+  });
+
+  it('refuse un code invalide, un libelle vide ou un doublon', () => {
+    expect(addClientAccount(plan, '512000', 'Banque')).toBeNull();
+    expect(addClientAccount(plan, '411999', '')).toBeNull();
+    expect(addClientAccount(plan, plan[1].code, 'Doublon')).toBeNull();
   });
 });

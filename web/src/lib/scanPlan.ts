@@ -58,3 +58,22 @@ export function resolveClientAccount(
   if (code && clientMap && clientMap[code]) return clientMap[code];
   return findClientAccount(plan, clientName) || '411000';
 }
+
+// Prochain numero de compte client libre (411XXX).
+export function nextClientCode(plan: PlanAccount[]): string {
+  let max = 0;
+  for (const a of plan || []) {
+    const m = a.code.match(/^411(\d+)$/);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return '411' + String(max + 1).padStart(3, '0');
+}
+
+// Ajoute un compte client au plan. Renvoie null si code/libelle invalide ou doublon.
+export function addClientAccount(plan: PlanAccount[], code: string, libelle: string): PlanAccount[] | null {
+  const c = (code || '').trim();
+  const l = (libelle || '').trim();
+  if (!/^411\d{3,}$/.test(c) || !l) return null;
+  if ((plan || []).some(a => a.code === c)) return null;
+  return [...(plan || []), { code: c, libelle: l }].sort((a, b) => a.code.localeCompare(b.code));
+}
