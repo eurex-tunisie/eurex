@@ -79,3 +79,15 @@ test('encaissement negatif (remboursement especes) : ligne au credit', () => {
   assert.equal(caisse.montant, 20);
   assert.equal(sum(r.lines, 'D'), sum(r.lines, 'C'));
 });
+
+test('jour d encaissement sans facture : caisse au debit, ecart 634500 au credit', () => {
+  // Cas reel 28/01/2026 depot J.C : 4 924,62 encaisses, aucune facture du jour.
+  const modes = { especes: 2400, cheques: 0, tpe: 2524.62, bonsAchat: 0, avoir: 0, credit: 0 };
+  const r = buildDayEcritures('2026-01-28', [], modes, 'CLTS PASSAGERS', 'VT J.C');
+  const ecart = r.lines.find((l: any) => l.compte === '634500');
+  assert.ok(ecart, 'ligne 634500 attendue');
+  assert.equal(ecart.sens, 'C');
+  assert.equal(ecart.montant, 4924.62);
+  assert.equal(r.lines.some((l: any) => l.compte === '411000'), false);
+  assert.equal(sum(r.lines, 'D'), sum(r.lines, 'C'));
+});

@@ -1501,17 +1501,31 @@ export default {
           byDay[f.date_facture as string].push(f);
         }
 
+        // Le rapport "Vente par jour" peut porter des encaissements un jour SANS
+        // facture (vente du lendemain, acompte...). Ces jours n'existaient dans
+        // aucune ecriture : la caisse et l'ecart 634500 etaient sous-estimes.
+        // On parcourt donc l'union des jours factures + jours du rapport.
+        const rapportDaysR = await env.DB.prepare("SELECT date_jour, especes, cheques, tpe, bonsAchat, avoir, credit FROM rapport_modes WHERE dossier_id = ? AND journal = ?").bind(did, journal).all();
+        const modesByDay: Record<string, any> = {};
+        for (const r of rapportDaysR.results) modesByDay[r.date_jour as string] = r;
+        const allDates = [...new Set([...Object.keys(byDay), ...Object.keys(modesByDay)])].sort();
+
         const anomalies: any[] = [];
         const allEntries: any[] = [];
 
-        for (const [date, dayFactures] of Object.entries(byDay)) {
+        for (const date of allDates) {
+          const dayFactures = byDay[date] || [];
+          const modes = modesByDay[date] || { especes: 0, tpe: 0, cheques: 0, bonsAchat: 0, avoir: 0, credit: 0 };
+          // Jour sans facture ET sans encaissement hors credit : rien a passer.
+          const encaisseHorsCredit = (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + (modes.bonsAchat || 0) + (modes.avoir || 0);
+          if (!dayFactures.length && !encaisseHorsCredit) continue;
+
           const nums = dayFactures.map((f: any) => f.numero_facture.replace(/[^0-9]/g, '')).sort((a: string, b: string) => a.localeCompare(b));
-          const numPiece = nums.length === 1 ? 'FAC N' + nums[0] + '-26' : 'FAC N' + nums.join('-') + '-26';
+          const numPiece = !nums.length
+            ? 'CAISSE ' + date
+            : (nums.length === 1 ? 'FAC N' + nums[0] + '-26' : 'FAC N' + nums.join('-') + '-26');
           const clients = [...new Set(dayFactures.map((f: any) => f.client).filter(Boolean))];
           const defaultLibelle = clients.length > 0 ? 'CLTS PASSAGERS/' + clients.join('/') : 'CLTS PASSAGERS';
-
-          const rapportR = await env.DB.prepare("SELECT especes, cheques, tpe, bonsAchat, avoir, credit FROM rapport_modes WHERE dossier_id = ? AND date_jour = ? AND journal = ?").bind(did, date, journal).first() as any;
-          const modes = rapportR || { especes: 0, tpe: 0, cheques: 0, bonsAchat: 0, avoir: 0, credit: 0 };
 
           const result = buildDayEcritures(date, dayFactures, modes, defaultLibelle, journal);
           if (result.excluded) {
@@ -1622,10 +1636,19 @@ export default {
           if (!byDay[f.date_facture as string]) byDay[f.date_facture as string] = [];
           byDay[f.date_facture as string].push(f);
         }
+        // Meme union que generate-vtjc : un jour d'encaissement sans facture doit
+        // apparaitre dans l'analyse (sinon l'ecart du jour est invisible).
+        const rapportDaysR = await env.DB.prepare('SELECT * FROM rapport_modes WHERE dossier_id = ? AND journal = ?').bind(did, jr).all();
+        const modesByDay: Record<string, any> = {};
+        for (const r of rapportDaysR.results) modesByDay[r.date_jour as string] = r;
+        const allDates = [...new Set([...Object.keys(byDay), ...Object.keys(modesByDay)])].sort();
+
         const results: any[] = [];
-        for (const [date, dayFactures] of Object.entries(byDay)) {
-          const rapportR = await env.DB.prepare('SELECT * FROM rapport_modes WHERE dossier_id = ? AND date_jour = ? AND journal = ?').bind(did, date, jr).first() as any;
-          const modes = rapportR || { especes: 0, tpe: 0, cheques: 0, bonsAchat: 0, avoir: 0, credit: 0 };
+        for (const date of allDates) {
+          const dayFactures = byDay[date] || [];
+          const modes = modesByDay[date] || { especes: 0, tpe: 0, cheques: 0, bonsAchat: 0, avoir: 0, credit: 0 };
+          const encaisseHorsCredit = (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + (modes.bonsAchat || 0) + (modes.avoir || 0);
+          if (!dayFactures.length && !encaisseHorsCredit) continue;
           const r = buildDayEcritures(date, dayFactures, modes, 'CLTS PASSAGERS', jr as 'VT J.C' | 'VT C');
           const ht0 = dayFactures.reduce((s: number, f: any) => s + (f.total_ht_0 || 0), 0);
           const ht19 = dayFactures.reduce((s: number, f: any) => s + (f.total_ht_19 || 0), 0);
