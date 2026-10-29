@@ -218,6 +218,11 @@ export default function DossierPage() {
   useEffect(() => { reload(); }, [id]);
 
   const ecrituresFiltered = journal ? ecritures.filter(e => e.journal_code === journal) : ecritures;
+  // Un dossier peut contenir les 2 depots : chaque facture / ligne de rapport est
+  // rattachee a son journal (VT C = depot 6, VT J.C = depot 7).
+  const jrCourant: 'VT J.C' | 'VT C' = journal === 'VT C' ? 'VT C' : 'VT J.C';
+  const facturesDuJournal = factures.filter(f => (f.journal || 'VT J.C') === jrCourant);
+  const rapportDuJournal = rapport.filter(r => (r.journal || 'VT J.C') === jrCourant);
 
   const handleUpload = async (files: FileList | null) => {
     if (!files?.length || !id) return;
@@ -227,7 +232,7 @@ export default function DossierPage() {
       if (journal === 'VT J.C') {
         // Client-side: extract factures from each PDF
         let ok = 0, skipped = 0;
-        const seenNums = new Set(factures.map(f => f.numero_facture));
+        const seenNums = new Set(facturesDuJournal.map(f => f.numero_facture));
         for (const file of Array.from(files)) {
           const text = await extractTextFromPDF(file);
           // Parse invoice from text (client-side)
@@ -235,7 +240,7 @@ export default function DossierPage() {
           if (!inv.numero) inv.numero = file.name.replace(/[^0-9]/g, '');
           if (seenNums.has(inv.numero)) { skipped++; continue; }
           seenNums.add(inv.numero);
-          await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc });
+          await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc, journal: 'VT J.C' });
           ok++;
         }
         setOcrProgress(ok + ' facture(s) extraite(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + '. Generation VT J.C...');
@@ -244,14 +249,14 @@ export default function DossierPage() {
       } else if (journal === 'VT C') {
         // Client-side: parse each invoice like VT J.C, then generate VT C entries
         let ok = 0, skipped = 0;
-        const seenNums2 = new Set(factures.map(f => f.numero_facture));
+        const seenNums2 = new Set(facturesDuJournal.map(f => f.numero_facture));
         for (const file of Array.from(files)) {
           const text = await extractTextFromPDF(file);
           const inv = parseInvoice(text);
           if (!inv.numero) inv.numero = file.name.replace(/[^0-9]/g, '');
           if (seenNums2.has(inv.numero)) { skipped++; continue; }
           seenNums2.add(inv.numero);
-          await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc });
+          await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc, journal: 'VT C' });
           ok++;
         }
         setOcrProgress(ok + ' facture(s) extraitee(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + '. Generation VT C...');
@@ -295,16 +300,16 @@ export default function DossierPage() {
     const ht19 = parseFloat(fHt19) || 0;
     const tva = parseFloat(fTva) || 0;
     const ttc = parseFloat(fTtc) || (ht0 + ht19 + tva + 1);
-    await api.addFacture(id, { date_facture: fDate, numero_facture: fNum, client: fClient, total_ht_0: ht0, total_ht_19: ht19, tva_19: tva, timbre: 1, total_ttc: ttc });
+    await api.addFacture(id, { date_facture: fDate, numero_facture: fNum, client: fClient, total_ht_0: ht0, total_ht_19: ht19, tva_19: tva, timbre: 1, total_ttc: ttc, journal: jrCourant });
     setFNum(''); setFHt0(''); setFHt19(''); setFTva(''); setFTtc(''); setFClient('');
     reload();
   };
 
   const delFacture = async (fid: string) => { await api.deleteFacture(fid); reload(); };
   const delAllFactures = async () => {
-    if (!id || !confirm('Supprimer TOUT : factures + ecritures + rapport ?')) return;
-    await api.deleteAllFactures(id);
-    await api.deleteRapport(id);
+    if (!id || !confirm('Supprimer les factures + ecritures + rapport de ' + jrCourant + ' ?')) return;
+    await api.deleteAllFactures(id, jrCourant);
+    await api.deleteRapport(id, jrCourant);
     reload();
   };
 
@@ -330,7 +335,7 @@ export default function DossierPage() {
       const modes = parseRapport(text);
       if (!Object.keys(modes).length) { alert('Aucune ligne detectee'); return; }
       const rows = Object.entries(modes).map(([date, v]) => ({ date_jour: date, ...v }));
-      const r = await api.uploadRapport(id, rows);
+      const r = await api.uploadRapport(id, rows, jrCourant);
       alert('Rapport importe: ' + r.count + ' jour(s)');
       reload();
     } catch (e: any) { alert('Erreur rapport: ' + e.message); }
@@ -338,12 +343,12 @@ export default function DossierPage() {
     setTimeout(() => setOcrProgress(''), 3000);
   };
 
-  const delRapport = async () => { if (!id || !confirm('Supprimer rapport?')) return; await api.deleteRapport(id); reload(); };
+  const delRapport = async () => { if (!id || !confirm('Supprimer rapport ' + jrCourant + '?')) return; await api.deleteRapport(id, jrCourant); reload(); };
 
   const loadAnalyse = async () => {
     if (!id) return;
     setAnalyseLoading(true);
-    try { const r = await api.getExcluded(id); setAnalyse(r); } catch (e: any) { alert('Erreur: ' + e.message); }
+    try { const r = await api.getExcluded(id, jrCourant); setAnalyse(r); } catch (e: any) { alert('Erreur: ' + e.message); }
     finally { setAnalyseLoading(false); }
   };
   useEffect(() => { if (tab === 'analyse' && id) loadAnalyse(); }, [tab, id]);
@@ -475,7 +480,7 @@ export default function DossierPage() {
             <span className={`px-3 py-1 rounded-lg text-sm font-bold ${isFISC ? 'bg-amber-100 text-amber-700' : isVTJC ? 'bg-violet-100 text-violet-700' : 'bg-teal-100 text-teal-700'}`}>
               {isFISC ? <FileText className="w-4 h-4 inline mr-1" /> : isVTJC ? <Zap className="w-4 h-4 inline mr-1" /> : <FileText className="w-4 h-4 inline mr-1" />} {journal}
             </span>
-            <span className="text-sm text-gray-500">{isFISC ? `${ecrituresFiltered.length} ecriture(s)` : `${ecrituresFiltered.length} ecriture(s) | ${factures.length} facture(s) | ${rapport.length} jour(s) rapport`}</span>
+            <span className="text-sm text-gray-500">{isFISC ? `${ecrituresFiltered.length} ecriture(s)` : `${ecrituresFiltered.length} ecriture(s) | ${facturesDuJournal.length} facture(s) | ${rapportDuJournal.length} jour(s) rapport`}</span>
           </div>
           <div className="flex gap-2">
             <button onClick={exportCSV} disabled={!ecrituresFiltered.length} className="btn btn-blue px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
@@ -487,7 +492,7 @@ export default function DossierPage() {
       <div className="flex gap-2">
         {(isFISC ? ['ecritures'] as const : (['factures', 'rapport', 'ecritures', 'analyse', 'verification'] as const)).map(t => (
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab === t ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-            {t === 'analyse' ? <><AlertTriangle className="w-3 h-3 inline mr-1" />Analyse</> : t === 'verification' ? <>Verification TVA</> : t} {t === 'factures' ? `(${factures.length})` : t === 'ecritures' ? `(${ecrituresFiltered.length})` : t === 'rapport' ? `(${rapport.length})` : ''}
+            {t === 'analyse' ? <><AlertTriangle className="w-3 h-3 inline mr-1" />Analyse</> : t === 'verification' ? <>Verification TVA</> : t} {t === 'factures' ? `(${facturesDuJournal.length})` : t === 'ecritures' ? `(${ecrituresFiltered.length})` : t === 'rapport' ? `(${rapportDuJournal.length})` : ''}
           </button>
         ))}
       </div>
@@ -601,18 +606,18 @@ export default function DossierPage() {
               <button onClick={addFacture} disabled={!fNum || !fDate} className="btn btn-emerald px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1">
                 <Plus className="w-4 h-4" /> Ajouter
               </button>
-              {factures.length > 0 && <button onClick={delAllFactures} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 flex items-center gap-1"><Trash2 className="w-4 h-4" /> Supprimer tout</button>}
+              {facturesDuJournal.length > 0 && <button onClick={delAllFactures} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 flex items-center gap-1"><Trash2 className="w-4 h-4" /> Supprimer tout</button>}
             </div>
           </div>
 
-          {factures.length > 0 && (
+          {facturesDuJournal.length > 0 && (
             <div className="bg-white rounded-xl border overflow-hidden">
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs font-semibold uppercase table-header">
                   <th className="px-4 py-3">Date</th><th className="px-4 py-3">N Facture</th><th className="px-4 py-3">Client</th><th className="px-4 py-3 text-right">HT 0%</th><th className="px-4 py-3 text-right">HT 19%</th><th className="px-4 py-3 text-right">TVA</th><th className="px-4 py-3 text-right">TTC</th><th className="px-4 py-3"></th>
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
-                  {factures.map(f => (
+                  {facturesDuJournal.map(f => (
                     <tr key={f.id} className="row-hover">
                       <td className="px-4 py-2">{f.date_facture}</td>
                       <td className="px-4 py-2 font-mono text-xs">{f.numero_facture}</td>
@@ -660,17 +665,17 @@ export default function DossierPage() {
             <input ref={rapportRef} type="file" accept=".pdf" className="hidden" onChange={e => handleRapport(e.target.files)} />
             <div className="flex gap-2">
               <button onClick={() => rapportRef.current?.click()} className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center gap-1.5"><Upload className="w-4 h-4" /> Choisir rapport PDF</button>
-              {rapport.length > 0 && <button onClick={delRapport} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 flex items-center gap-1.5"><Trash2 className="w-4 h-4" /> Supprimer</button>}
+              {rapportDuJournal.length > 0 && <button onClick={delRapport} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-100 flex items-center gap-1.5"><Trash2 className="w-4 h-4" /> Supprimer</button>}
             </div>
-            {rapport.length > 0 && <p className="text-xs text-emerald-600 mt-2">{rapport.length} jour(s) charges</p>}
+            {rapportDuJournal.length > 0 && <p className="text-xs text-emerald-600 mt-2">{rapportDuJournal.length} jour(s) charges pour {jrCourant}</p>}
           </div>
-          {rapport.length > 0 && (
+          {rapportDuJournal.length > 0 && (
             <div className="bg-white rounded-xl border overflow-hidden">
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs font-semibold uppercase table-header">
                   <th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Espece</th><th className="px-3 py-2 text-right">Cheque</th><th className="px-3 py-2 text-right">Carte</th><th className="px-3 py-2 text-right">Bons+Avoir</th><th className="px-3 py-2 text-right">Credit</th>
                 </tr></thead>
-                <tbody className="divide-y divide-gray-100">{rapport.map((r: any) => (
+                <tbody className="divide-y divide-gray-100">{rapportDuJournal.map((r: any) => (
                   <tr key={r.date_jour} className="row-hover">
                     <td className="px-3 py-2 font-mono text-xs">{r.date_jour}</td>
                     <td className="px-3 py-2 text-right font-mono">{r.especes.toFixed(2)}</td>
@@ -687,7 +692,7 @@ export default function DossierPage() {
             <div className="bg-white rounded-xl border p-5">
               <h2 className="font-semibold mb-3">Generer les ecritures {journal}</h2>
               <p className="text-xs text-gray-500 mb-3">Calcule les ecritures a partir des factures + rapport.</p>
-              <button onClick={generate} disabled={generating || !factures.length} className={`${isVTJC ? 'bg-violet-600 hover:bg-violet-700' : 'bg-teal-600 hover:bg-teal-700'} text-white px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-1.5`}>
+              <button onClick={generate} disabled={generating || !facturesDuJournal.length} className={`${isVTJC ? 'bg-violet-600 hover:bg-violet-700' : 'bg-teal-600 hover:bg-teal-700'} text-white px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-1.5`}>
                 {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                 {generating ? 'Generation...' : `Generer ${journal}`}
               </button>

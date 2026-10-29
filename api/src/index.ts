@@ -1384,7 +1384,10 @@ export default {
       // --- FACTURES ---
       const facturesMatch = path.match(/^\/api\/dossiers\/([^/]+)\/factures$/);
       if (facturesMatch && method === 'GET') {
-        const r = await env.DB.prepare('SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture').bind(facturesMatch[1]).all();
+        const j = url.searchParams.get('journal');
+        const r = j
+          ? await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? AND COALESCE(journal, 'VT J.C') = ? ORDER BY date_facture, numero_facture").bind(facturesMatch[1], j).all()
+          : await env.DB.prepare('SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture').bind(facturesMatch[1]).all();
         return json(r.results);
       }
       if (facturesMatch && method === 'POST') {
@@ -1393,8 +1396,9 @@ export default {
         const d = await env.DB.prepare('SELECT societe_id FROM dossiers WHERE id = ?').bind(did).first() as any;
         if (!d) return json({ error: 'Dossier non trouve' }, 404);
         const id = genId();
-        await env.DB.prepare('INSERT INTO factures (id, dossier_id, societe_id, date_facture, numero_facture, client, total_ht_0, total_ht_19, tva_19, timbre, total_ttc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, did, d.societe_id, b.date_facture, b.numero_facture, b.client || '', b.total_ht_0 || 0, b.total_ht_19 || 0, b.tva_19 || 0, b.timbre || 1, b.total_ttc || 0).run();
-        return json({ id, ...b });
+        const jr = b.journal === 'VT C' ? 'VT C' : 'VT J.C';
+        await env.DB.prepare('INSERT INTO factures (id, dossier_id, societe_id, date_facture, numero_facture, client, total_ht_0, total_ht_19, tva_19, timbre, total_ttc, journal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, did, d.societe_id, b.date_facture, b.numero_facture, b.client || '', b.total_ht_0 || 0, b.total_ht_19 || 0, b.tva_19 || 0, b.timbre || 1, b.total_ttc || 0, jr).run();
+        return json({ id, ...b, journal: jr });
       }
       const delFactMatch = path.match(/^\/api\/factures\/([^/]+)$/);
       if (delFactMatch && method === 'DELETE') {
@@ -1403,15 +1407,24 @@ export default {
       }
       const delAllFactMatch = path.match(/^\/api\/dossiers\/([^/]+)\/factures$/);
       if (delAllFactMatch && method === 'DELETE') {
-        await env.DB.prepare('DELETE FROM factures WHERE dossier_id = ?').bind(delAllFactMatch[1]).run();
-        await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = 'VT J.C'").bind(delAllFactMatch[1]).run();
+        const j = url.searchParams.get('journal');
+        if (j) {
+          await env.DB.prepare("DELETE FROM factures WHERE dossier_id = ? AND COALESCE(journal, 'VT J.C') = ?").bind(delAllFactMatch[1], j).run();
+          await env.DB.prepare('DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = ?').bind(delAllFactMatch[1], j).run();
+        } else {
+          await env.DB.prepare('DELETE FROM factures WHERE dossier_id = ?').bind(delAllFactMatch[1]).run();
+          await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code IN ('VT J.C','VT C')").bind(delAllFactMatch[1]).run();
+        }
         return json({ ok: true });
       }
 
       // --- RAPPORT ---
       const rapportMatch = path.match(/^\/api\/dossiers\/([^/]+)\/rapport$/);
       if (rapportMatch && method === 'GET') {
-        const r = await env.DB.prepare('SELECT * FROM rapport_modes WHERE dossier_id = ? ORDER BY date_jour').bind(rapportMatch[1]).all();
+        const j = url.searchParams.get('journal');
+        const r = j
+          ? await env.DB.prepare("SELECT * FROM rapport_modes WHERE dossier_id = ? AND journal = ? ORDER BY date_jour").bind(rapportMatch[1], j).all()
+          : await env.DB.prepare('SELECT * FROM rapport_modes WHERE dossier_id = ? ORDER BY date_jour').bind(rapportMatch[1]).all();
         return json(r.results);
       }
       if (rapportMatch && method === 'POST') {
@@ -1421,14 +1434,17 @@ export default {
         if (!d) return json({ error: 'Dossier non trouve' }, 404);
         const rows = b.rows || b;
         if (!Array.isArray(rows) || !rows.length) return json({ error: 'rows[] requis' }, 400);
+        const jr = b.journal === 'VT C' ? 'VT C' : 'VT J.C';
         for (const r of rows) {
           const date = r.date_jour || r.date;
-          await env.DB.prepare('INSERT OR REPLACE INTO rapport_modes (id, dossier_id, date_jour, especes, cheques, tpe, bonsAchat, avoir, credit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), did, date, r.especes || 0, r.cheques || 0, r.tpe || 0, r.bonsAchat || 0, r.avoir || 0, r.credit || 0).run();
+          await env.DB.prepare('INSERT OR REPLACE INTO rapport_modes (id, dossier_id, journal, date_jour, especes, cheques, tpe, bonsAchat, avoir, credit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), did, jr, date, r.especes || 0, r.cheques || 0, r.tpe || 0, r.bonsAchat || 0, r.avoir || 0, r.credit || 0).run();
         }
-        return json({ ok: true, count: rows.length });
+        return json({ ok: true, count: rows.length, journal: jr });
       }
       if (rapportMatch && method === 'DELETE') {
-        await env.DB.prepare('DELETE FROM rapport_modes WHERE dossier_id = ?').bind(rapportMatch[1]).run();
+        const j = url.searchParams.get('journal');
+        if (j) await env.DB.prepare('DELETE FROM rapport_modes WHERE dossier_id = ? AND journal = ?').bind(rapportMatch[1], j).run();
+        else await env.DB.prepare('DELETE FROM rapport_modes WHERE dossier_id = ?').bind(rapportMatch[1]).run();
         return json({ ok: true });
       }
 
@@ -1474,7 +1490,7 @@ export default {
           if (b && b.journal === 'VT C') journal = 'VT C';
         } catch { /* no body -> VT J.C */ }
 
-        const facturesR = await env.DB.prepare('SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture').bind(did).all();
+        const facturesR = await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? AND COALESCE(journal, 'VT J.C') = ? ORDER BY date_facture, numero_facture").bind(did, journal).all();
         if (!facturesR.results.length) return json({ error: 'Aucune facture' }, 400);
 
         await env.DB.prepare('DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = ?').bind(did, journal).run();
@@ -1494,7 +1510,7 @@ export default {
           const clients = [...new Set(dayFactures.map((f: any) => f.client).filter(Boolean))];
           const defaultLibelle = clients.length > 0 ? 'CLTS PASSAGERS/' + clients.join('/') : 'CLTS PASSAGERS';
 
-          const rapportR = await env.DB.prepare('SELECT especes, cheques, tpe, bonsAchat, avoir, credit FROM rapport_modes WHERE dossier_id = ? AND date_jour = ?').bind(did, date).first() as any;
+          const rapportR = await env.DB.prepare("SELECT especes, cheques, tpe, bonsAchat, avoir, credit FROM rapport_modes WHERE dossier_id = ? AND date_jour = ? AND journal = ?").bind(did, date, journal).first() as any;
           const modes = rapportR || { especes: 0, tpe: 0, cheques: 0, bonsAchat: 0, avoir: 0, credit: 0 };
 
           const result = buildDayEcritures(date, dayFactures, modes, defaultLibelle, journal);
@@ -1599,7 +1615,8 @@ export default {
       const excludedMatch = path.match(/^\/api\/dossiers\/([^/]+)\/excluded$/);
       if (excludedMatch && method === 'GET') {
         const did = excludedMatch[1];
-        const facturesR = await env.DB.prepare('SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture').bind(did).all();
+        const jr = url.searchParams.get('journal') === 'VT C' ? 'VT C' : 'VT J.C';
+        const facturesR = await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? AND COALESCE(journal, 'VT J.C') = ? ORDER BY date_facture").bind(did, jr).all();
         const byDay: Record<string, any[]> = {};
         for (const f of facturesR.results) {
           if (!byDay[f.date_facture as string]) byDay[f.date_facture as string] = [];
@@ -1607,9 +1624,9 @@ export default {
         }
         const results: any[] = [];
         for (const [date, dayFactures] of Object.entries(byDay)) {
-          const rapportR = await env.DB.prepare('SELECT * FROM rapport_modes WHERE dossier_id = ? AND date_jour = ?').bind(did, date).first() as any;
+          const rapportR = await env.DB.prepare('SELECT * FROM rapport_modes WHERE dossier_id = ? AND date_jour = ? AND journal = ?').bind(did, date, jr).first() as any;
           const modes = rapportR || { especes: 0, tpe: 0, cheques: 0, bonsAchat: 0, avoir: 0, credit: 0 };
-          const r = buildDayEcritures(date, dayFactures, modes, 'CLTS PASSAGERS');
+          const r = buildDayEcritures(date, dayFactures, modes, 'CLTS PASSAGERS', jr as 'VT J.C' | 'VT C');
           const ht0 = dayFactures.reduce((s: number, f: any) => s + (f.total_ht_0 || 0), 0);
           const ht19 = dayFactures.reduce((s: number, f: any) => s + (f.total_ht_19 || 0), 0);
           const tva = dayFactures.reduce((s: number, f: any) => s + (f.tva_19 || 0), 0);

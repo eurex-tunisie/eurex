@@ -88,12 +88,14 @@ CREATE TABLE IF NOT EXISTS factures (
   tva_19 DOUBLE PRECISION DEFAULT 0,
   timbre DOUBLE PRECISION DEFAULT 1,
   total_ttc DOUBLE PRECISION DEFAULT 0,
+  journal TEXT DEFAULT 'VT J.C',
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
 );
 
 CREATE TABLE IF NOT EXISTS rapport_modes (
   id TEXT PRIMARY KEY,
   dossier_id TEXT NOT NULL,
+  journal TEXT NOT NULL DEFAULT 'VT J.C',
   date_jour TEXT NOT NULL,
   especes DOUBLE PRECISION DEFAULT 0,
   cheques DOUBLE PRECISION DEFAULT 0,
@@ -102,7 +104,7 @@ CREATE TABLE IF NOT EXISTS rapport_modes (
   avoir DOUBLE PRECISION DEFAULT 0,
   credit DOUBLE PRECISION DEFAULT 0,
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
-  UNIQUE (dossier_id, date_jour)
+  UNIQUE (dossier_id, journal, date_jour)
 );
 
 -- ============================================================================
