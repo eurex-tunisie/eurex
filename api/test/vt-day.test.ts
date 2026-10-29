@@ -91,3 +91,20 @@ test('jour d encaissement sans facture : caisse au debit, ecart 634500 au credit
   assert.equal(r.lines.some((l: any) => l.compte === '411000'), false);
   assert.equal(sum(r.lines, 'D'), sum(r.lines, 'C'));
 });
+
+test('facture hors caisse (vente client) : 411000 au debit, 634500 ne la compte pas', () => {
+  // Cas reel 24/01/2026 J.C : SOGEPLAN 2026/48 (8 438,62) a cote de la vente
+  // comptoir 2026/51 (5 361,98) -> l ecart doit tomber a -1 DT (timbre), pas -8 439,62.
+  const sog = { numero_facture: '2026/48', client: 'SOGEPLAN', total_ht_0: 0, total_ht_19: 7090.434, tva_19: 1347.182, timbre: 1, total_ttc: 8438.62, hors_caisse: 1 };
+  const cpt = { numero_facture: '2026/51', client: '99', total_ht_0: 4088.286, total_ht_19: 1069.492, tva_19: 203.203, timbre: 1, total_ttc: 5361.98 };
+  const modes = { especes: 2548.98, cheques: 0, tpe: 2424.60, bonsAchat: 387.40, avoir: 0, credit: 73.70 };
+  const r = buildDayEcritures('2026-01-24', [sog, cpt], modes, 'CLTS PASSAGERS', 'VT J.C');
+
+  assert.equal(sum(r.lines, 'D'), sum(r.lines, 'C'));
+  assert.equal(r.ecart, -0.997);
+  const client = r.lines.find((l: any) => l.compte === '411000');
+  assert.ok(client, 'ligne 411000 attendue');
+  assert.equal(client.sens, 'D');
+  assert.equal(client.montant, 8438.62);
+  assert.equal(client.libelle, 'SOGEPLAN');
+});

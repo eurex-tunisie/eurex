@@ -28,6 +28,7 @@ export const api = {
   exportCSV: (did: string, journal?: string) => req<string>(`/dossiers/${did}/export${journal ? '?journal=' + encodeURIComponent(journal) : ''}`),
   getFactures: (did: string, journal?: string) => req<any[]>(`/dossiers/${did}/factures${journal ? '?journal=' + encodeURIComponent(journal) : ''}`),
   addFacture: (did: string, d: any) => req<any>(`/dossiers/${did}/factures`, { method: 'POST', body: JSON.stringify(d) }),
+  updateFacture: (fid: string, d: any) => req<any>(`/factures/${fid}`, { method: 'PATCH', body: JSON.stringify(d) }),
   deleteFacture: (fid: string) => req<any>(`/factures/${fid}`, { method: 'DELETE' }),
   deleteAllFactures: (did: string, journal?: string) => req<any>(`/dossiers/${did}/factures${journal ? '?journal=' + encodeURIComponent(journal) : ''}`, { method: 'DELETE' }),
   getExcluded: (did: string, journal?: string) => req<any[]>(`/dossiers/${did}/excluded${journal ? '?journal=' + encodeURIComponent(journal) : ''}`),

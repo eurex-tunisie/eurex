@@ -1156,7 +1156,12 @@ export function buildDayEcritures(date: string, dayFactures: any[], modes: any, 
   const avoir709 = (modes.bonsAchat || 0) + (modes.avoir || 0);
   const debitSum = (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + avoir709;
   const creditSum = tva19 + timbres + totalHT0 + totalHT19;
-  const ecart = Math.round((debitSum - creditSum) * 1000) / 1000;
+  // Factures "hors caisse" (vente client / a credit) : elles comptent dans les
+  // ventes, mais leur TTC est du par le client (411000), pas encaisse au
+  // comptoir. On l'ajoute donc cote debit pour que 634500 ne porte que sur les
+  // encaissements reels (SOGEPLAN 24/01/2026 : 8 438,62 + 3 081,72).
+  const horsTotal = Math.round(dayFactures.filter((f: any) => f.hors_caisse).reduce((s: number, f: any) => s + (f.total_ttc || 0), 0) * 1000) / 1000;
+  const ecart = Math.round((debitSum + horsTotal - creditSum) * 1000) / 1000;
 
   const lines: any[] = [];
   // Un montant negatif (avoir, remboursement) bascule de sens : la piece doit
@@ -1194,6 +1199,16 @@ export function buildDayEcritures(date: string, dayFactures: any[], modes: any, 
     const lib = tierKeys.length > 1 ? (CLIENT_NAMES[cc] || cc) : defaultLibelle;
     push(COMPTE_VENTE0, rht0, 'C', lib);
     push(COMPTE_VENTE19, rht19, 'C', lib);
+  }
+  // Ventes clients (hors caisse) : le TTC est du par le client.
+  const horsParClient: Record<string, number> = {};
+  for (const f of dayFactures) {
+    if (!f.hors_caisse) continue;
+    const c = String(f.client || '99');
+    horsParClient[c] = (horsParClient[c] || 0) + (f.total_ttc || 0);
+  }
+  for (const [cc, ttc] of Object.entries(horsParClient)) {
+    push('411000', Math.round(ttc * 1000) / 1000, 'D', CLIENT_NAMES[cc] || cc);
   }
   push(COMPTE_TVA, tva19, 'C');
   push('437500', timbres, 'C');
@@ -1397,8 +1412,27 @@ export default {
         if (!d) return json({ error: 'Dossier non trouve' }, 404);
         const id = genId();
         const jr = b.journal === 'VT C' ? 'VT C' : 'VT J.C';
-        await env.DB.prepare('INSERT INTO factures (id, dossier_id, societe_id, date_facture, numero_facture, client, total_ht_0, total_ht_19, tva_19, timbre, total_ttc, journal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, did, d.societe_id, b.date_facture, b.numero_facture, b.client || '', b.total_ht_0 || 0, b.total_ht_19 || 0, b.tva_19 || 0, b.timbre || 1, b.total_ttc || 0, jr).run();
-        return json({ id, ...b, journal: jr });
+        const hors = b.hors_caisse ? 1 : 0;
+        await env.DB.prepare('INSERT INTO factures (id, dossier_id, societe_id, date_facture, numero_facture, client, total_ht_0, total_ht_19, tva_19, timbre, total_ttc, journal, hors_caisse) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, did, d.societe_id, b.date_facture, b.numero_facture, b.client || '', b.total_ht_0 || 0, b.total_ht_19 || 0, b.tva_19 || 0, b.timbre || 1, b.total_ttc || 0, jr, hors).run();
+        return json({ id, ...b, journal: jr, hors_caisse: hors });
+      }
+      // Bascule "hors caisse" (vente client) et correction de date/n° : ces
+      // champs ne touchent pas au montant, ils ne changent donc pas la facture.
+      const patchFactMatch = path.match(/^\/api\/factures\/([^/]+)$/);
+      if (patchFactMatch && method === 'PATCH') {
+        const b = await request.json() as any;
+        const allowed = ['date_facture', 'numero_facture', 'client', 'hors_caisse'];
+        const sets: string[] = [];
+        const vals: any[] = [];
+        for (const k of allowed) {
+          if (b[k] === undefined) continue;
+          sets.push(k + ' = ?');
+          vals.push(k === 'hors_caisse' ? (b[k] ? 1 : 0) : b[k]);
+        }
+        if (!sets.length) return json({ error: 'Aucun champ a modifier' }, 400);
+        vals.push(patchFactMatch[1]);
+        await env.DB.prepare('UPDATE factures SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
+        return json({ ok: true });
       }
       const delFactMatch = path.match(/^\/api\/factures\/([^/]+)$/);
       if (delFactMatch && method === 'DELETE') {
@@ -1650,20 +1684,16 @@ export default {
           const encaisseHorsCredit = (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + (modes.bonsAchat || 0) + (modes.avoir || 0);
           if (!dayFactures.length && !encaisseHorsCredit) continue;
           const r = buildDayEcritures(date, dayFactures, modes, 'CLTS PASSAGERS', jr as 'VT J.C' | 'VT C');
-          const ht0 = dayFactures.reduce((s: number, f: any) => s + (f.total_ht_0 || 0), 0);
-          const ht19 = dayFactures.reduce((s: number, f: any) => s + (f.total_ht_19 || 0), 0);
-          const tva = dayFactures.reduce((s: number, f: any) => s + (f.tva_19 || 0), 0);
           const ttc = dayFactures.reduce((s: number, f: any) => s + (f.total_ttc || 0), 0);
-          const timbres = dayFactures.reduce((s: number, f: any) => s + (f.timbre || 1), 0);
-          const debitSum = (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + (modes.bonsAchat || 0) + (modes.avoir || 0);
-          const creditSum = tva + timbres + ht0 + ht19;
-          const ecart = Math.round((debitSum - creditSum) * 1000) / 1000;
+          // L'ecart vient du meme calcul que la piece generee (factures hors
+          // caisse neutralisees en 411000) : analyse et ecritures ne divergent pas.
+          const ecart = r.ecart;
           results.push({
             date, ecart, excluded: EXCLUDED_DAYS.has(date),
             totalFactures: ttc, totalModes: (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + (modes.bonsAchat || 0) + (modes.avoir || 0) + (modes.credit || 0),
             nbFactures: dayFactures.length,
             modes: { especes: modes.especes || 0, cheques: modes.cheques || 0, tpe: modes.tpe || 0, bonsAchat: modes.bonsAchat || 0, avoir: modes.avoir || 0, credit: modes.credit || 0 },
-            factures: dayFactures.map((f: any) => ({ num: f.numero_facture, client: f.client, ht0: f.total_ht_0 || 0, ht19: f.total_ht_19 || 0, tva: f.tva_19 || 0, ttc: f.total_ttc || 0 })),
+            factures: dayFactures.map((f: any) => ({ id: f.id, num: f.numero_facture, client: f.client, ht0: f.total_ht_0 || 0, ht19: f.total_ht_19 || 0, tva: f.tva_19 || 0, ttc: f.total_ttc || 0, horsCaisse: !!f.hors_caisse })),
             proposedEcritures: r.excluded ? [] : r.lines.map((l: any) => ({ compte: l.compte, sens: l.sens, montant: l.montant, libelle: l.libelle })),
           });
         }

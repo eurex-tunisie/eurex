@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS factures (
   timbre DOUBLE PRECISION DEFAULT 1,
   total_ttc DOUBLE PRECISION DEFAULT 0,
   journal TEXT DEFAULT 'VT J.C',
+  hors_caisse INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
 );
 

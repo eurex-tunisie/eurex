@@ -231,35 +231,39 @@ export default function DossierPage() {
     try {
       if (journal === 'VT J.C') {
         // Client-side: extract factures from each PDF
-        let ok = 0, skipped = 0;
+        let ok = 0, skipped = 0, ignored = 0;
         const seenNums = new Set(facturesDuJournal.map(f => f.numero_facture));
         for (const file of Array.from(files)) {
           const text = await extractTextFromPDF(file);
           // Parse invoice from text (client-side)
           const inv = parseInvoice(text);
           if (!inv.numero) inv.numero = file.name.replace(/[^0-9]/g, '');
+          // Un PDF qui n'est pas une facture (rapport, grand livre...) ne doit pas
+          // creer une facture vide : on l'ignore au lieu de fausser la journee.
+          if (!inv.date) { ignored++; continue; }
           if (seenNums.has(inv.numero)) { skipped++; continue; }
           seenNums.add(inv.numero);
           await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc, journal: 'VT J.C' });
           ok++;
         }
-        setOcrProgress(ok + ' facture(s) extraite(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + '. Generation VT J.C...');
+        setOcrProgress(ok + ' facture(s) extraite(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + (ignored ? ' (' + ignored + ' fichier(s) ignore(s): pas une facture)' : '') + '. Generation VT J.C...');
         await api.generateVTJC(id);
         setOcrProgress('Termine! ' + ok + ' facture(s) + ecritures generees');
       } else if (journal === 'VT C') {
         // Client-side: parse each invoice like VT J.C, then generate VT C entries
-        let ok = 0, skipped = 0;
+        let ok = 0, skipped = 0, ignored = 0;
         const seenNums2 = new Set(facturesDuJournal.map(f => f.numero_facture));
         for (const file of Array.from(files)) {
           const text = await extractTextFromPDF(file);
           const inv = parseInvoice(text);
           if (!inv.numero) inv.numero = file.name.replace(/[^0-9]/g, '');
+          if (!inv.date) { ignored++; continue; }
           if (seenNums2.has(inv.numero)) { skipped++; continue; }
           seenNums2.add(inv.numero);
           await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc, journal: 'VT C' });
           ok++;
         }
-        setOcrProgress(ok + ' facture(s) extraitee(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + '. Generation VT C...');
+        setOcrProgress(ok + ' facture(s) extraitee(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + (ignored ? ' (' + ignored + ' fichier(s) ignore(s): pas une facture)' : '') + '. Generation VT C...');
         const r = await api.generateVTJC(id, 'VT C');
         setOcrProgress('Termine! ' + ok + ' facture(s), ' + (r.days || 0) + ' jour(s)');
       } else if (journal === 'FISC') {
@@ -294,8 +298,15 @@ export default function DossierPage() {
     }
   };
 
-  const addFacture = async () => {
-    if (!id || !fNum || !fDate) return;
+  // Vente client (SOGEPLAN...) : la facture part en 411000 et ne fausse plus
+  // l'ecart de caisse 634500. Bascule immediate, puis regeneration conseillee.
+  const toggleHorsCaisse = async (f: any) => {
+    if (!id) return;
+    await api.updateFacture(f.id, { hors_caisse: f.hors_caisse ? 0 : 1 });
+    await reload();
+  };
+
+  const addFacture = async () => {    if (!id || !fNum || !fDate) return;
     const ht0 = parseFloat(fHt0) || 0;
     const ht19 = parseFloat(fHt19) || 0;
     const tva = parseFloat(fTva) || 0;
@@ -614,7 +625,7 @@ export default function DossierPage() {
             <div className="bg-white rounded-xl border overflow-hidden">
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs font-semibold uppercase table-header">
-                  <th className="px-4 py-3">Date</th><th className="px-4 py-3">N Facture</th><th className="px-4 py-3">Client</th><th className="px-4 py-3 text-right">HT 0%</th><th className="px-4 py-3 text-right">HT 19%</th><th className="px-4 py-3 text-right">TVA</th><th className="px-4 py-3 text-right">TTC</th><th className="px-4 py-3"></th>
+                  <th className="px-4 py-3">Date</th><th className="px-4 py-3">N Facture</th><th className="px-4 py-3">Client</th><th className="px-4 py-3 text-right">HT 0%</th><th className="px-4 py-3 text-right">HT 19%</th><th className="px-4 py-3 text-right">TVA</th><th className="px-4 py-3 text-right">TTC</th><th className="px-4 py-3">Encaissement</th><th className="px-4 py-3"></th>
                 </tr></thead>
                 <tbody className="divide-y divide-gray-100">
                   {facturesDuJournal.map(f => (
@@ -626,6 +637,9 @@ export default function DossierPage() {
                       <td className="px-4 py-2 text-right font-mono">{(f.total_ht_19 || 0).toFixed(3)}</td>
                       <td className="px-4 py-2 text-right font-mono">{(f.tva_19 || 0).toFixed(3)}</td>
                       <td className="px-4 py-2 text-right font-mono font-medium">{(f.total_ttc || 0).toFixed(3)}</td>
+                      <td className="px-4 py-2">
+                        <button onClick={() => toggleHorsCaisse(f)} title="Vente client (compte 411) au lieu de la caisse" className={`px-2 py-1 rounded text-xs font-medium ${f.hors_caisse ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>{f.hors_caisse ? 'Hors caisse' : 'Caisse'}</button>
+                      </td>
                       <td className="px-4 py-2"><button onClick={() => delFacture(f.id)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></td>
                     </tr>
                   ))}
@@ -781,7 +795,7 @@ export default function DossierPage() {
                           <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1">Factures :</h4>
                           <table className="w-full text-xs">
                             <thead><tr className="table-header"><th className="text-left">Num</th><th className="text-left">Client</th><th className="text-right">HT0</th><th className="text-right">HT19</th><th className="text-right">TVA</th><th className="text-right">TTC</th></tr></thead>
-                            <tbody className="divide-y divide-gray-100">{a.factures.map((f: any, i: number) => <tr key={i}><td className="font-mono">{f.num}</td><td>{f.client}</td><td className="text-right font-mono">{f.ht0.toFixed(3)}</td><td className="text-right font-mono">{f.ht19.toFixed(3)}</td><td className="text-right font-mono">{f.tva.toFixed(3)}</td><td className="text-right font-mono font-medium">{f.ttc.toFixed(3)}</td></tr>)}</tbody>
+                            <tbody className="divide-y divide-gray-100">{a.factures.map((f: any, i: number) => <tr key={i}><td className="font-mono">{f.num}</td><td>{f.client}{f.horsCaisse ? <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-xs">hors caisse</span> : null}</td><td className="text-right font-mono">{f.ht0.toFixed(3)}</td><td className="text-right font-mono">{f.ht19.toFixed(3)}</td><td className="text-right font-mono">{f.tva.toFixed(3)}</td><td className="text-right font-mono font-medium">{f.ttc.toFixed(3)}</td></tr>)}</tbody>
                           </table>
                         </div>
                         {a.proposedEcritures.length > 0 && (
@@ -801,16 +815,17 @@ export default function DossierPage() {
               <div className="bg-white rounded-xl border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-xs font-semibold uppercase table-header">
-                    <th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Factures TTC</th><th className="px-3 py-2 text-right">Rapport Total</th><th className="px-3 py-2 text-right">Ecart</th><th className="px-3 py-2 text-center">Statut</th>
+                    <th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Factures TTC</th><th className="px-3 py-2 text-right">Encaisse</th><th className="px-3 py-2 text-right">dont Credit</th><th className="px-3 py-2 text-right">Ecart</th><th className="px-3 py-2 text-center">Statut</th>
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {analyse.map((a: any) => (
                       <tr key={a.date} className={Math.abs(a.ecart) > 3 ? 'bg-red-50' : 'row-hover'}>
-                        <td className="px-3 py-2 font-mono text-xs">{a.date}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{a.date || '(date inconnue)'}</td>
                         <td className="px-3 py-2 text-right font-mono">{a.totalFactures.toFixed(2)}</td>
-                        <td className="px-3 py-2 text-right font-mono">{a.totalModes.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right font-mono">{(a.modes.especes + a.modes.cheques + a.modes.tpe + a.modes.bonsAchat + a.modes.avoir).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-400">{a.modes.credit ? a.modes.credit.toFixed(2) : '-'}</td>
                         <td className={`px-3 py-2 text-right font-mono font-bold ${Math.abs(a.ecart) > 3 ? 'text-red-600' : Math.abs(a.ecart) > 1 ? 'text-amber-600' : 'text-emerald-600'}`}>{a.ecart.toFixed(3)}</td>
-                        <td className="px-3 py-2 text-center">{a.excluded ? <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded">EXCLU</span> : <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded">OK</span>}</td>
+                        <td className="px-3 py-2 text-center">{a.excluded ? <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded">EXCLU</span> : Math.abs(a.ecart) > 3 ? <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded">ECART</span> : <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded">OK</span>}</td>
                       </tr>
                     ))}
                   </tbody>
