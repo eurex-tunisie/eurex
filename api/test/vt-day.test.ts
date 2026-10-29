@@ -59,13 +59,17 @@ test('journee sans negatif : bons d achat au debit, piece equilibree', () => {
   assert.ok(r.lines.some((l: any) => l.compte === '436711' && l.montant === 58.884));
 });
 
-test('mode credit (vente a credit) : ligne 411000 au debit, piece equilibree', () => {
-  const modes = { especes: 100, cheques: 0, tpe: 0, bonsAchat: 0, avoir: 0, credit: 50 };
-  const r = buildDayEcritures('2026-02-17', [facture], modes, 'CLTS PASSAGERS', 'VT C');
-  const cred = r.lines.find((l: any) => l.compte === '411000');
-  assert.equal(cred.sens, 'D');
-  assert.equal(cred.montant, 50);
-  assert.equal(sum(r.lines, 'D'), sum(r.lines, 'C'));
+test('mode credit : exclu du calcul de 634500 et piece equilibree (pas de ligne 411000)', () => {
+  const base = { especes: 1300, cheques: 0, tpe: 0, bonsAchat: 0, avoir: 0 };
+  const sansCredit = buildDayEcritures('2026-02-17', [facture], { ...base, credit: 0 }, 'CLTS PASSAGERS', 'VT C');
+  const avecCredit = buildDayEcritures('2026-02-17', [facture], { ...base, credit: 50 }, 'CLTS PASSAGERS', 'VT C');
+  const e1 = sansCredit.lines.find((l: any) => l.compte === '634500');
+  const e2 = avecCredit.lines.find((l: any) => l.compte === '634500');
+  assert.equal(avecCredit.lines.some((l: any) => l.compte === '411000'), false);
+  // le credit ne doit rien changer a l'ecart
+  assert.equal(e2.montant, e1.montant);
+  assert.equal(e2.montant, Math.round((1300 - (906.492 + 309.916 + 58.884 + 1)) * 1000) / 1000);
+  assert.equal(sum(avecCredit.lines, 'D'), sum(avecCredit.lines, 'C'));
 });
 test('encaissement negatif (remboursement especes) : ligne au credit', () => {
   const modes = { especes: -20, cheques: 0, tpe: 0, bonsAchat: 0, avoir: 0, credit: 0 };
