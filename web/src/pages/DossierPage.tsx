@@ -306,6 +306,15 @@ export default function DossierPage() {
     await reload();
   };
 
+  const editDateFacture = async (f: any) => {
+    if (!id) return;
+    const v = prompt('Nouvelle date (YYYY-MM-DD) :', f.date_facture);
+    if (!v || v === f.date_facture) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { alert('Format attendu : YYYY-MM-DD'); return; }
+    await api.updateFacture(f.id, { date_facture: v });
+    await reload();
+  };
+
   const addFacture = async () => {    if (!id || !fNum || !fDate) return;
     const ht0 = parseFloat(fHt0) || 0;
     const ht19 = parseFloat(fHt19) || 0;
@@ -630,7 +639,7 @@ export default function DossierPage() {
                 <tbody className="divide-y divide-gray-100">
                   {facturesDuJournal.map(f => (
                     <tr key={f.id} className="row-hover">
-                      <td className="px-4 py-2">{f.date_facture}</td>
+                      <td className="px-4 py-2"><button onClick={() => editDateFacture(f)} className="font-mono text-xs hover:text-blue-600 hover:underline" title="Modifier la date">{f.date_facture}</button></td>
                       <td className="px-4 py-2 font-mono text-xs">{f.numero_facture}</td>
                       <td className="px-4 py-2">{f.client || '-'}</td>
                       <td className="px-4 py-2 text-right font-mono">{(f.total_ht_0 || 0).toFixed(3)}</td>
