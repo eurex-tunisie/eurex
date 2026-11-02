@@ -69,8 +69,9 @@ Supabase (SQL Editor ou psql), et **jamais** sa partie données si D1 était
 primaire à ce moment-là (la double écriture les a déjà copiées : les rejouer
 ferait des doublons).
 
-Exemple prêt à l'emploi : `api/supabase/rattrapage-0035-0038.sql` (idempotent,
-se termine par un contrôle de colonnes).
+Exemples prêts à l'emploi : `api/supabase/rattrapage-0035-0038.sql` et
+`api/supabase/migration-0043-cabinet-time-costs.sql` (idempotents, avec contrôle
+des colonnes). Appliquer le miroir PostgreSQL avant de déployer une migration D1.
 
 ---
 

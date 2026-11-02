@@ -163,6 +163,8 @@ export interface OrgTask {
   month: number | null;
   updated_at: string;
   total_time_seconds: number;
+  norm_seconds?: number | null;
+  time_cost_cents?: number | null;
   timer_started_at: string | null;
   timer_user_id: string | null;
   updated_by_name: string | null;
@@ -313,6 +315,7 @@ export interface OrgComptable {
   email: string;
   is_active: number;
   role?: 'comptable' | 'manager' | 'expert';
+  hourly_cost_cents?: number | null;
   client_count: number;
   avg_progress: number;
   task_stats: { total: number; fait: number; en_cours: number; bloque_client: number; overdue?: number };
@@ -343,6 +346,7 @@ export interface OrgTemplate {
   // Modele rattache a UN client (null = tous les dossiers du cabinet)
   client_id?: string | null;
   client_name?: string | null;
+  norm_seconds?: number | null;
 }
 
 export interface TimelineEvent {
@@ -603,10 +607,11 @@ export const orgApi = {
   // Expert-only
   getComptables: () => req<OrgComptable[]>('/org/comptables'),
   getComptableDetail: (id: string) => req<any>(`/org/comptables/${id}/detail`),
-  createComptable: (d: any) => req<any>('/org/comptables', { method: 'POST', body: JSON.stringify(d) }),
+  createComptable: (d: { full_name: string; email: string; password: string; role: 'comptable' | 'manager' | 'expert'; hourly_cost_cents?: number | null }) => req<any>('/org/comptables', { method: 'POST', body: JSON.stringify(d) }),
+  getDossierCost: (dossierId: string) => req<{ time_cost_by_user: { user_id: string; full_name: string; role: string | null; role_label: string | null; seconds: number; hourly_cost_cents: number | null; cost_cents: number | null }[]; total_time_cost_cents: number | null; time_cost_complete: boolean }>(`/org/dossiers/${dossierId}/cost`),
   toggleComptable: (id: string, isActive: boolean) =>
     req<any>(`/org/comptables/${id}`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) }),
-  updateComptable: (id: string, patch: { full_name?: string; email?: string; password?: string; role?: 'comptable' | 'manager' | 'expert' }) =>
+  updateComptable: (id: string, patch: { full_name?: string; email?: string; password?: string; role?: 'comptable' | 'manager' | 'expert'; hourly_cost_cents?: number | null }) =>
     req<any>(`/org/comptables/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   updateProfile: (patch: { full_name?: string; email?: string }) =>
     req<any>('/org/auth/me', { method: 'PATCH', body: JSON.stringify(patch) }),
@@ -614,9 +619,9 @@ export const orgApi = {
 
   // Templates
   getTemplates: () => req<OrgTemplate[]>('/org/templates'),
-  createTemplate: (label: string, requiresDocument: boolean, assignedComptableId?: string | null, frequency?: OrgFrequency, month?: number | null, clientId?: string | null) =>
-    req<any>('/org/templates', { method: 'POST', body: JSON.stringify({ label, requires_document: requiresDocument, assigned_comptable_id: assignedComptableId || null, frequency: frequency || 'annuelle', month: month ?? null, client_id: clientId || null }) }),
-  updateTemplate: (id: string, patch: { assigned_comptable_id?: string | null; frequency?: OrgFrequency; month?: number | null; client_id?: string | null; requires_document?: boolean }) =>
+  createTemplate: (label: string, requiresDocument: boolean, assignedComptableId?: string | null, frequency?: OrgFrequency, month?: number | null, clientId?: string | null, normSeconds?: number | null) =>
+    req<any>('/org/templates', { method: 'POST', body: JSON.stringify({ label, requires_document: requiresDocument, assigned_comptable_id: assignedComptableId || null, frequency: frequency || 'annuelle', month: month ?? null, client_id: clientId || null, norm_seconds: normSeconds ?? null }) }),
+  updateTemplate: (id: string, patch: { assigned_comptable_id?: string | null; frequency?: OrgFrequency; month?: number | null; client_id?: string | null; requires_document?: boolean; norm_seconds?: number | null }) =>
     req<any>(`/org/templates/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   // Application retroactive du modele aux dossiers encore ouverts (idempotent)
   applyTemplate: (id: string) =>

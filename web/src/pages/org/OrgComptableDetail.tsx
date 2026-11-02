@@ -31,6 +31,8 @@ export default function OrgComptableDetail() {
   if (!data) return <div className="text-center py-12 text-gray-400">Comptable non trouvé</div>;
 
   const { comptable: c, dossiers, recent_tasks, recent_notes, time_entries, time_by_dossier, total_time_seconds, audit_log, active_timer, kpis } = data;
+  const hourlyCostCents = c.hourly_cost_cents == null ? null : Number(c.hourly_cost_cents);
+  const personnelCostCents = hourlyCostCents == null ? null : Math.round(hourlyCostCents * total_time_seconds / 3600);
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -202,6 +204,7 @@ export default function OrgComptableDetail() {
           {/* Time summary */}
           <div className="card p-4 space-y-3">
             <h3 className="text-sm font-semibold text-gray-700">{t('comp.time_by_dossier')}</h3>
+            <p className="text-xs text-gray-500" data-testid="comptable-hourly-cost">Coût horaire : {hourlyCostCents == null ? 'non renseigné' : `${(hourlyCostCents / 100).toFixed(2)} DT/h`} · Coût temps pointé : {personnelCostCents == null ? '—' : `${(personnelCostCents / 100).toFixed(2)} DT`}</p>
             {time_by_dossier.length === 0 && <p className="text-xs text-gray-400">Aucun temps enregistré</p>}
             {time_by_dossier.map((td: any, i: number) => {
               const sumDossiers = time_by_dossier.reduce((s: number, x: any) => s + (x.seconds || 0), 0);

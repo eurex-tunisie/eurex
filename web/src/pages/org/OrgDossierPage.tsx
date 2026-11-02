@@ -96,6 +96,7 @@ export default function OrgDossierPage() {
   const { state } = useOrgAuth();
   const isExpert = state.user?.role === 'expert' || state.user?.role === 'manager';
   const [dossier, setDossier] = useState<OrgDossier | null>(null);
+  const [costSummary, setCostSummary] = useState<any>(null);
   const [loadError, setLoadError] = useState('');
   const [grantComp, setGrantComp] = useState('');
   const [grantDays, setGrantDays] = useState(7);
@@ -144,6 +145,7 @@ export default function OrgDossierPage() {
     if (!id) return;
     setLoadError('');
     orgApi.getDossier(id).then(setDossier).catch(e => { setLoadError(e.message || 'Erreur'); console.error(e); }).finally(() => setLoading(false));
+    if (isExpert) orgApi.getDossierCost(id).then(setCostSummary).catch(() => setCostSummary(null));
   };
 
   // Renfort : ouvrir / revoquer un acces temporaire (expert/manager)
@@ -219,6 +221,10 @@ export default function OrgDossierPage() {
   };
 
   useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    if (!id || !isExpert) { setCostSummary(null); return; }
+    orgApi.getDossierCost(id).then(setCostSummary).catch(() => setCostSummary(null));
+  }, [id, isExpert]);
 
   // Lien direct vers une tâche : /cabinet/dossier/<id>?task=<taskId>
   // et/ou vers un onglet : ?tab=documents|notes|timeline|year (depuis la recherche globale)
@@ -788,6 +794,14 @@ export default function OrgDossierPage() {
             <p className="text-[11px] text-gray-400 mt-1">
               ⏱ {formatTime(dossier.tasks?.reduce((s: number, t: any) => s + (t.total_time_seconds || 0), 0) || 0)}
             </p>
+            {isExpert && (
+              <div className="mt-1 text-[11px]" data-testid="dossier-time-cost">
+                <p className="font-semibold text-emerald-700">
+                  Coût temps : {costSummary?.time_cost_complete && costSummary.total_time_cost_cents != null ? `${(costSummary.total_time_cost_cents / 100).toFixed(2)} DT` : 'à compléter (taux horaire manquant)'}
+                </p>
+                <p className="text-gray-400">La norme par tâche est indicative; le coût inclut le temps comptable et la vérification pointée.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1302,6 +1316,14 @@ export default function OrgDossierPage() {
                                 '⏱ Pas encore chronométré'
                               )}
                             </span>
+                            {task.norm_seconds != null && (
+                              <span className="text-[11px] text-indigo-700 bg-indigo-50 rounded px-2 py-1" data-testid="task-norm">
+                                Norme {formatTime(task.norm_seconds)} · {task.total_time_seconds > task.norm_seconds ? `+${formatTime(task.total_time_seconds - task.norm_seconds)} au-dessus` : `${formatTime(task.norm_seconds - task.total_time_seconds)} restantes`}
+                              </span>
+                            )}
+                            {isExpert && task.time_cost_cents != null && (
+                              <span className="text-[11px] text-emerald-700 bg-emerald-50 rounded px-2 py-1" data-testid="task-time-cost">Coût { (task.time_cost_cents / 100).toFixed(2) } DT</span>
+                            )}
                             {others.length > 0 && (
                               <span className="text-[11px] text-orange-600 font-medium" data-testid="other-timers">
                                 ⏱ {othersNames} chronomètre
@@ -2021,7 +2043,7 @@ export default function OrgDossierPage() {
             <p className="text-xs text-gray-500 mb-3">
               « {verifyTaskTarget.label} »
               <br />
-              La tâche passera en <strong>Terminé</strong> avec un pointage du temps de validation.
+              La tâche passera en <strong>Terminé</strong>. Le temps de vérification sera pointé et imputé à ce dossier.
             </p>
             <label className="block text-xs font-medium text-gray-600 mb-1">
               Note de validation <span className="text-gray-400 font-normal">(facultative)</span>

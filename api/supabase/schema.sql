@@ -304,7 +304,8 @@ CREATE TABLE IF NOT EXISTS org_users (
   is_active BIGINT DEFAULT 1,
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
   role_label TEXT,
-  last_seen_at TEXT
+  last_seen_at TEXT,
+  hourly_cost_cents BIGINT
 );
 
 CREATE TABLE IF NOT EXISTS org_clients (
@@ -358,7 +359,8 @@ CREATE TABLE IF NOT EXISTS org_tasks (
   created_by TEXT,
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
   done_by TEXT,
-  hidden BIGINT NOT NULL DEFAULT 0
+  hidden BIGINT NOT NULL DEFAULT 0,
+  norm_seconds BIGINT
 );
 
 CREATE TABLE IF NOT EXISTS org_expected_documents (
@@ -387,7 +389,8 @@ CREATE TABLE IF NOT EXISTS org_task_templates (
   frequency TEXT NOT NULL DEFAULT 'annuelle',
   export_scope TEXT,
   month BIGINT,
-  client_id TEXT
+  client_id TEXT,
+  norm_seconds BIGINT
 );
 
 CREATE TABLE IF NOT EXISTS org_audit_log (

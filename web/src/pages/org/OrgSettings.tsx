@@ -31,6 +31,8 @@ export default function OrgSettings() {
   const [comptables, setComptables] = useState<OrgComptable[]>([]);
   const [loading, setLoading] = useState(true);
   const [newLabel, setNewLabel] = useState('');
+  const [newNormH, setNewNormH] = useState('');
+  const [newNormM, setNewNormM] = useState('');
   const [newRequiresDoc, setNewRequiresDoc] = useState(false);
   const [newAssignedComp, setNewAssignedComp] = useState('');
   const [newFrequency, setNewFrequency] = useState<OrgFrequency>('annuelle');
@@ -40,11 +42,13 @@ export default function OrgSettings() {
   const [newCompName, setNewCompName] = useState('');
   const [newCompEmail, setNewCompEmail] = useState('');
   const [newCompPassword, setNewCompPassword] = useState('');
+  const [newCompHourlyCost, setNewCompHourlyCost] = useState('');
   const [editCompId, setEditCompId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPwd, setEditPwd] = useState('');
   const [editRole, setEditRole] = useState<Role>('comptable');
+  const [editHourlyCost, setEditHourlyCost] = useState('');
   const [newCompRole, setNewCompRole] = useState<Role>('comptable');
   // Corbeille clients (soft-delete 30 jours)
   const [trash, setTrash] = useState<any[]>([]);
@@ -85,8 +89,10 @@ export default function OrgSettings() {
   const addTemplate = async () => {
     if (!newLabel.trim()) return;
     try {
-      await orgApi.createTemplate(newLabel.trim(), newRequiresDoc, newAssignedComp || null, newFrequency, newMonth ? Number(newMonth) : null, newClientId || null);
+      const norm = newNormH || newNormM ? (Number(newNormH || 0) * 3600 + Number(newNormM || 0) * 60) : null;
+      await orgApi.createTemplate(newLabel.trim(), newRequiresDoc, newAssignedComp || null, newFrequency, newMonth ? Number(newMonth) : null, newClientId || null, norm);
       setNewLabel('');
+      setNewNormH(''); setNewNormM('');
       setNewRequiresDoc(false);
       setNewAssignedComp('');
       setNewMonth('');
@@ -127,6 +133,15 @@ export default function OrgSettings() {
     }
   };
 
+  const changeNorm = async (id: string, h: number, m: number) => {
+    if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 720 || m < 0 || m > 59) { alert('Norme invalide'); return; }
+    try {
+      const norm_seconds = h * 3600 + m * 60;
+      await orgApi.updateTemplate(id, { norm_seconds: norm_seconds || null });
+      setTemplates(templates.map(tmpl => tmpl.id === id ? { ...tmpl, norm_seconds: norm_seconds || null } : tmpl));
+    } catch (err: any) { alert(err.message); }
+  };
+
   const toggleRequiresDoc = async (id: string) => {
     const tmpl = templates.find(t => t.id === id);
     if (!tmpl) return;
@@ -161,17 +176,20 @@ export default function OrgSettings() {
 
   const addComptable = async () => {
     if (!newCompName.trim() || !newCompEmail.trim() || !newCompPassword.trim()) return;
+    if (newCompHourlyCost.trim() && (!Number.isFinite(Number(newCompHourlyCost.replace(',', '.'))) || Number(newCompHourlyCost.replace(',', '.')) < 0)) { alert('Coût horaire invalide'); return; }
     try {
       await orgApi.createComptable({
         full_name: newCompName.trim(),
         email: newCompEmail.trim(),
         password: newCompPassword.trim(),
         role: newCompRole,
+        hourly_cost_cents: newCompHourlyCost.trim() ? Math.round(Number(newCompHourlyCost.replace(',', '.')) * 100) : null,
       });
       setNewCompName('');
       setNewCompEmail('');
       setNewCompPassword('');
       setNewCompRole('comptable');
+      setNewCompHourlyCost('');
       setComptables(await orgApi.getComptables());
     } catch (err: any) {
       alert(err.message);
@@ -184,17 +202,20 @@ export default function OrgSettings() {
     setEditEmail(c.email);
     setEditPwd('');
     setEditRole(c.role || 'comptable');
+    setEditHourlyCost(c.hourly_cost_cents == null ? '' : (c.hourly_cost_cents / 100).toFixed(2));
   };
 
   const saveEditComp = async (id: string) => {
     if (!editName.trim()) { alert('Nom requis'); return; }
     if (!isValidEmail(editEmail)) { alert('Email invalide'); return; }
     if (editPwd && !isValidPassword(editPwd)) { alert('Mot de passe : 12 caractères minimum'); return; }
+    if (editHourlyCost.trim() && (!Number.isFinite(Number(editHourlyCost.replace(',', '.'))) || Number(editHourlyCost.replace(',', '.')) < 0)) { alert('Coût horaire invalide'); return; }
     try {
-      const patch: { full_name?: string; email?: string; password?: string; role?: Role } = {
+      const patch: { full_name?: string; email?: string; password?: string; role?: Role; hourly_cost_cents?: number | null } = {
         full_name: editName.trim(),
         email: editEmail.trim(),
         role: editRole,
+        hourly_cost_cents: editHourlyCost.trim() ? Math.round(Number(editHourlyCost.replace(',', '.')) * 100) : null,
       };
       if (editPwd) patch.password = editPwd;
       await orgApi.updateComptable(id, patch);
@@ -249,8 +270,8 @@ export default function OrgSettings() {
         <div className="space-y-3">
           <div className="card p-4">
             <h3 className="font-semibold text-sm text-gray-700 mb-3">{t('templates.add')}</h3>
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
+            <div className="grid grid-cols-2 lg:grid-cols-6 items-end gap-3">
+              <div className="lg:col-span-2">
                 <input
                   type="text"
                   value={newLabel}
@@ -269,6 +290,13 @@ export default function OrgSettings() {
                 />
                 {t('templates.requires_doc')}
               </label>
+              <div className="flex items-center gap-1">
+                <label className="text-[11px] text-gray-500 whitespace-nowrap">Norme</label>
+                <input type="number" min="0" step="1" value={newNormH} onChange={e => setNewNormH(e.target.value)} className="input-sm w-16 text-sm" aria-label="Heures norme tâche" placeholder="h" />
+                <span className="text-xs text-gray-400">h</span>
+                <input type="number" min="0" max="59" step="1" value={newNormM} onChange={e => setNewNormM(e.target.value)} className="input-sm w-16 text-sm" aria-label="Minutes norme tâche" placeholder="min" />
+                <span className="text-xs text-gray-400">min</span>
+              </div>
               <select
                 data-testid="template-freq-new"
                 value={newFrequency}
@@ -338,6 +366,13 @@ export default function OrgSettings() {
                   </span>
                 ) : null}
               </span>
+              <div className="flex items-center gap-1" title="Norme indicative pour réaliser cette tâche">
+                <span className="text-[10px] text-gray-400">Norme</span>
+                <input aria-label={`Heures norme ${tmpl.label}`} type="number" min="0" max="720" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor(tmpl.norm_seconds / 3600)} onBlur={e => changeNorm(tmpl.id, Number(e.target.value || 0), Number((e.currentTarget.parentElement?.querySelector('[data-norm-min]') as HTMLInputElement)?.value || 0))} data-testid="template-norm-hours" className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="h" />
+                <span className="text-[10px] text-gray-400">h</span>
+                <input aria-label={`Minutes norme ${tmpl.label}`} data-norm-min="1" type="number" min="0" max="59" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor((tmpl.norm_seconds % 3600) / 60)} onBlur={e => changeNorm(tmpl.id, Number((e.currentTarget.parentElement?.querySelector('[data-testid="template-norm-hours"]') as HTMLInputElement)?.value || 0), Number(e.target.value || 0))} className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="min" />
+                <span className="text-[10px] text-gray-400">min</span>
+              </div>
               <span
                 data-testid="template-target"
                 className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap ${
@@ -419,7 +454,7 @@ export default function OrgSettings() {
         <div className="space-y-3">
           <div className="card p-4">
             <h3 className="font-semibold text-sm text-gray-700 mb-3">Ajouter un comptable</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
               <input
                 type="text"
                 value={newCompName}
@@ -450,6 +485,13 @@ export default function OrgSettings() {
                 <option value="manager">Rôle : Manager</option>
                 <option value="expert">Rôle : Expert</option>
               </select>
+              <input
+                type="number" min="0" step="0.01" value={newCompHourlyCost}
+                onChange={e => setNewCompHourlyCost(e.target.value)}
+                placeholder="Coût horaire (DT/h)" className="input-field text-sm"
+                title="Coût horaire confidentiel : superviseurs seulement"
+                aria-label="Coût horaire en dinars par heure"
+              />
             </div>
             <button
               onClick={addComptable}
@@ -463,7 +505,7 @@ export default function OrgSettings() {
           {comptables.map(c => (
             <div key={c.id} className={`card p-4 flex items-center gap-4 ${c.is_active ? 'border-gray-200' : 'border-gray-100 opacity-60'}`}>
               {editCompId === c.id ? (
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2">
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-2">
                   <input
                     autoFocus
                     value={editName}
@@ -494,11 +536,23 @@ export default function OrgSettings() {
                     <option value="manager">Manager</option>
                     <option value="expert">Expert</option>
                   </select>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editHourlyCost}
+                    onChange={e => setEditHourlyCost(e.target.value)}
+                    placeholder="Coût horaire (DT)"
+                    className="input-field py-1.5 text-sm"
+                    title="Coût horaire confidentiel, visible aux superviseurs"
+                    aria-label="Coût horaire en dinars"
+                  />
                 </div>
               ) : (
                 <div className="flex-1">
                   <p className="font-semibold text-sm text-gray-800">{c.full_name}<RoleBadge role={c.role} /></p>
                   <p className="text-xs text-gray-500">{c.email}</p>
+                  <p className="text-[11px] text-gray-400">Coût horaire : {c.hourly_cost_cents == null ? 'non renseigné' : `${(c.hourly_cost_cents / 100).toFixed(2)} DT/h`}</p>
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                     <span>{c.client_count} clients</span>
                     <span>•</span>
