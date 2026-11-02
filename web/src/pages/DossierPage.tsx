@@ -185,6 +185,7 @@ export default function DossierPage() {
   const [rapport, setRapport] = useState<any[]>([]);
   const [analyse, setAnalyse] = useState<any[]>([]);
   const [analyseLoading, setAnalyseLoading] = useState(false);
+  const [sequenceReport, setSequenceReport] = useState<any[]>([]);
   const rapportRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -372,6 +373,32 @@ export default function DossierPage() {
     finally { setAnalyseLoading(false); }
   };
   useEffect(() => { if (tab === 'analyse' && id) loadAnalyse(); }, [tab, id]);
+
+  // Compare invoice references against the selected journal's own dataset.
+  // The fiscal prefix (e.g. 2026/) is not part of the running sequence.
+  const checkInvoiceSequence = () => {
+    const records = facturesDuJournal
+      .map((f: any) => {
+        const raw = String(f.numero_facture || '').trim();
+        const match = raw.match(/(?:^|\/)(\d+)\s*$/);
+        return { raw, number: match ? Number(match[1]) : null, date: f.date_facture, client: f.client };
+      })
+      .sort((a, b) => (a.number ?? Number.MAX_SAFE_INTEGER) - (b.number ?? Number.MAX_SAFE_INTEGER));
+    const counts = new Map<number, number>();
+    for (const f of records) if (f.number !== null) counts.set(f.number, (counts.get(f.number) || 0) + 1);
+    const numbers = [...counts.keys()].sort((a, b) => a - b);
+    const missing: number[] = [];
+    if (numbers.length) for (let n = numbers[0]; n <= numbers[numbers.length - 1]; n++) if (!counts.has(n)) missing.push(n);
+    setSequenceReport([
+      { kind: 'summary', count: records.length, first: numbers[0] ?? null, last: numbers[numbers.length - 1] ?? null },
+      ...missing.map(number => ({ kind: 'missing', number })),
+      ...[...counts.entries()].filter(([, count]) => count > 1).map(([number, count]) => ({ kind: 'duplicate', number, count })),
+      ...records.filter(f => f.number === null).map(f => ({ kind: 'unreadable', ...f })),
+    ]);
+  };
+  useEffect(() => {
+    if (tab === 'factures') checkInvoiceSequence();
+  }, [tab, journal, factures]);
 
   const exportCSV = async () => {
     if (!id) return;
@@ -654,6 +681,33 @@ export default function DossierPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {sequenceReport.length > 0 && (
+            <div className="bg-white rounded-xl border p-4" aria-live="polite">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-sm">Contrôle de séquence des factures</h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {sequenceReport[0].count} facture(s) {sequenceReport[0].first != null ? `— série observée ${sequenceReport[0].first} à ${sequenceReport[0].last}` : ''}. Vérification à l'intérieur de la série, pas de l'intervalle 1–dernier numéro.
+                  </p>
+                </div>
+                <button onClick={checkInvoiceSequence} className="text-xs text-blue-700 hover:underline">Recontrôler</button>
+              </div>
+              {sequenceReport.length === 1 ? (
+                <p className="mt-3 text-sm text-emerald-700">Aucun numéro manquant ou doublon détecté entre le premier et le dernier numéro enregistré.</p>
+              ) : (
+                <ul className="mt-3 space-y-1 text-sm">
+                  {sequenceReport.slice(1).map((issue: any, i: number) => (
+                    <li key={`${issue.kind}-${issue.number ?? issue.raw}-${i}`} className={issue.kind === 'missing' ? 'text-amber-700' : 'text-red-700'}>
+                      {issue.kind === 'missing' && `Numéro absent de la liste enregistrée : ${issue.number}`}
+                      {issue.kind === 'duplicate' && `Numéro en double dans les factures enregistrées : ${issue.number} (${issue.count} fois)`}
+                      {issue.kind === 'unreadable' && `Numéro non reconnu : « ${issue.raw || '(vide)'} » — ${issue.date || ''} ${issue.client || ''}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
