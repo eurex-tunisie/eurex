@@ -28,6 +28,7 @@ const AUDIT_LABELS: Record<string, string> = {
   task_deleted: 'Tâche supprimée',
   task_status_changed: 'Statut de tâche modifié',
   task_verified: 'Tâche vérifiée',
+  task_unvalidated: 'Validation annulée',
   task_returned: 'Renvoyée en correction',
   task_renamed: 'Tâche renommée',
   task_assigned: 'Tâche assignée',
@@ -279,6 +280,41 @@ export default function OrgDossierPage() {
   }, [tab, id]);
 
   const [vdH, setVdH] = useState<Record<string, string>>({});
+
+  // Validation expert : note facultative + temps passe (modal), et annulation possible
+  const [verifyTaskTarget, setVerifyTaskTarget] = useState<OrgTask | null>(null);
+  const [verifyNote, setVerifyNote] = useState('');
+  const [verifyMins, setVerifyMins] = useState('5');
+  const [verifyBusy, setVerifyBusy] = useState(false);
+
+  const submitVerify = async () => {
+    if (!dossier || !verifyTaskTarget) return;
+    const mins = Number(verifyMins);
+    if (!Number.isFinite(mins) || mins < 0 || mins > 120) { alert('Temps invalide (0 à 120 minutes)'); return; }
+    setVerifyBusy(true);
+    try {
+      await orgApi.verifyTask(dossier.id, verifyTaskTarget.id, { note: verifyNote, minutes: mins });
+      setVerifyTaskTarget(null);
+      setVerifyNote('');
+      setVerifyMins('5');
+      load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setVerifyBusy(false);
+    }
+  };
+
+  const unverifyTask = async (task: OrgTask) => {
+    if (!dossier) return;
+    if (!confirm(`Annuler la validation de « ${task.label} » ? La tâche repasse en vérification (le pointage et la note de validation seront retirés).`)) return;
+    try {
+      await orgApi.unverifyTask(dossier.id, task.id);
+      load();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
 
   const updateTaskStatus = async (taskId: string, newStatus: string, reason?: string) => {
     if (!dossier) return;
@@ -1526,8 +1562,13 @@ export default function OrgDossierPage() {
                         </button>
                       )}
                       {task.status === 'a_verifier' && isExpert && (
-                        <button onClick={() => updateTaskStatus(task.id, 'fait')} className="px-3 py-1.5 rounded-lg text-xs bg-amber-100 text-amber-800 hover:bg-amber-200 font-semibold">
+                        <button onClick={() => { setVerifyTaskTarget(task); setVerifyNote(''); setVerifyMins('5'); }} className="px-3 py-1.5 rounded-lg text-xs bg-amber-100 text-amber-800 hover:bg-amber-200 font-semibold" data-testid="task-verify-btn">
                           ✅ {t('status.a_verifier_ok')}
+                        </button>
+                      )}
+                      {task.status === 'fait' && isExpert && !!task.verified_by_name && (
+                        <button onClick={() => unverifyTask(task)} className="px-3 py-1.5 rounded-lg text-xs bg-gray-100 text-gray-600 hover:bg-gray-200" data-testid="task-unverify-btn">
+                          ↩ Annuler la validation
                         </button>
                       )}
                       {task.status === 'a_verifier' && !isExpert && (
@@ -1969,6 +2010,59 @@ export default function OrgDossierPage() {
             </div>
           )}
           <p className="text-xs text-gray-400 mt-2">{auditLog.length} entrée(s) — dernières 200 actions du dossier (tâches, documents, notes, renforts, clôture)</p>
+        </div>
+      )}
+
+      {/* Modal validation : note facultative + temps passe par l'expert */}
+      {verifyTaskTarget && (
+        <div className="modal-overlay" data-testid="task-verify-modal">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-md">
+            <h3 className="font-bold text-gray-800 mb-1">✅ Valider la vérification</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              « {verifyTaskTarget.label} »
+              <br />
+              La tâche passera en <strong>Terminé</strong> avec un pointage du temps de validation.
+            </p>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Note de validation <span className="text-gray-400 font-normal">(facultative)</span>
+            </label>
+            <textarea
+              value={verifyNote}
+              onChange={e => setVerifyNote(e.target.value)}
+              rows={3}
+              autoFocus
+              maxLength={1000}
+              placeholder="Ce qui a été vérifié, remarques…"
+              className="input-field w-full p-2.5 text-sm resize-none"
+              data-testid="task-verify-note"
+            />
+            <label className="block text-xs font-medium text-gray-600 mb-1 mt-3">
+              Temps passé à vérifier (minutes)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={120}
+              step={1}
+              value={verifyMins}
+              onChange={e => setVerifyMins(e.target.value)}
+              className="input-field w-full p-2.5 text-sm"
+              data-testid="task-verify-mins"
+            />
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setVerifyTaskTarget(null)} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">
+                Annuler
+              </button>
+              <button
+                onClick={submitVerify}
+                disabled={verifyBusy}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                data-testid="task-verify-submit"
+              >
+                {verifyBusy ? 'Validation…' : 'Valider'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -99,6 +99,10 @@ export default function OrgDashboardExpert() {
   const [filterComptable, setFilterComptable] = useState<string>(searchParams.get('comptable') || 'all');
   // Tâches faites par les comptables, en attente de vérification expert/manager
   const [verifyTasks, setVerifyTasks] = useState<OrgVerifyTask[]>([]);
+  // Validation avec note + temps passe : le modal remplace l'ancien confirm()
+  const [verifyTarget, setVerifyTarget] = useState<OrgVerifyTask | null>(null);
+  const [verifyNote, setVerifyNote] = useState('');
+  const [verifyMins, setVerifyMins] = useState('5');
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   // New dossier modal
   const [showNewDossier, setShowNewDossier] = useState(false);
@@ -319,11 +323,21 @@ export default function OrgDashboardExpert() {
   }, [exercice]);
 
   const verifyOne = async (vt: OrgVerifyTask) => {
-    if (!confirm(`Valider la tâche « ${vt.label} » (${vt.client_name}) ?`)) return;
-    setVerifyingId(vt.id);
+    setVerifyTarget(vt);
+    setVerifyNote('');
+    setVerifyMins('5');
+  };
+
+  // Envoi de la validation (note facultative + temps en minutes)
+  const submitVerify = async () => {
+    if (!verifyTarget) return;
+    const mins = Number(verifyMins);
+    if (!Number.isFinite(mins) || mins < 0 || mins > 120) { alert('Temps invalide (0 à 120 minutes)'); return; }
+    setVerifyingId(verifyTarget.id);
     try {
-      await orgApi.verifyTask(vt.dossier_id, vt.id);
-      setVerifyTasks(prev => prev.filter(x => x.id !== vt.id));
+      await orgApi.verifyTask(verifyTarget.dossier_id, verifyTarget.id, { note: verifyNote, minutes: mins });
+      setVerifyTasks(prev => prev.filter(x => x.id !== verifyTarget.id));
+      setVerifyTarget(null);
     } catch (e: any) {
       alert(e.message || 'Erreur lors de la validation');
     } finally {
@@ -717,6 +731,62 @@ export default function OrgDashboardExpert() {
                 data-testid="return-submit"
               >
                 {returnBusy ? 'Envoi…' : 'Renvoyer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal validation : note facultative + temps passe par l'expert */}
+      {verifyTarget && (
+        <div className="modal-overlay" data-testid="verify-modal">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-md">
+            <h3 className="font-bold text-gray-800 mb-1">✅ Valider la vérification</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              « {verifyTarget.label} » — {verifyTarget.client_name} · Exercice {verifyTarget.exercice}
+              <br />
+              La tâche passera en <strong>Terminé</strong> avec un pointage du temps de validation.
+            </p>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Note de validation <span className="text-gray-400 font-normal">(facultative)</span>
+            </label>
+            <textarea
+              value={verifyNote}
+              onChange={e => setVerifyNote(e.target.value)}
+              rows={3}
+              autoFocus
+              maxLength={1000}
+              placeholder="Ce qui a été vérifié, remarques…"
+              className="input-field w-full p-2.5 text-sm resize-none"
+              data-testid="verify-note"
+            />
+            <label className="block text-xs font-medium text-gray-600 mb-1 mt-3">
+              Temps passé à vérifier (minutes)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={120}
+              step={1}
+              value={verifyMins}
+              onChange={e => setVerifyMins(e.target.value)}
+              className="input-field w-full p-2.5 text-sm"
+              data-testid="verify-mins"
+            />
+            <div className="flex gap-2 justify-end mt-4">
+              <button
+                onClick={() => setVerifyTarget(null)}
+                className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600 hover:bg-gray-200"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={submitVerify}
+                disabled={verifyingId === verifyTarget.id}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                data-testid="verify-submit"
+              >
+                {verifyingId === verifyTarget.id ? 'Validation…' : 'Valider'}
               </button>
             </div>
           </div>

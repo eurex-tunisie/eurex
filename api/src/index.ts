@@ -1414,7 +1414,20 @@ export default {
         const jr = b.journal === 'VT C' ? 'VT C' : 'VT J.C';
         const hors = b.hors_caisse ? 1 : 0;
         await env.DB.prepare('INSERT INTO factures (id, dossier_id, societe_id, date_facture, numero_facture, client, total_ht_0, total_ht_19, tva_19, timbre, total_ttc, journal, hors_caisse) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, did, d.societe_id, b.date_facture, b.numero_facture, b.client || '', b.total_ht_0 || 0, b.total_ht_19 || 0, b.tva_19 || 0, b.timbre || 1, b.total_ttc || 0, jr, hors).run();
-        return json({ id, ...b, journal: jr, hors_caisse: hors });
+        // Correction durable : si une correction a deja ete saisie pour ce numero
+        // (date ou hors caisse), on la reapplique meme apres un re-upload.
+        const corr = await env.DB.prepare('SELECT date_facture, hors_caisse FROM facture_corrections WHERE dossier_id = ? AND numero_facture = ?').bind(did, b.numero_facture).first() as any;
+        if (corr) {
+          const sets: string[] = [];
+          const vals: any[] = [];
+          if (corr.date_facture) { sets.push('date_facture = ?'); vals.push(corr.date_facture); }
+          if (corr.hors_caisse !== null && corr.hors_caisse !== undefined) { sets.push('hors_caisse = ?'); vals.push(corr.hors_caisse ? 1 : 0); }
+          if (sets.length) {
+            vals.push(id);
+            await env.DB.prepare('UPDATE factures SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
+          }
+        }
+        return json({ id, ...b, journal: jr, hors_caisse: corr ? (corr.hors_caisse ? 1 : 0) : hors });
       }
       // Bascule "hors caisse" (vente client) et correction de date/n° : ces
       // champs ne touchent pas au montant, ils ne changent donc pas la facture.
@@ -1432,6 +1445,11 @@ export default {
         if (!sets.length) return json({ error: 'Aucun champ a modifier' }, 400);
         vals.push(patchFactMatch[1]);
         await env.DB.prepare('UPDATE factures SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
+        // Rendre la correction durable : elle survit a un re-upload.
+        const f = await env.DB.prepare('SELECT dossier_id, numero_facture, date_facture, hors_caisse FROM factures WHERE id = ?').bind(patchFactMatch[1]).first() as any;
+        if (f) {
+          await env.DB.prepare("INSERT INTO facture_corrections (dossier_id, numero_facture, date_facture, hors_caisse, updated_at) VALUES (?, ?, ?, ?, datetime('now')) ON CONFLICT (dossier_id, numero_facture) DO UPDATE SET date_facture = excluded.date_facture, hors_caisse = excluded.hors_caisse, updated_at = excluded.updated_at").bind(f.dossier_id, f.numero_facture, f.date_facture, f.hors_caisse ? 1 : 0).run();
+        }
         return json({ ok: true });
       }
       const delFactMatch = path.match(/^\/api\/factures\/([^/]+)$/);
@@ -3961,7 +3979,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!await orgCanAccessDossier(user, orgTaskMatch[1])) return json({ error: 'Accès refusé' }, 403);
         const body = await request.json() as any;
-        const { status, blocked_reason, label, assigned_comptable_id, due_date, export_scope, verify_due_hours } = body;
+        const { status, blocked_reason, label, assigned_comptable_id, due_date, export_scope, verify_due_hours, verify_seconds, verify_note } = body;
         const task = await env.DB.prepare('SELECT * FROM org_tasks WHERE id = ? AND dossier_id = ?').bind(orgTaskMatch[2], orgTaskMatch[1]).first() as any;
         if (!task) return json({ error: 'Tâche non trouvée' }, 404);
         const updates: string[] = [];
@@ -3974,8 +3992,8 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           updates.push('status = ?'); binds.push(effStatus);
           // Qui a travaille la tache : celui qui la passe en verification, ou l'expert/manager
           // qui la marque directement "fait" (un expert qui verifie une tache deja a_verifier
-          // n'efface pas le travail du comptable)
-          if (effStatus === 'a_verifier' || (effStatus === 'fait' && task.status !== 'a_verifier')) {
+          // n'efface pas le travail du comptable ; une annulation fait -> a_verifier non plus)
+          if ((effStatus === 'a_verifier' && task.status !== 'fait') || (effStatus === 'fait' && task.status !== 'a_verifier')) {
             updates.push('done_by = ?'); binds.push(user.id);
           }
           if (effStatus === 'fait') {
@@ -4025,10 +4043,38 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const newStatus = effStatus || oldStatus;
         if (effStatus && effStatus !== oldStatus) {
           await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'task_status_changed\', \'task\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, orgTaskMatch[2], JSON.stringify({ old_status: oldStatus, new_status: effStatus, blocked_reason })).run();
-          // Validation a_verifier -> fait : pointage automatique de la validation (5 min) + audit "qui a valide"
+          // Validation a_verifier -> fait : pointage automatique de la validation (delai saisie par l'expert, 5 min par defaut) + audit "qui a valide"
           if (effStatus === 'fait' && oldStatus === 'a_verifier') {
-            await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at, stopped_at, duration_seconds) VALUES (?, ?, ?, ?, datetime('now','-300 seconds'), datetime('now'), 300)").bind(genId(), orgTaskMatch[1], orgTaskMatch[2], user.id).run();
-            await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'task_verified\', \'task\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, orgTaskMatch[2], JSON.stringify({ label: task.label, verify_seconds: 300, verify_due_at: task.verify_due_at || null })).run();
+            const vSecs = (() => {
+              const n = Number(verify_seconds);
+              return Number.isFinite(n) && n >= 0 ? Math.min(Math.round(n), 7200) : 300;
+            })();
+            const vNote = String(verify_note || '').trim().slice(0, 1000);
+            const entryId = vSecs > 0 ? genId() : null;
+            if (entryId) {
+              await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at, stopped_at, duration_seconds, note) VALUES (?, ?, ?, ?, datetime('now', ?), datetime('now'), ?, ?)").bind(entryId, orgTaskMatch[1], orgTaskMatch[2], user.id, `-${vSecs} seconds`, vSecs, vNote ? `Validation : ${vNote}` : null).run();
+            }
+            // La note de validation devient une note du dossier (visible dans Notes + recherche globale)
+            let noteId: string | null = null;
+            if (vNote) {
+              noteId = genId();
+              await env.DB.prepare('INSERT INTO org_notes (id, dossier_id, user_id, user_name, content) VALUES (?, ?, ?, ?, ?)').bind(noteId, orgTaskMatch[1], user.id, user.full_name, vNote).run();
+            }
+            // time_entry_id / note_id dans l'audit : l'annulation de validation pourra tout retirer
+            await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'task_verified\', \'task\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, orgTaskMatch[2], JSON.stringify({ label: task.label, verify_seconds: vSecs, verify_due_at: task.verify_due_at || null, verify_note: vNote || null, time_entry_id: entryId, note_id: noteId })).run();
+          }
+          // Annulation d'une validation (fait -> a_verifier) : le pointage et la note crees a la
+          // validation sont retires (l'audit task_unvalidated garde la trace).
+          if (effStatus === 'a_verifier' && oldStatus === 'fait') {
+            const lastVa = await env.DB.prepare("SELECT id, details FROM org_audit_log WHERE target_id = ? AND action = 'task_verified' ORDER BY created_at DESC LIMIT 1").bind(orgTaskMatch[2]).first() as any;
+            let oldDetails: any = null;
+            if (lastVa) {
+              try { oldDetails = JSON.parse(lastVa.details || '{}'); } catch { oldDetails = null; }
+              if (oldDetails?.time_entry_id) await env.DB.prepare('DELETE FROM org_time_entries WHERE id = ?').bind(oldDetails.time_entry_id).run();
+              if (oldDetails?.note_id) await env.DB.prepare('DELETE FROM org_notes WHERE id = ?').bind(oldDetails.note_id).run();
+              await env.DB.prepare('DELETE FROM org_audit_log WHERE id = ?').bind(lastVa.id).run();
+            }
+            await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'task_unvalidated\', \'task\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, orgTaskMatch[2], JSON.stringify({ label: task.label, from: 'fait', to: 'a_verifier', undone: oldDetails })).run();
           }
         }
         if (label !== undefined && label.trim() && label.trim() !== task.label) {

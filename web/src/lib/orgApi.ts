@@ -480,8 +480,19 @@ export const orgApi = {
   // Passage au nouvel exercice (auto : cron 1er janvier + securite au chargement)
   rolloverExercices: (body: { year?: number; client_id?: string } = {}) =>
     req<{ year: number; created: any[]; closed: any[] }>('/org/exercices/rollover', { method: 'POST', body: JSON.stringify(body) }),
-  verifyTask: (dossierId: string, taskId: string) =>
-    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ status: 'fait' }) }),
+  // Validation d'une tache (expert/manager) : note facultative + temps passe en minutes
+  verifyTask: (dossierId: string, taskId: string, opts: { note?: string; minutes?: number } = {}) =>
+    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status: 'fait',
+        verify_note: opts.note?.trim() || '',
+        verify_seconds: Math.round((opts.minutes ?? 5) * 60),
+      }),
+    }),
+  // Annulation d'une validation : la tache repasse en verification (pointage et note retires)
+  unverifyTask: (dossierId: string, taskId: string) =>
+    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ status: 'a_verifier' }) }),
 
   // Tasks
   updateTask: (dossierId: string, taskId: string, status: string, blocked_reason?: string) =>
