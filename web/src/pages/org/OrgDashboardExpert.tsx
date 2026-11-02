@@ -16,7 +16,7 @@ import ExerciceSelect from '../../components/ExerciceSelect';
 import ClientsImport from '../../components/ClientsImport';
 import { Users, BarChart3, AlertTriangle, Search, Filter, Plus, X, Pencil, Trash2, Save, ChevronUp, ChevronDown, Hourglass, Clock, CheckCircle2, Timer, Folder, User, Download, Wrench } from 'lucide-react';
 
-type Tab = 'comptables' | 'global';
+type Tab = 'comptables' | 'global' | 'heures';
 
 // L'endpoint /org/comptables renvoie tout le personnel (pour la gestion des roles
 // dans Settings) : le dashboard affiche les comptables ET le manager. Un manager a
@@ -82,6 +82,11 @@ export default function OrgDashboardExpert() {
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'global' ? 'global' : 'comptables');
   const [comptables, setComptables] = useState<OrgComptable[]>([]);
   const [allDossiers, setAllDossiers] = useState<any[]>([]);
+  const [hoursDossiers, setHoursDossiers] = useState<any[]>([]);
+  const [hoursLoading, setHoursLoading] = useState(false);
+  const [hoursComptableFilter, setHoursComptableFilter] = useState(searchParams.get('heures_comptable') || 'all');
+  const [hoursSearch, setHoursSearch] = useState(searchParams.get('heures_q') || '');
+  const [hoursYearFilter, setHoursYearFilter] = useState<number | 'all'>('all');
   const [loadError, setLoadError] = useState(false);
   const [allClients, setAllClients] = useState<OrgClient[]>([]);
   const [allGrants, setAllGrants] = useState<OrgGrantRow[]>([]);
@@ -219,6 +224,15 @@ export default function OrgDashboardExpert() {
   };
 
   useEffect(() => { fetchDashboard(); }, [exercice]);
+
+  useEffect(() => {
+    if (tab !== 'heures') return;
+    setHoursLoading(true);
+    orgApi.getAllDossiers(exercice, true).then(setHoursDossiers).catch(err => {
+      console.error(err);
+      setHoursDossiers([]);
+    }).finally(() => setHoursLoading(false));
+  }, [tab, exercice]);
 
   // Renfort : ouvrir un acces temporaire directement depuis le dashboard (expert)
   const openRenfort = (c: OrgComptable) => {
@@ -506,6 +520,15 @@ export default function OrgDashboardExpert() {
   const filteredDossiers = allDossiers
     .filter(d => filterComptable === 'all' || d.comptable_id === filterComptable)
     .filter(d => !search || d.client_name?.toLowerCase().includes(search.toLowerCase()));
+
+  const filteredHoursDossiers = hoursDossiers
+    .filter(d => hoursYearFilter === 'all' || Number(d.exercice) === hoursYearFilter)
+    .filter(d => hoursComptableFilter === 'all' || d.comptable_id === hoursComptableFilter)
+    .filter(d => !hoursSearch || `${d.client_name || ''} ${d.comptable_name || ''}`.toLocaleLowerCase().includes(hoursSearch.toLocaleLowerCase()));
+  const hoursSecondsTotal = filteredHoursDossiers.reduce((sum, d) => sum + (Number(d.total_time_seconds) || 0), 0);
+  const costComplete = filteredHoursDossiers.length > 0 && filteredHoursDossiers.every(d => d.time_cost_complete);
+  const costTotalCents = costComplete ? filteredHoursDossiers.reduce((sum, d) => sum + (Number(d.time_cost_cents) || 0), 0) : null;
+  const fmtMoney = (cents: number | null | undefined) => cents == null ? 'à compléter' : `${(cents / 100).toFixed(2)} DT`;
 
   // Presence comptables : heures pointees aujourd'hui / norme 8h30
   const fmtHm = (sec?: number) => {
@@ -805,6 +828,7 @@ export default function OrgDashboardExpert() {
           {([
             { key: 'comptables' as Tab, label: t('dash.by_comptable'), icon: <Users size={14} /> },
             { key: 'global' as Tab, label: t('dash.global_view'), icon: <BarChart3 size={14} /> },
+            { key: 'heures' as Tab, label: 'Heures & coûts', icon: <Timer size={14} /> },
           ]).map(t2 => (
             <button
               key={t2.key}
@@ -1182,6 +1206,46 @@ export default function OrgDashboardExpert() {
             </table>
           </div>
         </div>
+      )}
+
+      {tab === 'heures' && (
+        <section className="space-y-4" data-testid="cabinet-hours-dashboard">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="card rounded-xl p-4"><p className="text-xs text-gray-500">Dossiers affichés</p><p className="text-2xl font-bold">{filteredHoursDossiers.length}</p></div>
+            <div className="card rounded-xl p-4"><p className="text-xs text-gray-500">Temps imputé</p><p className="text-2xl font-bold font-mono">{fmtHm(hoursSecondsTotal)}</p></div>
+            <div className="card rounded-xl p-4"><p className="text-xs text-gray-500">Coût du temps pointé</p><p className="text-2xl font-bold text-emerald-700">{fmtMoney(costTotalCents)}</p><p className="text-[11px] text-gray-400 mt-1">Calculé à partir du coût horaire défini pour chaque intervenant.</p></div>
+          </div>
+          <div className="card rounded-xl p-3 flex flex-wrap items-center gap-3">
+            <input type="search" value={hoursSearch} onChange={e => setHoursSearch(e.target.value)} placeholder="Chercher dossier ou comptable" className="input-field text-sm min-w-[220px] flex-1" aria-label="Chercher dossier ou comptable" />
+            <select value={hoursYearFilter} onChange={e => setHoursYearFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="input-sm px-3 py-2 text-sm" aria-label="Filtrer par exercice">
+              <option value="all">Tous exercices chargés</option>
+              {[...new Set(hoursDossiers.map(d => Number(d.exercice)))].sort((a, b) => b - a).map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <select value={hoursComptableFilter} onChange={e => setHoursComptableFilter(e.target.value)} className="input-sm px-3 py-2 text-sm" aria-label="Filtrer par comptable">
+              <option value="all">Toute l’équipe</option>
+              {comptables.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+            </select>
+          </div>
+          <div className="card rounded-2xl overflow-x-auto">
+            <table className="w-full text-sm min-w-[760px]">
+              <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-600"><th className="px-4 py-3">Dossier</th><th className="px-4 py-3">Comptable assigné</th><th className="px-4 py-3 text-right">Temps total</th><th className="px-4 py-3 text-right">Coût du temps</th><th className="px-4 py-3 text-center">Détail</th></tr></thead>
+              <tbody>
+                {hoursLoading ? <tr><td colSpan={5} className="p-6 text-center text-gray-400">Chargement des heures…</td></tr>
+                  : filteredHoursDossiers.length === 0 ? <tr><td colSpan={5} className="p-6 text-center text-gray-400">Aucun dossier pour ce filtre.</td></tr>
+                    : filteredHoursDossiers.map(d => (
+                      <tr key={d.id} className="border-b last:border-0 hover:bg-purple-50/30" data-testid="hours-dossier-row">
+                        <td className="px-4 py-3"><Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:underline">{d.client_name}</Link><span className="ml-2 text-xs text-gray-400">{d.exercice}</span></td>
+                        <td className="px-4 py-3 text-gray-600">{d.comptable_name || '—'}</td>
+                        <td className="px-4 py-3 text-right font-mono">{fmtHm(d.total_time_seconds)}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-700">{fmtMoney(d.time_cost_cents)}</td>
+                        <td className="px-4 py-3 text-center"><Link to={`/cabinet/dossier/${d.id}`} className="text-xs text-blue-700 hover:underline">Ouvrir le détail par tâche/personne</Link></td>
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
+          </div>
+          {!costComplete && filteredHoursDossiers.length > 0 && <p className="text-xs text-amber-700">Le total reste incomplet tant qu’un collaborateur ayant pointé du temps n’a pas de coût horaire configuré.</p>}
+        </section>
       )}
 
       {/* Modal: Renfort — ouvrir des dossiers à un comptable */}

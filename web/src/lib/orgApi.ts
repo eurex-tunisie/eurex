@@ -70,6 +70,8 @@ export interface OrgDossier {
   // Renvoye par /api/org/dossiers (liste) : somme des temps de toutes les
   // taches du dossier. Absent de la reponse unitaire.
   total_time_seconds?: number;
+  time_cost_cents?: number | null;
+  time_cost_complete?: boolean;
   is_granted?: boolean;
   grants?: OrgGrant[];
   running_timers?: OrgRunningTimer[];
@@ -615,7 +617,7 @@ export const orgApi = {
     req<any>(`/org/comptables/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   updateProfile: (patch: { full_name?: string; email?: string }) =>
     req<any>('/org/auth/me', { method: 'PATCH', body: JSON.stringify(patch) }),
-  getAllDossiers: (exercice?: number | null) => req<any[]>(`/org/dossiers${exercice ? `?exercice=${exercice}` : ''}`),
+  getAllDossiers: (exercice?: number | null, includeCost = false) => req<any[]>(`/org/dossiers${exercice ? `?exercice=${exercice}` : ''}${exercice ? '&' : '?'}cost=${includeCost ? '1' : '0'}`),
 
   // Templates
   getTemplates: () => req<OrgTemplate[]>('/org/templates'),

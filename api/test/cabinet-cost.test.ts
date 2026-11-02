@@ -38,3 +38,11 @@ test('dossier labor costs sum seconds by user at each confidential hourly rate a
   assert.match(SRC, /time_cost_complete/);
   assert.match(SRC, /Réservé au rôle expert\/manager/);
 });
+
+test('expert dashboard exposes a separate detailed hours/cost view and asks the API only when opened', () => {
+  const page = readFileSync(new URL('../../web/src/pages/org/OrgDashboardExpert.tsx', import.meta.url), 'utf8');
+  assert.match(page, /key: 'heures' as Tab, label: 'Heures & coûts'/);
+  assert.match(page, /orgApi\.getAllDossiers\(exercice, true\)/);
+  assert.match(page, /data-testid="cabinet-hours-dashboard"/);
+  assert.match(page, /Détail par tâche\/personne|Ouvrir le détail par tâche\/personne/);
+});

@@ -13,7 +13,7 @@ import { EXPORT_LABELS } from '../../lib/orgAlerts';
 import { verifyRate } from '../../lib/orgVerify';
 import useExercice from '../../lib/useExercice';
 import ExerciceSelect from '../../components/ExerciceSelect';
-import { FolderOpen, AlertTriangle, Clock, ArrowUpDown, Search, Users, BarChart3, Hourglass, AlertCircle, FileText, CheckCircle2, Wrench, X } from 'lucide-react';
+import { FolderOpen, AlertTriangle, Clock, ArrowUpDown, Search, Users, BarChart3, Hourglass, AlertCircle, FileText, CheckCircle2, Wrench, X, Timer } from 'lucide-react';
 
 type SortKey = 'name' | 'progress' | 'blocked';
 
@@ -129,6 +129,8 @@ export default function OrgDashboardComptable() {
   const sumValidated = clients.reduce((s, c) => s + (c.verify_counts?.validated || 0), 0);
   const sumPending = clients.reduce((s, c) => s + (c.verify_counts?.pending || 0), 0);
   const validationRate = verifyRate({ validated: sumValidated, pending: sumPending });
+  const dossierSeconds = clients.reduce((s, c) => s + (c.dossier_actuel?.total_time_seconds || 0), 0);
+  const dossierTimeLabel = `${Math.floor(dossierSeconds / 3600)}h${String(Math.floor((dossierSeconds % 3600) / 60)).padStart(2, '0')}`;
 
   if (loading) return (
     <div className="space-y-4">
@@ -180,6 +182,8 @@ export default function OrgDashboardComptable() {
             sub: `sur ${clients.length} au total` },
           { label: 'En attente de validation', value: sumPending, icon: <Clock size={16} />, color: sumPending > 0 ? 'amber' : 'gray',
             sub: validationRate == null ? 'rien encore passé en validation' : `${validationRate}% validé · ${sumValidated} validée${sumValidated > 1 ? 's' : ''}` },
+          { label: 'Temps pointé dossiers', value: dossierTimeLabel, icon: <Timer size={16} />, color: 'purple',
+            sub: 'ouvre un dossier pour voir le détail par tâche' },
         ].map((kpi, i) => {
           const bgMap: Record<string, string> = {
             blue: 'bg-blue-50',
@@ -316,10 +320,9 @@ export default function OrgDashboardComptable() {
           const d = client.dossier_actuel;
 
           return (
-            <Link
+            <div
               key={client.id}
               data-testid="client-card"
-              to={`/cabinet/dossier/${d?.id || ''}`}
               className={`group card card-hover rounded-2xl p-5 relative overflow-hidden ${
                 hasBlocked ? 'bg-red-50/40' : ''
               }`}
@@ -346,7 +349,7 @@ export default function OrgDashboardComptable() {
                   size={104}
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-800 text-base group-hover:text-purple-700 transition-colors truncate">{client.name}</h3>
+                  <Link to={`/cabinet/dossier/${d?.id || ''}`} className="font-bold text-gray-800 text-base group-hover:text-purple-700 transition-colors truncate">{client.name}</Link>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {client.matricule_fiscal && (
                       <p className="text-[11px] text-gray-400 font-mono">{client.matricule_fiscal}</p>
@@ -381,7 +384,7 @@ export default function OrgDashboardComptable() {
                   pastille ci-dessus donne les taches restantes et la legende
                   les taches faites ; il manquait le total et les documents
                   attendus (doc_stats, deja renvoye par /api/org/clients). */}
-              <div className="grid grid-cols-2 gap-2 text-center text-[11px] mb-3">
+               <div className="grid grid-cols-3 gap-2 text-center text-[11px] mb-3">
                 <div className="bg-gray-50 rounded-lg py-1.5">
                   <div className="font-bold text-gray-800">{client.task_stats.total}</div>
                   <div className="text-gray-400">Tâches</div>
@@ -392,7 +395,22 @@ export default function OrgDashboardComptable() {
                   </div>
                   <div className={hasMissingDocs ? 'text-orange-500' : 'text-gray-400'}>Documents</div>
                 </div>
+                <div className="bg-purple-50 rounded-lg py-1.5" data-testid="client-hours-summary">
+                  <div className="font-bold text-purple-700">{d ? `${Math.floor((d.total_time_seconds || 0) / 3600)}h${String(Math.floor(((d.total_time_seconds || 0) % 3600) / 60)).padStart(2, '0')}` : '—'}</div>
+                  <div className="text-purple-500">Mes heures</div>
+                </div>
               </div>
+
+              {d && (
+                <Link
+                  to={`/cabinet/dossier/${d.id}?tab=time`}
+                  onClick={e => e.stopPropagation()}
+                  data-testid="client-hours-details-link"
+                  className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold py-2 mb-3"
+                >
+                  <Timer size={13} /> Voir le détail des heures
+                </Link>
+              )}
 
               {/* Legend */}
               <DonutLegend
@@ -409,7 +427,7 @@ export default function OrgDashboardComptable() {
                   <span>{t('dash.open_dossier')}</span>
                 </div>
               )}
-            </Link>
+            </div>
           );
         })}
       </div>

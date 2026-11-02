@@ -3879,6 +3879,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
         const exParam = new URL(request.url).searchParams.get('exercice');
         const exSel = exParam ? Number(exParam) : null;
+        const includeCost = new URL(request.url).searchParams.get('cost') === '1';
         const { results } = await env.DB.prepare(`SELECT t.id, t.label, t.status, t.verify_due_at, t.due_date, t.created_at, t.updated_at, t.dossier_id, d.exercice, c.name as client_name, t.done_by, du.full_name as done_by_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_users du ON t.done_by = du.id WHERE c.organization_id = ? AND t.status = 'a_verifier' AND t.hidden = 0${exSel ? ' AND d.exercice = ?' : ''} ORDER BY (t.verify_due_at IS NULL), t.verify_due_at ASC, t.updated_at DESC LIMIT 50`).bind(user.organization_id, ...(exSel ? [exSel] : [])).all();
         const tasks = (results as any[]).map(t => ({
           ...t,
@@ -5194,7 +5195,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         for (const d of results as any[]) tasksByDossier.set(d.id, []);
         for (const chunk of chunkIds(results.map((d: any) => d.id))) {
           const { results: tasks } = await env.DB.prepare(
-            `SELECT t.dossier_id, t.status, t.export_scope, t.month, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+            `SELECT t.id, t.dossier_id, t.status, t.export_scope, t.month, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
           ).bind(...chunk).all();
           for (const t of tasks as any[]) tasksByDossier.get(t.dossier_id)!.push(t);
         }
@@ -5212,6 +5213,29 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           }
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0, total_time_seconds: totalTime };
         });
+        if (includeCost) {
+          const taskIds = (results as any[]).flatMap((d: any) => (tasksByDossier.get(d.id) || []).map((t: any) => t.id));
+          const costsByDossier = new Map<string, { seconds: number; cost_cents: number; complete: boolean }>();
+          for (const chunk of chunkIds(taskIds)) {
+            if (!chunk.length) continue;
+            const { results: entries } = await env.DB.prepare(
+              `SELECT te.dossier_id, te.duration_seconds, u.hourly_cost_cents FROM org_time_entries te JOIN org_users u ON u.id = te.user_id WHERE te.stopped_at IS NOT NULL AND te.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+            ).bind(...chunk).all();
+            for (const e of entries as any[]) {
+              const prev = costsByDossier.get(e.dossier_id) || { seconds: 0, cost_cents: 0, complete: true };
+              const secs = Number(e.duration_seconds) || 0;
+              prev.seconds += secs;
+              if (e.hourly_cost_cents == null) prev.complete = false;
+              else if (prev.complete) prev.cost_cents += Math.round(Number(e.hourly_cost_cents) * secs / 3600);
+              costsByDossier.set(e.dossier_id, prev);
+            }
+          }
+          for (const d of enriched as any[]) {
+            const c = costsByDossier.get(d.id);
+            d.time_cost_cents = c?.complete ? (c?.cost_cents || 0) : null;
+            d.time_cost_complete = !!c && c.complete;
+          }
+        }
         return json(enriched);
       }
 

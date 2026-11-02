@@ -17,7 +17,7 @@ import {
   ArrowLeft, CheckCircle2, Circle, AlertTriangle, Lock, Unlock,
   Send, MessageSquare, ChevronDown, ChevronUp,
   ExternalLink, Eye, Users, UserRound, CalendarDays, Activity,
-  Pencil, Trash2, X, Check,
+  Pencil, Trash2, X, Check, Timer,
 } from 'lucide-react';
 
 // Libellés FR des actions d'audit (audit_log.action)
@@ -71,7 +71,7 @@ function auditDetailsSummary(details: string | null): string {
   }
 }
 
-type Tab = 'checklist' | 'documents' | 'notes' | 'timeline' | 'audit' | 'year';
+type Tab = 'checklist' | 'documents' | 'notes' | 'timeline' | 'audit' | 'year' | 'time';
 
 const STATUS_ICONS: Record<string, any> = {
   a_faire: Circle,
@@ -986,6 +986,7 @@ export default function OrgDossierPage() {
           { key: 'notes' as Tab, label: t('dossier.notes'), count: dossier.notes.length },
           { key: 'timeline' as Tab, label: t('dossier.timeline') },
           ...(isExpert ? [{ key: 'audit' as Tab, label: 'Audit', icon: <Activity size={14} /> }] : []),
+          { key: 'time' as Tab, label: 'Heures', icon: <Timer size={14} /> },
         ]).map(t2 => (
           <button
             key={t2.key}
@@ -1002,6 +1003,40 @@ export default function OrgDossierPage() {
           </button>
         ))}
       </div>
+
+      {tab === 'time' && (
+        <div className="space-y-3" data-testid="time-details-tab">
+          <div className="card p-4">
+            <h3 className="font-semibold text-sm text-gray-800">Détail des heures — {dossier.client_name}, exercice {dossier.exercice}</h3>
+            <p className="text-xs text-gray-500 mt-1">Temps pointé par tâche et intervenant, y compris la vérification. Le coût salarial reste confidentiel et réservé aux superviseurs.</p>
+          </div>
+          {(dossier.time_entries || []).length === 0 ? (
+            <div className="card p-8 text-center text-sm text-gray-400">Aucune heure enregistrée pour ce dossier.</div>
+          ) : (
+            <div className="card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs font-semibold uppercase table-header">
+                    <th className="px-3 py-2">Tâche</th><th className="px-3 py-2">Intervenant</th><th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Temps pointé</th><th className="px-3 py-2">Note</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(dossier.time_entries || []).map((entry: any) => (
+                      <tr key={entry.id} data-testid="dashboard-time-entry">
+                        <td className="px-3 py-2">{entry.task_label}</td>
+                        <td className="px-3 py-2">{entry.user_name} <span className="text-xs text-gray-400">({entry.user_role_label || entry.user_role || ''})</span></td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{new Date(String(entry.started_at).replace(' ', 'T') + 'Z').toLocaleString('fr-FR')}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatTime(Number(entry.duration_seconds) || 0)}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{entry.note || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t px-3 py-2 text-right font-semibold text-sm">Total dossier : {formatTime((dossier.time_entries || []).reduce((sum: number, entry: any) => sum + (Number(entry.duration_seconds) || 0), 0))}</div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab: Checklist */}
       {tab === 'checklist' && (
