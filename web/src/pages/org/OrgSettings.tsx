@@ -8,7 +8,7 @@ import { SkeletonSection } from '../../components/Skeleton';
 import PwdField from '../../components/PwdField';
 import { Settings, Users, ListChecks, Plus, Trash2, Eye, EyeOff, RefreshCw, Pencil, Check, X } from 'lucide-react';
 
-type Tab = 'templates' | 'comptables' | 'trash';
+type Tab = 'templates' | 'comptables' | 'trash' | 'heures';
 type Role = 'comptable' | 'manager' | 'expert';
 
 const ROLE_LABEL: Record<string, string> = { comptable: 'Comptable', manager: 'Manager', expert: 'Expert' };
@@ -261,6 +261,7 @@ export default function OrgSettings() {
         {([
           { key: 'templates' as Tab, label: t('templates.title'), icon: <ListChecks size={14} /> },
           { key: 'comptables' as Tab, label: 'Comptables', icon: <Users size={14} /> },
+          { key: 'heures' as Tab, label: 'Heures & coûts', icon: <Settings size={14} /> },
           { key: 'trash' as Tab, label: 'Corbeille', icon: <Trash2 size={14} /> },
         ]).map(t2 => (
           <button
@@ -637,6 +638,63 @@ export default function OrgSettings() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Tab: Heures & coûts — normes par tâche + coût horaire par comptable, au même endroit */}
+      {tab === 'heures' && (
+        <div className="space-y-4">
+          <div className="card p-4">
+            <h3 className="font-semibold text-sm text-gray-700 mb-3">Norme et partie par tâche</h3>
+            <p className="text-xs text-gray-500 mb-3">Temps prévu pour réaliser chaque tâche, et à quelle partie elle appartient (Entreprise = sur place client, Comptable = au cabinet).</p>
+            <div className="space-y-2">
+              {templates.map(tmpl => (
+                <div key={tmpl.id} data-testid="template-row" className="card p-3 flex flex-wrap items-center gap-3">
+                  <span className="flex-1 text-sm font-medium text-gray-700">{tmpl.label}</span>
+                  <div className="flex items-center gap-1" title="Norme indicative">
+                    <span className="text-[10px] text-gray-400">Norme</span>
+                    <input aria-label={`Heures norme ${tmpl.label}`} type="number" min="0" max="720" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor(tmpl.norm_seconds / 3600)} onBlur={e => changeNorm(tmpl.id, Number(e.target.value || 0), Number((e.currentTarget.parentElement?.querySelector('[data-norm-min]') as HTMLInputElement)?.value || 0))} data-testid="template-norm-hours" className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="h" />
+                    <span className="text-[10px] text-gray-400">h</span>
+                    <input aria-label={`Minutes norme ${tmpl.label}`} data-norm-min="1" type="number" min="0" max="59" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor((tmpl.norm_seconds % 3600) / 60)} onBlur={e => changeNorm(tmpl.id, Number((e.currentTarget.parentElement?.querySelector('[data-testid="template-norm-hours"]') as HTMLInputElement)?.value || 0), Number(e.target.value || 0))} className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="min" />
+                    <span className="text-[10px] text-gray-400">min</span>
+                  </div>
+                  <select value={tmpl.part || 'comptable'} onChange={e => changePart(tmpl.id, e.target.value as 'entreprise' | 'comptable')} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Partie" aria-label={`Partie ${tmpl.label}`}>
+                    <option value="comptable">Comptable</option>
+                    <option value="entreprise">Entreprise</option>
+                  </select>
+                </div>
+              ))}
+              {templates.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Aucun modèle de tâche.</p>}
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <h3 className="font-semibold text-sm text-gray-700 mb-3">Coût horaire par comptable</h3>
+            <p className="text-xs text-gray-500 mb-3">Salaire horaire chargé de chaque intervenant (confidentiel, superviseurs uniquement). Utilisé pour le coût du temps pointé.</p>
+            <div className="space-y-2">
+              {comptables.map(c => (
+                <div key={c.id} className="card p-3 flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-[180px]">
+                    <p className="font-semibold text-sm text-gray-800">{c.full_name}<RoleBadge role={c.role} /></p>
+                    <p className="text-xs text-gray-500">{c.email}</p>
+                  </div>
+                  {editCompId === c.id ? (
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="0" step="0.01" value={editHourlyCost} onChange={e => setEditHourlyCost(e.target.value)} placeholder="DT/h" className="input-field py-1.5 text-sm w-28" aria-label="Coût horaire" />
+                      <button onClick={() => saveEditComp(c.id)} className="btn btn-accent px-3 py-1.5 text-xs">Enregistrer</button>
+                      <button onClick={() => setEditCompId(null)} className="btn btn-outline px-3 py-1.5 text-xs">Annuler</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono text-emerald-700">{c.hourly_cost_cents == null ? 'non renseigné' : `${(c.hourly_cost_cents / 100).toFixed(2)} DT/h`}</span>
+                      <button onClick={() => startEditComp(c)} className="btn btn-outline px-2 py-1 text-xs">Modifier</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {comptables.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Aucun comptable.</p>}
+            </div>
+          </div>
         </div>
       )}
 
