@@ -595,7 +595,7 @@ export default function OrgDashboardExpert() {
         >
           {exportingCsv ? '…' : <> <Download size={12} className="inline -mt-0.5" /> Export heures</>}
         </button>
-        <ExerciceSelect value={exercice} options={exercices} onChange={setExercice} />
+        <ExerciceSelect value={exercice} options={exercices} onChange={setExercice} allowAll />
       </div>
       {/* KPIs — vue de synthese du cabinet. Les 4 compteurs d'origine sont
           conserves a l'identique (memes couleurs, meme ordre) ; on leur ajoute
