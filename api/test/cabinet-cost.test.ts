@@ -9,6 +9,8 @@ const BILLING = readFileSync(new URL('../migrations/0046_dossier_billing.sql', i
 const BILLING_PG = readFileSync(new URL('../supabase/migration-0046-dossier-billing.sql', import.meta.url), 'utf8');
 const TIME_PARTS = readFileSync(new URL('../migrations/0045_cabinet_time_parts.sql', import.meta.url), 'utf8');
 const TIME_PARTS_PG = readFileSync(new URL('../supabase/migration-0045-cabinet-time-parts.sql', import.meta.url), 'utf8');
+const MULTI_CLIENTS = readFileSync(new URL('../migrations/0047_template_clients_multi.sql', import.meta.url), 'utf8');
+const MULTI_CLIENTS_PG = readFileSync(new URL('../supabase/migration-0047-template-clients-multi.sql', import.meta.url), 'utf8');
 
 test('migration adds nullable rate and task norms on D1 and PostgreSQL', () => {
   for (const [name, sql] of [['D1', D1], ['PostgreSQL', PG]] as const) {
@@ -96,9 +98,13 @@ test('switching a task template to Entreprise assigns a company and keeps it sel
   const settings = readFileSync(new URL('../../web/src/pages/org/OrgSettings.tsx', import.meta.url), 'utf8');
   assert.match(settings, /pendingTemplateEdits/);
   assert.match(settings, /const saveTemplatePart = async/);
-  assert.match(settings, /part, client_id: part === 'entreprise' \? edit\.client_id : null/);
-  assert.match(settings, /Choisir l’entreprise…/);
+  assert.match(settings, /part, client_ids/);
+  assert.match(settings, /type="checkbox"/);
+  assert.match(settings, /changeClients\(tmpl\.id, c\.id, e\.target\.checked\)/);
   assert.match(settings, /save-template-part-\$\{tmpl\.id\}/);
   assert.match(settings, /Enregistrer/);
   assert.match(settings, /Modèle enregistré avec succès\./);
+  assert.match(MULTI_CLIENTS, /ADD COLUMN client_ids TEXT/);
+  assert.match(MULTI_CLIENTS_PG, /ADD COLUMN IF NOT EXISTS client_ids TEXT/);
+  assert.match(SRC, /tmpl\.client_ids/);
 });

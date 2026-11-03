@@ -74,7 +74,8 @@ Exemples prêts à l'emploi : `api/supabase/rattrapage-0035-0038.sql`,
 `api/supabase/migration-0045-cabinet-time-parts.sql` et
 `api/supabase/migration-0046-dossier-billing.sql` (idempotents, avec contrôle
 des colonnes ; ajoute aussi la partie choisie au pointage individuel). Appliquer
-les miroirs PostgreSQL dans l'ordre avant de déployer
+`api/supabase/migration-0047-template-clients-multi.sql` pour la sélection de
+plusieurs entreprises par modèle. Appliquer les miroirs PostgreSQL dans l'ordre avant de déployer
 les migrations D1 correspondantes. Garder un numéro unique par migration ; ne
 pas réutiliser un numéro publié, même si deux branches l'ont attribué à des
 fonctionnalités différentes.

@@ -1,6 +1,6 @@
 -- ============================================================================
 -- EUREX — Schéma PostgreSQL (Supabase) FINAL
--- Généré le 2026-11-03 — source : api/migrations/0001 … 0046 (SQLite)
+-- Généré le 2026-11-03 — source : api/migrations/0001 … 0047 (SQLite)
 -- État final après application de TOUTES les migrations (ALTER fusionnés dans
 -- les CREATE TABLE, reconstruction 0025 prise en compte).
 --
@@ -392,7 +392,8 @@ CREATE TABLE IF NOT EXISTS org_task_templates (
   month BIGINT,
   client_id TEXT,
   norm_seconds BIGINT,
-  part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable'
+  part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable',
+  client_ids TEXT
 );
 
 -- 0046 — honoraires client et normes temporelles par dossier / tâche.

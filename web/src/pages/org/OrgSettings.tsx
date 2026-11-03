@@ -31,7 +31,7 @@ export default function OrgSettings() {
   const isExpert = state.user?.role === 'expert' || state.user?.role === 'manager';
   const [tab, setTab] = useState<Tab>('templates');
   const [templates, setTemplates] = useState<OrgTemplate[]>([]);
-  const [pendingTemplateEdits, setPendingTemplateEdits] = useState<Record<string, { part?: 'entreprise' | 'comptable'; client_id?: string | null }>>({});
+  const [pendingTemplateEdits, setPendingTemplateEdits] = useState<Record<string, { part?: 'entreprise' | 'comptable'; client_ids?: string[] }>>({});
   const [savedTemplateNotice, setSavedTemplateNotice] = useState<string | null>(null);
   const [savingTemplateIds, setSavingTemplateIds] = useState<string[]>([]);
   const [comptables, setComptables] = useState<OrgComptable[]>([]);
@@ -167,15 +167,22 @@ export default function OrgSettings() {
   };
 
   const changePart = async (id: string, part: 'entreprise' | 'comptable', clientId?: string | null) => {
-    // Stage both values together; the explicit Enregistrer button persists them.
-    const nextClientId = part === 'entreprise'
-      ? (clientId === undefined ? (pendingTemplateEdits[id]?.client_id ?? templates.find(t => t.id === id)?.client_id ?? clients[0]?.id ?? null) : clientId)
-      : null;
-    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], part, client_id: nextClientId } }));
+    const tmpl = templates.find(t => t.id === id);
+    let existingIds: string[] = [];
+    try { existingIds = Array.isArray(tmpl?.client_ids) ? tmpl!.client_ids! : (tmpl?.client_id ? [tmpl.client_id] : []); } catch { existingIds = []; }
+    const client_ids = part === 'entreprise'
+      ? (pendingTemplateEdits[id]?.client_ids ?? existingIds)
+      : [];
+    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], part, client_ids } }));
   };
 
-  const changeClient = async (id: string, clientId: string | null) => {
-    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], part: 'entreprise', client_id: clientId } }));
+  const changeClients = (id: string, clientId: string, checked: boolean) => {
+    const tmpl = templates.find(t => t.id === id);
+    let baseIds: string[] = pendingTemplateEdits[id]?.client_ids ?? (Array.isArray(tmpl?.client_ids) ? tmpl!.client_ids! : (tmpl?.client_id ? [tmpl.client_id] : []));
+    const client_ids = checked
+      ? [...new Set([...baseIds, clientId])]
+      : baseIds.filter(existingId => existingId !== clientId);
+    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], part: 'entreprise', client_ids } }));
   };
 
   const saveTemplatePart = async (id: string) => {
@@ -183,11 +190,12 @@ export default function OrgSettings() {
     if (!edit) return;
     const currentPart = templates.find(t => t.id === id)?.part || 'comptable';
     const part = edit.part ?? currentPart;
-    if (part === 'entreprise' && !edit.client_id) { alert('Sélectionnez une entreprise avant d’enregistrer.'); return; }
+    if (part === 'entreprise' && !(edit.client_ids?.length)) { alert('Sélectionnez au moins une entreprise avant d’enregistrer.'); return; }
     setSavingTemplateIds(prev => [...prev, id]);
     try {
-      await orgApi.updateTemplate(id, { part, client_id: part === 'entreprise' ? edit.client_id : null });
-      setTemplates(prev => prev.map(t => t.id === id ? { ...t, part, client_id: part === 'entreprise' ? edit.client_id || null : null, client_name: clients.find(c => c.id === edit.client_id)?.name || null } : t));
+      const client_ids = part === 'entreprise' ? edit.client_ids || [] : [];
+      await orgApi.updateTemplate(id, { part, client_ids });
+      setTemplates(prev => prev.map(t => t.id === id ? { ...t, part, client_ids, client_id: client_ids[0] || null, client_name: clients.find(c => c.id === client_ids[0])?.name || null } : t));
       setPendingTemplateEdits(prev => { const next = { ...prev }; delete next[id]; return next; });
       setSavedTemplateNotice('Modèle enregistré avec succès.');
       window.setTimeout(() => setSavedTemplateNotice(null), 3500);
@@ -722,10 +730,26 @@ export default function OrgSettings() {
                     <option value="entreprise">Entreprise</option>
                   </select>
                   {(pendingTemplateEdits[tmpl.id]?.part ?? tmpl.part ?? 'comptable') === 'entreprise' && (
-                    <select value={pendingTemplateEdits[tmpl.id]?.client_id ?? tmpl.client_id ?? ''} onChange={e => changeClient(tmpl.id, e.target.value || null)} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Entreprise concernée" aria-label={`Entreprise ${tmpl.label}`}>
-                      <option value="" disabled>Choisir l’entreprise…</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <div className="min-w-[230px] rounded-lg border border-gray-200 bg-white p-2" data-testid={`template-companies-${tmpl.id}`}>
+                      <p className="mb-1 text-[10px] text-gray-500">Entreprises concernées (sélection multiple)</p>
+                      <div className="max-h-28 space-y-1 overflow-y-auto">
+                        {clients.map(c => {
+                          const selectedIds = pendingTemplateEdits[tmpl.id]?.client_ids ?? tmpl.client_ids ?? (tmpl.client_id ? [tmpl.client_id] : []);
+                          return (
+                            <label key={c.id} className="flex cursor-pointer items-center gap-2 text-[11px] text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.includes(c.id)}
+                                onChange={e => changeClients(tmpl.id, c.id, e.target.checked)}
+                                aria-label={`Entreprise ${c.name} pour ${tmpl.label}`}
+                              />
+                              <span>{c.name}</span>
+                            </label>
+                          );
+                        })}
+                        {clients.length === 0 && <p className="text-[11px] text-gray-400">Aucune entreprise disponible.</p>}
+                      </div>
+                    </div>
                   )}
                   <button
                     type="button"
