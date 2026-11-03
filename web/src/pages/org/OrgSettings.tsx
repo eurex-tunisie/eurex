@@ -31,6 +31,9 @@ export default function OrgSettings() {
   const isExpert = state.user?.role === 'expert' || state.user?.role === 'manager';
   const [tab, setTab] = useState<Tab>('templates');
   const [templates, setTemplates] = useState<OrgTemplate[]>([]);
+  const [pendingTemplateEdits, setPendingTemplateEdits] = useState<Record<string, { part?: 'entreprise' | 'comptable'; client_id?: string | null }>>({});
+  const [savedTemplateNotice, setSavedTemplateNotice] = useState<string | null>(null);
+  const [savingTemplateIds, setSavingTemplateIds] = useState<string[]>([]);
   const [comptables, setComptables] = useState<OrgComptable[]>([]);
   const [loading, setLoading] = useState(true);
   const [newLabel, setNewLabel] = useState('');
@@ -164,27 +167,32 @@ export default function OrgSettings() {
   };
 
   const changePart = async (id: string, part: 'entreprise' | 'comptable', clientId?: string | null) => {
-    try {
-      // En sélectionnant Entreprise on attache par défaut le modèle à la
-      // première entreprise disponible. Le choix explicite reste modifiable.
-      const nextClientId = part === 'entreprise'
-        ? (clientId === undefined ? (clients[0]?.id || null) : clientId)
-        : null;
-      await orgApi.updateTemplate(id, { part, client_id: nextClientId });
-      setTemplates(templates.map(tmpl => tmpl.id === id ? {
-        ...tmpl,
-        part,
-        client_id: nextClientId,
-        client_name: clients.find(c => c.id === nextClientId)?.name || null,
-      } : tmpl));
-    } catch (err: any) { alert(err.message); }
+    // Stage both values together; the explicit Enregistrer button persists them.
+    const nextClientId = part === 'entreprise'
+      ? (clientId === undefined ? (pendingTemplateEdits[id]?.client_id ?? templates.find(t => t.id === id)?.client_id ?? clients[0]?.id ?? null) : clientId)
+      : null;
+    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], part, client_id: nextClientId } }));
   };
 
   const changeClient = async (id: string, clientId: string | null) => {
+    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], part: 'entreprise', client_id: clientId } }));
+  };
+
+  const saveTemplatePart = async (id: string) => {
+    const edit = pendingTemplateEdits[id];
+    if (!edit) return;
+    const currentPart = templates.find(t => t.id === id)?.part || 'comptable';
+    const part = edit.part ?? currentPart;
+    if (part === 'entreprise' && !edit.client_id) { alert('Sélectionnez une entreprise avant d’enregistrer.'); return; }
+    setSavingTemplateIds(prev => [...prev, id]);
     try {
-      await orgApi.updateTemplate(id, { client_id: clientId });
-      setTemplates(templates.map(tmpl => tmpl.id === id ? { ...tmpl, client_id: clientId, client_name: clients.find(c => c.id === clientId)?.name || null } : tmpl));
-    } catch (err: any) { alert(err.message); }
+      await orgApi.updateTemplate(id, { part, client_id: part === 'entreprise' ? edit.client_id : null });
+      setTemplates(prev => prev.map(t => t.id === id ? { ...t, part, client_id: part === 'entreprise' ? edit.client_id || null : null, client_name: clients.find(c => c.id === edit.client_id)?.name || null } : t));
+      setPendingTemplateEdits(prev => { const next = { ...prev }; delete next[id]; return next; });
+      setSavedTemplateNotice('Modèle enregistré avec succès.');
+      window.setTimeout(() => setSavedTemplateNotice(null), 3500);
+    } catch (err: any) { alert(err.message || 'Enregistrement impossible'); }
+    finally { setSavingTemplateIds(prev => prev.filter(x => x !== id)); }
   };
 
   const applyBillingToSelected = async () => {
@@ -697,6 +705,7 @@ export default function OrgSettings() {
           <div className="card p-4">
             <h3 className="font-semibold text-sm text-gray-700 mb-3">Norme et partie par tâche</h3>
             <p className="text-xs text-gray-500 mb-3">Temps prévu pour réaliser chaque tâche, et à quelle partie elle appartient (Entreprise = sur place client, Comptable = au cabinet).</p>
+            {savedTemplateNotice && <p role="status" className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">✓ {savedTemplateNotice}</p>}
             <div className="space-y-2">
               {templates.map(tmpl => (
                 <div key={tmpl.id} data-testid="template-row" className="card p-3 flex flex-wrap items-center gap-3">
@@ -708,16 +717,25 @@ export default function OrgSettings() {
                     <input aria-label={`Minutes norme ${tmpl.label}`} data-norm-min="1" type="number" min="0" max="59" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor((tmpl.norm_seconds % 3600) / 60)} onBlur={e => changeNorm(tmpl.id, Number((e.currentTarget.parentElement?.querySelector('[data-testid="template-norm-hours"]') as HTMLInputElement)?.value || 0), Number(e.target.value || 0))} className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="min" />
                     <span className="text-[10px] text-gray-400">min</span>
                   </div>
-                  <select value={tmpl.part || 'comptable'} onChange={e => changePart(tmpl.id, e.target.value as 'entreprise' | 'comptable')} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Partie" aria-label={`Partie ${tmpl.label}`}>
+                  <select value={pendingTemplateEdits[tmpl.id]?.part ?? tmpl.part ?? 'comptable'} onChange={e => changePart(tmpl.id, e.target.value as 'entreprise' | 'comptable')} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Partie" aria-label={`Partie ${tmpl.label}`}>
                     <option value="comptable">Comptable</option>
                     <option value="entreprise">Entreprise</option>
                   </select>
-                  {(tmpl.part || 'comptable') === 'entreprise' && (
-                    <select value={tmpl.client_id || ''} onChange={e => changeClient(tmpl.id, e.target.value || null)} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Entreprise concernée" aria-label={`Entreprise ${tmpl.label}`}>
+                  {(pendingTemplateEdits[tmpl.id]?.part ?? tmpl.part ?? 'comptable') === 'entreprise' && (
+                    <select value={pendingTemplateEdits[tmpl.id]?.client_id ?? tmpl.client_id ?? ''} onChange={e => changeClient(tmpl.id, e.target.value || null)} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Entreprise concernée" aria-label={`Entreprise ${tmpl.label}`}>
                       <option value="" disabled>Choisir l’entreprise…</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   )}
+                  <button
+                    type="button"
+                    data-testid={`save-template-part-${tmpl.id}`}
+                    onClick={() => saveTemplatePart(tmpl.id)}
+                    disabled={!pendingTemplateEdits[tmpl.id] || savingTemplateIds.includes(tmpl.id)}
+                    className="btn btn-accent px-3 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {savingTemplateIds.includes(tmpl.id) ? 'Enregistrement…' : 'Enregistrer'}
+                  </button>
                 </div>
               ))}
               {templates.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Aucun modèle de tâche.</p>}

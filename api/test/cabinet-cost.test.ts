@@ -94,7 +94,11 @@ test('dossier billing is separate from labor cost and persisted per selected dos
 
 test('switching a task template to Entreprise assigns a company and keeps it selectable', () => {
   const settings = readFileSync(new URL('../../web/src/pages/org/OrgSettings.tsx', import.meta.url), 'utf8');
-  assert.match(settings, /clients\[0\]\?\.id \|\| null/);
-  assert.match(settings, /part, client_id: nextClientId/);
+  assert.match(settings, /pendingTemplateEdits/);
+  assert.match(settings, /const saveTemplatePart = async/);
+  assert.match(settings, /part, client_id: part === 'entreprise' \? edit\.client_id : null/);
   assert.match(settings, /Choisir l’entreprise…/);
+  assert.match(settings, /save-template-part-\$\{tmpl\.id\}/);
+  assert.match(settings, /Enregistrer/);
+  assert.match(settings, /Modèle enregistré avec succès\./);
 });
