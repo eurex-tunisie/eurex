@@ -121,4 +121,7 @@ test('switching a task template to Entreprise assigns a company and keeps it sel
   assert.match(MULTI_CLIENTS, /ADD COLUMN client_ids TEXT/);
   assert.match(MULTI_CLIENTS_PG, /ADD COLUMN IF NOT EXISTS client_ids TEXT/);
   assert.match(SRC, /tmpl\.client_ids/);
+  assert.match(SRC, /const propagatePart = part !== undefined \|\| client_ids !== undefined \|\| client_id !== undefined/);
+  assert.match(SRC, /UPDATE org_tasks SET \$\{taskUpdates\.join\(', '\)\} WHERE label = \?/);
+  assert.match(SRC, /if \(exists\) \{[\s\S]*UPDATE org_tasks SET part = \?, norm_seconds = \?/);
 });

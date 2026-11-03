@@ -5539,6 +5539,28 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (updates.length === 0) return json({ error: 'Rien à modifier' }, 400);
         binds.push(orgTmplMatch[1], user.organization_id);
         await env.DB.prepare(`UPDATE org_task_templates SET ${updates.join(', ')} WHERE id = ? AND organization_id = ?`).bind(...binds).run();
+        // Propagate changed template attributes to matching tasks already present
+        // in dossiers for the selected companies. Keep task progress/status/time.
+        const propagatePart = part !== undefined || client_ids !== undefined || client_id !== undefined;
+        if (propagatePart) {
+          const latest = await env.DB.prepare('SELECT * FROM org_task_templates WHERE id = ? AND organization_id = ?').bind(orgTmplMatch[1], user.organization_id).first() as any;
+          let targetClientIds: string[] = [];
+          try { targetClientIds = latest.client_ids ? JSON.parse(latest.client_ids) : []; } catch { targetClientIds = []; }
+          if (!Array.isArray(targetClientIds) || !targetClientIds.length) targetClientIds = latest.client_id ? [latest.client_id] : [];
+          if (latest.part === 'entreprise' && targetClientIds.length) {
+            for (const ids of chunkIds(targetClientIds)) {
+              if (!ids.length) continue;
+              const marks = ids.map(() => '?').join(',');
+              const taskUpdates: string[] = [];
+              const taskBinds: any[] = [];
+              if (part !== undefined) { taskUpdates.push('part = ?'); taskBinds.push(latest.part || 'comptable'); }
+              if (norm_seconds !== undefined) { taskUpdates.push('norm_seconds = ?'); taskBinds.push(latest.norm_seconds ?? null); }
+              if (!taskUpdates.length) continue;
+              taskBinds.push(latest.label, ...ids);
+              await env.DB.prepare(`UPDATE org_tasks SET ${taskUpdates.join(', ')} WHERE label = ? AND dossier_id IN (SELECT d.id FROM org_dossiers d WHERE d.client_id IN (${marks}))`).bind(...taskBinds).run();
+            }
+          }
+        }
         await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'template_updated', 'template', orgTmplMatch[1], JSON.stringify({ assigned_comptable_id: assigned_comptable_id !== undefined ? (assigned_comptable_id || null) : undefined, label, requires_document, frequency, month, client_id, client_ids, norm_seconds, part })).run();
         return json({ ok: true });
       }
@@ -5557,6 +5579,13 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           if ((validClients as any[]).length !== ids.length) return json({ error: 'Une entreprise sélectionnée est introuvable' }, 400);
         }
         await env.DB.prepare('UPDATE org_task_templates SET client_ids = ?, client_id = ? WHERE id = ? AND organization_id = ?').bind(ids.length ? JSON.stringify(ids) : null, ids[0] || null, tmpl.id, user.organization_id).run();
+        if (ids.length && tmpl.part === 'entreprise') {
+          for (const chunk of chunkIds(ids)) {
+            if (!chunk.length) continue;
+            const marks = chunk.map(() => '?').join(',');
+            await env.DB.prepare(`UPDATE org_tasks SET part = 'entreprise' WHERE label = (SELECT label FROM org_task_templates WHERE id = ?) AND dossier_id IN (SELECT d.id FROM org_dossiers d WHERE d.client_id IN (${marks}))`).bind(tmpl.id, ...chunk).run();
+          }
+        }
         await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'template_companies_updated', 'template', tmpl.id, JSON.stringify({ client_ids: ids })).run();
         return json({ ok: true, client_ids: ids });
       }
@@ -5584,7 +5613,10 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         for (const d of dRows as any[]) {
           for (const m of months) {
             const exists = await env.DB.prepare('SELECT 1 AS x FROM org_tasks WHERE dossier_id = ? AND label = ? AND COALESCE(month, 0) = COALESCE(?, 0)').bind(d.id, tmpl.label, m).first();
-            if (exists) continue;
+            if (exists) {
+              await env.DB.prepare("UPDATE org_tasks SET part = ?, norm_seconds = ? WHERE dossier_id = ? AND label = ? AND COALESCE(month, 0) = COALESCE(?, 0)").bind(tmpl.part || 'comptable', tmpl.norm_seconds ?? null, d.id, tmpl.label, m).run();
+              continue;
+            }
             const taskId = genId();
             const hidden = tmpl.label === 'Reporting mensuel' ? 1 : 0;
             await env.DB.prepare('INSERT INTO org_tasks (id, dossier_id, label, status, requires_document, order_index, assigned_comptable_id, month, export_scope, hidden, created_at, norm_seconds, part) VALUES (?, ?, ?, \'a_faire\', ?, ?, ?, ?, ?, ?, datetime(\'now\'), ?, ?)').bind(taskId, d.id, tmpl.label, tmpl.requires_document, tmpl.order_index, tmpl.assigned_comptable_id || null, m, tmpl.export_scope || null, hidden, tmpl.norm_seconds ?? null, tmpl.part || 'comptable').run();
