@@ -1017,22 +1017,59 @@ export default function OrgDossierPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-xs font-semibold uppercase table-header">
-                    <th className="px-3 py-2">Tâche</th><th className="px-3 py-2">Intervenant</th><th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Temps pointé</th><th className="px-3 py-2">Note</th>
+                    <th className="px-3 py-2">Tâche</th><th className="px-3 py-2">Partie</th><th className="px-3 py-2">Intervenant</th><th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Temps pointé</th><th className="px-3 py-2">Note</th>
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {(dossier.time_entries || []).map((entry: any) => (
                       <tr key={entry.id} data-testid="dashboard-time-entry">
                         <td className="px-3 py-2">{entry.task_label}</td>
+                        <td className="px-3 py-2 text-xs">
+                          <span className={`px-1.5 py-0.5 rounded-full font-medium ${entry.task_part === 'entreprise' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                            {entry.task_part === 'entreprise' ? 'Entreprise' : 'Comptable'}
+                          </span>
+                        </td>
                         <td className="px-3 py-2">{entry.user_name} <span className="text-xs text-gray-400">({entry.user_role_label || entry.user_role || ''})</span></td>
                         <td className="px-3 py-2 text-xs text-gray-500">{new Date(String(entry.started_at).replace(' ', 'T') + 'Z').toLocaleString('fr-FR')}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatTime(Number(entry.duration_seconds) || 0)}</td>
-                        <td className="px-3 py-2 text-xs text-gray-500">{entry.note || '—'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{entry.note || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="border-t px-3 py-2 text-right font-semibold text-sm">Total dossier : {formatTime((dossier.time_entries || []).reduce((sum: number, entry: any) => sum + (Number(entry.duration_seconds) || 0), 0))}</div>
+              <div className="border-t px-3 py-2 text-right font-semibold text-sm">
+                Total dossier : {formatTime((dossier.time_entries || []).reduce((sum: number, entry: any) => sum + (Number(entry.duration_seconds) || 0), 0))}
+                {' · '}
+                <span className="text-amber-700">Entreprise {formatTime((dossier.time_by_part?.entreprise) || 0)}</span>
+                {' · '}
+                <span className="text-blue-700">Comptable {formatTime((dossier.time_by_part?.comptable) || 0)}</span>
+              </div>
+            </div>
+          )}
+          {isExpert && costSummary?.time_cost_by_user?.length > 0 && (
+            <div className="card overflow-hidden" data-testid="dossier-cost-by-user">
+              <div className="px-3 py-2 bg-gray-50 border-b text-sm font-semibold text-gray-700">Coût du temps par intervenant (confidentiel)</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs font-semibold uppercase table-header">
+                    <th className="px-3 py-2">Intervenant</th><th className="px-3 py-2">Rôle</th><th className="px-3 py-2 text-right">Temps</th><th className="px-3 py-2 text-right">Taux horaire</th><th className="px-3 py-2 text-right">Coût</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {costSummary.time_cost_by_user.map((r: any) => (
+                      <tr key={r.user_id}>
+                        <td className="px-3 py-2">{r.full_name}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{r.role_label || r.role}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatTime(Number(r.seconds) || 0)}</td>
+                        <td className="px-3 py-2 text-right text-xs text-gray-500">{r.hourly_cost_cents == null ? '—' : `${(r.hourly_cost_cents / 100).toFixed(2)} DT/h`}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">{r.cost_cents == null ? 'à compléter' : `${(r.cost_cents / 100).toFixed(2)} DT`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t px-3 py-2 text-right font-semibold text-sm">
+                Total : {costSummary.time_cost_complete && costSummary.total_time_cost_cents != null ? `${(costSummary.total_time_cost_cents / 100).toFixed(2)} DT` : 'à compléter (taux horaire manquant)'}
+              </div>
             </div>
           )}
         </div>
@@ -1265,6 +1302,9 @@ export default function OrgDossierPage() {
                       {formatTime(task.total_time_seconds)}
                     </span>
                   )}
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${task.part === 'entreprise' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                    {task.part === 'entreprise' ? 'Entreprise' : 'Comptable'}
+                  </span>
                   {task.assigned_comptable_name && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full font-medium">
                       <UserRound size={10} />

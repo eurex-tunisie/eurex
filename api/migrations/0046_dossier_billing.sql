@@ -1,4 +1,4 @@
--- 0044 — honoraires / facturation client par dossier, distincts du coût salarial.
+-- 0046 — honoraires / facturation client par dossier, distincts du coût salarial.
 CREATE TABLE IF NOT EXISTS org_dossier_billing (
   dossier_id TEXT PRIMARY KEY,
   quoted_cents INTEGER,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS org_dossier_billing (
 );
 CREATE INDEX IF NOT EXISTS idx_org_dossier_billing_updated ON org_dossier_billing(updated_at);
 
--- Norme temporelle spécifique à une entreprise, un exercice et une tâche.
+-- Norme temporelle spécifique à un dossier (entreprise + exercice) et une tâche.
 CREATE TABLE IF NOT EXISTS org_dossier_task_norms (
   dossier_id TEXT NOT NULL,
   task_label TEXT NOT NULL,

@@ -4,14 +4,16 @@ import { currentExercice } from '../lib/useExercice';
 // Selecteur d'exercice du dashboard (expert ET comptable).
 // Filtre : table clients/dossiers, Nouvelles taches, A verifier, Mes heures.
 // Les echeances fiscales restent calendaires (hors perimetre).
-export default function ExerciceSelect({ value, options, onChange }: {
+export default function ExerciceSelect({ value, options, onChange, allowAll = false }: {
   value: number;
   options: number[];
   onChange: (y: number) => void;
+  allowAll?: boolean;
 }) {
   const years = Array.from(new Set([value, ...(options.length ? options : [currentExercice()])])).sort((a, b) => b - a);
   const cur = currentExercice();
-  const isCurrent = value === cur;
+  const isCurrent = value === cur || (allowAll && value === 0);
+  const showBadge = !isCurrent && !(allowAll && value === 0);
   return (
     <div className="flex items-center gap-2">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{t('dash.exercice')}</span>
@@ -22,11 +24,12 @@ export default function ExerciceSelect({ value, options, onChange }: {
         onChange={e => onChange(Number(e.target.value))}
         className={`input-sm px-2 py-1.5 text-sm font-bold cursor-pointer ${ isCurrent ? 'bg-white text-gray-800' : 'bg-amber-50 border-amber-300 text-amber-800' }`}
       >
+        {allowAll && <option value={0} data-testid="dash-exercice-all">Tous les exercices</option>}
         {years.map(y => (
           <option key={y} value={y} data-testid={`dash-exercice-${y}`}>{y}</option>
         ))}
       </select>
-      {!isCurrent && (
+      {!showBadge && (
         <span data-testid="dash-exercice-badge" className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">
           {value > cur ? t('dash.exercice_next') : t('dash.exercice_previous')}
         </span>

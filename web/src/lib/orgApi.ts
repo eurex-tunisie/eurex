@@ -67,6 +67,7 @@ export interface OrgDossier {
   progress: number;
   time_entries: any[];
   time_by_user: { user_name: string; seconds: number }[];
+  time_by_part?: { entreprise: number; comptable: number };
   // Renvoye par /api/org/dossiers (liste) : somme des temps de toutes les
   // taches du dossier. Absent de la reponse unitaire.
   total_time_seconds?: number;
@@ -170,6 +171,7 @@ export interface OrgTask {
   norm_seconds?: number | null;
   dossier_norm_seconds?: number | null;
   effective_norm_seconds?: number | null;
+  part?: 'entreprise' | 'comptable' | null;
   time_cost_cents?: number | null;
   timer_started_at: string | null;
   timer_user_id: string | null;
@@ -353,6 +355,7 @@ export interface OrgTemplate {
   client_id?: string | null;
   client_name?: string | null;
   norm_seconds?: number | null;
+  part?: 'entreprise' | 'comptable' | null;
 }
 
 export interface TimelineEvent {
@@ -629,9 +632,9 @@ export const orgApi = {
 
   // Templates
   getTemplates: () => req<OrgTemplate[]>('/org/templates'),
-  createTemplate: (label: string, requiresDocument: boolean, assignedComptableId?: string | null, frequency?: OrgFrequency, month?: number | null, clientId?: string | null, normSeconds?: number | null) =>
-    req<any>('/org/templates', { method: 'POST', body: JSON.stringify({ label, requires_document: requiresDocument, assigned_comptable_id: assignedComptableId || null, frequency: frequency || 'annuelle', month: month ?? null, client_id: clientId || null, norm_seconds: normSeconds ?? null }) }),
-  updateTemplate: (id: string, patch: { assigned_comptable_id?: string | null; frequency?: OrgFrequency; month?: number | null; client_id?: string | null; requires_document?: boolean; norm_seconds?: number | null }) =>
+  createTemplate: (label: string, requiresDocument: boolean, assignedComptableId?: string | null, frequency?: OrgFrequency, month?: number | null, clientId?: string | null, normSeconds?: number | null, part?: 'entreprise' | 'comptable') =>
+    req<any>('/org/templates', { method: 'POST', body: JSON.stringify({ label, requires_document: requiresDocument, assigned_comptable_id: assignedComptableId || null, frequency: frequency || 'annuelle', month: month ?? null, client_id: clientId || null, norm_seconds: normSeconds ?? null, part: part || undefined }) }),
+  updateTemplate: (id: string, patch: { assigned_comptable_id?: string | null; frequency?: OrgFrequency; month?: number | null; client_id?: string | null; requires_document?: boolean; norm_seconds?: number | null; part?: 'entreprise' | 'comptable' }) =>
     req<any>(`/org/templates/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   // Application retroactive du modele aux dossiers encore ouverts (idempotent)
   applyTemplate: (id: string) =>

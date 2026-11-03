@@ -149,7 +149,7 @@ export default function OrgDashboardComptable() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-800">{t('dash.my_clients')}</h2>
         <div className="flex items-center gap-3">
-          <ExerciceSelect value={exercice} options={exercices} onChange={setExercice} />
+          <ExerciceSelect value={exercice} options={exercices} onChange={setExercice} allowAll />
           <span className="text-sm text-gray-500">{clients.length} client{clients.length > 1 ? 's' : ''}</span>
           <OrgAccountButton />
         </div>

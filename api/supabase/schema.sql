@@ -1,6 +1,6 @@
 -- ============================================================================
 -- EUREX — Schéma PostgreSQL (Supabase) FINAL
--- Généré le 2026-10-09 — source : api/migrations/0001 … 0034 (SQLite)
+-- Généré le 2026-11-03 — source : api/migrations/0001 … 0046 (SQLite)
 -- État final après application de TOUTES les migrations (ALTER fusionnés dans
 -- les CREATE TABLE, reconstruction 0025 prise en compte).
 --
@@ -360,7 +360,8 @@ CREATE TABLE IF NOT EXISTS org_tasks (
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
   done_by TEXT,
   hidden BIGINT NOT NULL DEFAULT 0,
-  norm_seconds BIGINT
+  norm_seconds BIGINT,
+  part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable'
 );
 
 CREATE TABLE IF NOT EXISTS org_expected_documents (
@@ -390,8 +391,31 @@ CREATE TABLE IF NOT EXISTS org_task_templates (
   export_scope TEXT,
   month BIGINT,
   client_id TEXT,
-  norm_seconds BIGINT
+  norm_seconds BIGINT,
+  part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable'
 );
+
+-- 0046 — honoraires client et normes temporelles par dossier / tâche.
+CREATE TABLE IF NOT EXISTS org_dossier_billing (
+  dossier_id TEXT PRIMARY KEY,
+  quoted_cents BIGINT,
+  invoiced_cents BIGINT,
+  collected_cents BIGINT,
+  note TEXT,
+  updated_by TEXT,
+  updated_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
+);
+CREATE INDEX IF NOT EXISTS idx_org_dossier_billing_updated ON org_dossier_billing(updated_at);
+
+CREATE TABLE IF NOT EXISTS org_dossier_task_norms (
+  dossier_id TEXT NOT NULL,
+  task_label TEXT NOT NULL,
+  norm_seconds BIGINT NOT NULL,
+  updated_by TEXT,
+  updated_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
+  PRIMARY KEY (dossier_id, task_label)
+);
+CREATE INDEX IF NOT EXISTS idx_org_dossier_task_norms_dossier ON org_dossier_task_norms(dossier_id);
 
 CREATE TABLE IF NOT EXISTS org_audit_log (
   id TEXT PRIMARY KEY,
@@ -492,27 +516,6 @@ CREATE TABLE IF NOT EXISTS org_dossier_grants (
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
   revoked_at TEXT
-);
-
-CREATE TABLE IF NOT EXISTS org_dossier_billing (
-  dossier_id TEXT PRIMARY KEY,
-  quoted_cents BIGINT,
-  invoiced_cents BIGINT,
-  collected_cents BIGINT,
-  note TEXT,
-  updated_by TEXT,
-  updated_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_org_dossier_billing_updated ON org_dossier_billing(updated_at);
-
-CREATE TABLE IF NOT EXISTS org_dossier_task_norms (
-  dossier_id TEXT NOT NULL,
-  task_label TEXT NOT NULL,
-  norm_seconds BIGINT NOT NULL,
-  updated_by TEXT,
-  updated_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
-  PRIMARY KEY (dossier_id, task_label)
 );
 
 -- 0030 — collaboration sur une tâche (PK composite)

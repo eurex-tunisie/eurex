@@ -3212,8 +3212,8 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
                 for (const m of months) {
                   const taskId = genId();
                   const hidden = tmpl.label === 'Reporting mensuel' ? 1 : 0;
-                  stmts.push(env.DB.prepare("INSERT INTO org_tasks (id, dossier_id, label, status, requires_document, order_index, assigned_comptable_id, month, export_scope, hidden, created_at) VALUES (?, ?, ?, 'a_faire', ?, ?, ?, ?, ?, ?, datetime('now'))")
-                    .bind(taskId, dossierId, tmpl.label, tmpl.requires_document, tmpl.order_index, tmpl.assigned_comptable_id || null, m, tmpl.export_scope || null, hidden));
+                  stmts.push(env.DB.prepare("INSERT INTO org_tasks (id, dossier_id, label, status, requires_document, order_index, assigned_comptable_id, month, export_scope, hidden, created_at, norm_seconds, part) VALUES (?, ?, ?, 'a_faire', ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)")
+                    .bind(taskId, dossierId, tmpl.label, tmpl.requires_document, tmpl.order_index, tmpl.assigned_comptable_id || null, m, tmpl.export_scope || null, hidden, tmpl.norm_seconds ?? null, tmpl.part || 'comptable'));
                   if (tmpl.requires_document) {
                     const docLabel = m ? `${tmpl.label} — ${orgMonthNames[m - 1]} ${exYear}` : tmpl.label;
                     stmts.push(env.DB.prepare('INSERT INTO org_expected_documents (id, dossier_id, task_id, label, received) VALUES (?, ?, ?, ?, 0)')
@@ -3434,7 +3434,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const { results: documents } = await env.DB.prepare('SELECT * FROM org_expected_documents WHERE dossier_id = ? ORDER BY label').bind(orgDossierGetMatch[1]).all();
         const { results: notes } = await env.DB.prepare('SELECT n.*, u.full_name as author_name FROM org_notes n LEFT JOIN org_users u ON n.user_id = u.id WHERE n.dossier_id = ? ORDER BY n.created_at DESC').bind(orgDossierGetMatch[1]).all();
         // Time entries breakdown
-        const { results: timeEntries } = await env.DB.prepare('SELECT te.*, t.label as task_label, u.full_name as user_name, u.role as user_role, u.role_label as user_role_label FROM org_time_entries te JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC').bind(orgDossierGetMatch[1]).all();
+        const { results: timeEntries } = await env.DB.prepare('SELECT te.*, t.label as task_label, t.part as task_part, u.full_name as user_name, u.role as user_role, u.role_label as user_role_label FROM org_time_entries te JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC').bind(orgDossierGetMatch[1]).all();
         const { results: customNorms } = await env.DB.prepare('SELECT task_label, norm_seconds FROM org_dossier_task_norms WHERE dossier_id = ?').bind(orgDossierGetMatch[1]).all();
         const customNormByLabel = new Map((customNorms as any[]).map(n => [n.task_label, Number(n.norm_seconds)]));
         for (const t of tasks as any[]) {
@@ -3502,7 +3502,13 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const c = costByTask.get(t.id);
           t.time_cost_cents = isSupervisor(user.role) && c?.complete ? (c.cost_cents || 0) : null;
         }
-        return json({ ...dossier, tasks, documents, notes, time_entries: timeEntries, time_by_user: Object.values(timeByUser), task_stats: stats, doc_stats: docStats, can_close: canClose, can_force_close: isSupervisor(user.role), block_reasons: blockReasons, progress: stats.total > 0 ? Math.round(stats.fait / stats.total * 1000) / 10 : 0, is_granted: isGranted, grants: isSupervisor(user.role) ? grants : [], running_timers: runningRows, reporting, time_cost_by_user: isSupervisor(user.role) ? personCosts : [], total_time_cost_cents: totalCostCents, time_cost_complete: costComplete });
+        const timeByPart = { entreprise: 0, comptable: 0 };
+        for (const te of timeEntries as any[]) {
+          const secs = Number(te.duration_seconds) || 0;
+          if (te.task_part === 'entreprise') timeByPart.entreprise += secs;
+          else timeByPart.comptable += secs;
+        }
+        return json({ ...dossier, tasks, documents, notes, time_entries: timeEntries, time_by_user: Object.values(timeByUser), task_stats: stats, doc_stats: docStats, can_close: canClose, can_force_close: isSupervisor(user.role), block_reasons: blockReasons, progress: stats.total > 0 ? Math.round(stats.fait / stats.total * 1000) / 10 : 0, is_granted: isGranted, grants: isSupervisor(user.role) ? grants : [], running_timers: runningRows, reporting, time_cost_by_user: isSupervisor(user.role) ? personCosts : [], total_time_cost_cents: totalCostCents, time_cost_complete: costComplete, time_by_part: timeByPart });
       }
 
       // Detail confidentiel du coût de temps (coût horaire visible superviseur uniquement).
@@ -3903,7 +3909,6 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
         const exParam = new URL(request.url).searchParams.get('exercice');
         const exSel = exParam ? Number(exParam) : null;
-        const includeCost = new URL(request.url).searchParams.get('cost') === '1';
         const { results } = await env.DB.prepare(`SELECT t.id, t.label, t.status, t.verify_due_at, t.due_date, t.created_at, t.updated_at, t.dossier_id, d.exercice, c.name as client_name, t.done_by, du.full_name as done_by_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_users du ON t.done_by = du.id WHERE c.organization_id = ? AND t.status = 'a_verifier' AND t.hidden = 0${exSel ? ' AND d.exercice = ?' : ''} ORDER BY (t.verify_due_at IS NULL), t.verify_due_at ASC, t.updated_at DESC LIMIT 50`).bind(user.organization_id, ...(exSel ? [exSel] : [])).all();
         const tasks = (results as any[]).map(t => ({
           ...t,
@@ -5211,6 +5216,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
       if (path === '/api/org/dossiers' && method === 'GET') {
         const user = await verifyOrgToken(request);
         if (!user || !isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert' }, 403);
+        const includeCost = new URL(request.url).searchParams.get('cost') === '1';
         // Securite au chargement : ouverture du nouvel exercice si le cron du 1er janvier a rate
         await ensureCurrentExercice(env, user.organization_id);
         const exParam = new URL(request.url).searchParams.get('exercice');
@@ -5223,8 +5229,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const tasksByDossier = new Map<string, any[]>();
         for (const d of results as any[]) tasksByDossier.set(d.id, []);
         for (const chunk of chunkIds(results.map((d: any) => d.id))) {
+          if (!chunk.length) continue;
           const { results: tasks } = await env.DB.prepare(
-            `SELECT t.id, t.dossier_id, t.status, t.export_scope, t.month, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+            `SELECT t.id, t.dossier_id, t.label, t.status, t.export_scope, t.month, t.norm_seconds, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
           ).bind(...chunk).all();
           for (const t of tasks as any[]) tasksByDossier.get(t.dossier_id)!.push(t);
         }
@@ -5243,13 +5250,30 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0, total_time_seconds: totalTime };
         });
         const actualHoursByDossier = new Map<string, Map<string, { full_name: string; seconds: number; hourly_cost_cents: number | null }>>();
+        const partByDossier = new Map<string, { entreprise: number; comptable: number }>();
+        const customNormsByDossier = new Map<string, Map<string, number>>();
+        const billingByDossier = new Map<string, any>();
+        for (const chunk of chunkIds((results as any[]).map((d: any) => d.id))) {
+          if (!chunk.length) continue;
+          const marks = chunk.map(() => '?').join(',');
+          const [{ results: norms }, { results: billings }] = await Promise.all([
+            env.DB.prepare(`SELECT dossier_id, task_label, norm_seconds FROM org_dossier_task_norms WHERE dossier_id IN (${marks})`).bind(...chunk).all(),
+            env.DB.prepare(`SELECT dossier_id, quoted_cents, invoiced_cents, collected_cents, note, updated_at FROM org_dossier_billing WHERE dossier_id IN (${marks})`).bind(...chunk).all(),
+          ]);
+          for (const n of norms as any[]) {
+            const byLabel = customNormsByDossier.get(n.dossier_id) || new Map<string, number>();
+            byLabel.set(n.task_label, Number(n.norm_seconds));
+            customNormsByDossier.set(n.dossier_id, byLabel);
+          }
+          for (const b of billings as any[]) billingByDossier.set(b.dossier_id, b);
+        }
         if (includeCost) {
-        const costsByDossier = new Map<string, { seconds: number; cost_cents: number; complete: boolean }>();
-          const dossierIds = (results as any[]).map((d: any) => d.id);
-          for (const chunk of chunkIds(dossierIds)) {
+          const taskIds = (results as any[]).flatMap((d: any) => (tasksByDossier.get(d.id) || []).map((t: any) => t.id));
+          const costsByDossier = new Map<string, { seconds: number; cost_cents: number; complete: boolean }>();
+          for (const chunk of chunkIds(taskIds)) {
             if (!chunk.length) continue;
             const { results: entries } = await env.DB.prepare(
-              `SELECT te.dossier_id, te.task_id, te.user_id, te.duration_seconds, t.label AS task_label, u.full_name, u.role, u.role_label, u.hourly_cost_cents FROM org_time_entries te JOIN org_users u ON u.id = te.user_id JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NOT NULL AND te.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+              `SELECT te.dossier_id, te.task_id, te.user_id, te.duration_seconds, t.label AS task_label, t.part AS task_part, u.full_name, u.role, u.role_label, u.hourly_cost_cents FROM org_time_entries te JOIN org_users u ON u.id = te.user_id LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NOT NULL AND te.dossier_id IN (${chunk.map(() => '?').join(',')})`,
             ).bind(...chunk).all();
             for (const e of entries as any[]) {
               const people = actualHoursByDossier.get(e.dossier_id) || new Map();
@@ -5263,22 +5287,31 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
               if (e.hourly_cost_cents == null) prev.complete = false;
               else if (prev.complete) prev.cost_cents += Math.round(Number(e.hourly_cost_cents) * secs / 3600);
               costsByDossier.set(e.dossier_id, prev);
+              const p = partByDossier.get(e.dossier_id) || { entreprise: 0, comptable: 0 };
+              if (e.task_part === 'entreprise') p.entreprise += secs;
+              else p.comptable += secs;
+              partByDossier.set(e.dossier_id, p);
             }
           }
           for (const d of enriched as any[]) {
             const c = costsByDossier.get(d.id);
             d.time_cost_cents = c?.complete ? (c?.cost_cents || 0) : null;
             d.time_cost_complete = !!c && c.complete;
-            d.time_by_person = [...(actualHoursByDossier.get(d.id)?.entries() || [])].map(([user_id, p]) => ({ user_id, ...p, cost_cents: p.hourly_cost_cents == null ? null : Math.round(p.hourly_cost_cents * p.seconds / 3600) }));
+            d.time_by_part = partByDossier.get(d.id) || { entreprise: 0, comptable: 0 };
+            const people = actualHoursByDossier.get(d.id) || new Map();
+            d.time_by_person = [...people.entries()].map(([user_id, p]) => ({ user_id, ...p, cost_cents: p.hourly_cost_cents == null ? null : Math.round(p.hourly_cost_cents * p.seconds / 3600) }));
+            d.task_norm_seconds_total = (tasksByDossier.get(d.id) || []).reduce((sum: number, t: any) => sum + (Number(customNormsByDossier.get(d.id)?.get(t.label) ?? t.norm_seconds) || 0), 0);
+            d.billing = billingByDossier.get(d.id) || null;
           }
-          const billingIds = (enriched as any[]).map(d => d.id);
-          const billingMap = new Map<string, any>();
-          for (const chunk of chunkIds(billingIds)) {
-            if (!chunk.length) continue;
-            const { results: billing } = await env.DB.prepare(`SELECT dossier_id, quoted_cents, invoiced_cents, collected_cents, note, updated_at FROM org_dossier_billing WHERE dossier_id IN (${chunk.map(() => '?').join(',')})`).bind(...chunk).all();
-            for (const b of billing as any[]) billingMap.set(b.dossier_id, b);
+        } else {
+          for (const d of enriched as any[]) {
+            d.time_by_part = { entreprise: 0, comptable: 0 };
+            d.time_cost_cents = null;
+            d.time_cost_complete = false;
+            d.time_by_person = [];
+            d.task_norm_seconds_total = (tasksByDossier.get(d.id) || []).reduce((sum: number, t: any) => sum + (Number(customNormsByDossier.get(d.id)?.get(t.label) ?? t.norm_seconds) || 0), 0);
+            d.billing = billingByDossier.get(d.id) || null;
           }
-          for (const d of enriched as any[]) d.billing = billingMap.get(d.id) || null;
         }
         return json(enriched);
       }
@@ -5417,12 +5450,13 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
       if (path === '/api/org/templates' && method === 'POST') {
         const user = await verifyOrgToken(request);
         if (!user || !isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert' }, 403);
-        const { label, requires_document, assigned_comptable_id, frequency, export_scope, month, client_id, norm_seconds } = await request.json() as any;
+        const { label, requires_document, assigned_comptable_id, frequency, export_scope, month, client_id, norm_seconds, part } = await request.json() as any;
         if (!label) return json({ error: 'Libellé requis' }, 400);
         if (export_scope !== undefined && export_scope !== null && !Array.isArray(export_scope)) return json({ error: 'Portée export invalide' }, 400);
         if (Array.isArray(export_scope) && export_scope.some((s: any) => !EXPORT_STATUSES.includes(s))) return json({ error: 'Portée export invalide' }, 400);
         if (month !== undefined && month !== null && (!Number.isInteger(month) || month < 1 || month > 12)) return json({ error: 'Mois invalide (1 à 12)' }, 400);
         if (norm_seconds !== undefined && norm_seconds !== null && (!Number.isInteger(norm_seconds) || norm_seconds < 60 || norm_seconds > 86400 * 30)) return json({ error: 'Norme invalide (de 1 minute à 30 jours)' }, 400);
+        if (part !== undefined && part !== null && part !== 'entreprise' && part !== 'comptable') return json({ error: 'Partie invalide (entreprise ou comptable)' }, 400);
         if (frequency !== undefined && frequency !== 'mensuelle' && frequency !== 'trimestrielle' && frequency !== 'annuelle') {
           return json({ error: 'Fréquence invalide' }, 400);
         }
@@ -5437,18 +5471,19 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         }
         const maxOrder = await env.DB.prepare('SELECT MAX(order_index) as mx FROM org_task_templates WHERE organization_id = ?').bind(user.organization_id).first() as any;
         const id = genId();
-        await env.DB.prepare('INSERT INTO org_task_templates (id, organization_id, label, order_index, requires_document, assigned_comptable_id, frequency, export_scope, month, client_id, norm_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, user.organization_id, label, (maxOrder?.mx || 0) + 1, requires_document ? 1 : 0, assigned_comptable_id || null, tmplFreq, export_scope === undefined ? null : parseExportScope(export_scope), month ?? null, client_id || null, norm_seconds ?? null).run();
-        return json({ id, label, assigned_comptable_id: assigned_comptable_id || null, frequency: tmplFreq, export_scope: export_scope === undefined ? null : parseExportScope(export_scope), month: month ?? null, client_id: client_id || null, norm_seconds: norm_seconds ?? null }, 201);
+        await env.DB.prepare('INSERT INTO org_task_templates (id, organization_id, label, order_index, requires_document, assigned_comptable_id, frequency, export_scope, month, client_id, norm_seconds, part) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, user.organization_id, label, (maxOrder?.mx || 0) + 1, requires_document ? 1 : 0, assigned_comptable_id || null, tmplFreq, export_scope === undefined ? null : parseExportScope(export_scope), month ?? null, client_id || null, norm_seconds ?? null, part || 'comptable').run();
+        return json({ id, label, assigned_comptable_id: assigned_comptable_id || null, frequency: tmplFreq, export_scope: export_scope === undefined ? null : parseExportScope(export_scope), month: month ?? null, client_id: client_id || null, norm_seconds: norm_seconds ?? null, part: part || 'comptable' }, 201);
       }
       const orgTmplMatch = path.match(/^\/api\/org\/templates\/([^/]+)$/);
       if (orgTmplMatch && method === 'PATCH') {
         const user = await verifyOrgToken(request);
         if (!user || !isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert' }, 403);
-        const { assigned_comptable_id, label, requires_document, frequency, export_scope, month, client_id, norm_seconds } = await request.json() as any;
+        const { assigned_comptable_id, label, requires_document, frequency, export_scope, month, client_id, norm_seconds, part } = await request.json() as any;
         const tmpl = await env.DB.prepare('SELECT * FROM org_task_templates WHERE id = ? AND organization_id = ?').bind(orgTmplMatch[1], user.organization_id).first() as any;
         if (!tmpl) return json({ error: 'Modèle non trouvé' }, 404);
         if (month !== undefined && month !== null && (!Number.isInteger(month) || month < 1 || month > 12)) return json({ error: 'Mois invalide (1 à 12)' }, 400);
         if (norm_seconds !== undefined && norm_seconds !== null && (!Number.isInteger(norm_seconds) || norm_seconds < 60 || norm_seconds > 86400 * 30)) return json({ error: 'Norme invalide (de 1 minute à 30 jours)' }, 400);
+        if (part !== undefined && part !== null && part !== 'entreprise' && part !== 'comptable') return json({ error: 'Partie invalide (entreprise ou comptable)' }, 400);
         if (export_scope !== undefined && export_scope !== null && !Array.isArray(export_scope)) return json({ error: 'Portée export invalide' }, 400);
         if (Array.isArray(export_scope) && export_scope.some((s: any) => !EXPORT_STATUSES.includes(s))) return json({ error: 'Portée export invalide' }, 400);
         if (client_id !== undefined && client_id !== null) {
@@ -5474,10 +5509,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (export_scope !== undefined) { updates.push('export_scope = ?'); binds.push(parseExportScope(export_scope)); }
         if (month !== undefined) { updates.push('month = ?'); binds.push(month || null); }
         if (norm_seconds !== undefined) { updates.push('norm_seconds = ?'); binds.push(norm_seconds || null); }
+        if (part !== undefined) { updates.push('part = ?'); binds.push(part || 'comptable'); }
         if (updates.length === 0) return json({ error: 'Rien à modifier' }, 400);
         binds.push(orgTmplMatch[1], user.organization_id);
         await env.DB.prepare(`UPDATE org_task_templates SET ${updates.join(', ')} WHERE id = ? AND organization_id = ?`).bind(...binds).run();
-        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'template_updated', 'template', orgTmplMatch[1], JSON.stringify({ assigned_comptable_id: assigned_comptable_id !== undefined ? (assigned_comptable_id || null) : undefined, label, requires_document, frequency, month, client_id, norm_seconds })).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'template_updated', 'template', orgTmplMatch[1], JSON.stringify({ assigned_comptable_id: assigned_comptable_id !== undefined ? (assigned_comptable_id || null) : undefined, label, requires_document, frequency, month, client_id, norm_seconds, part })).run();
         return json({ ok: true });
       }
       const orgTmplApplyMatch = path.match(/^\/api\/org\/templates\/([^/]+)\/apply$/);
@@ -5504,7 +5540,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             if (exists) continue;
             const taskId = genId();
             const hidden = tmpl.label === 'Reporting mensuel' ? 1 : 0;
-            await env.DB.prepare('INSERT INTO org_tasks (id, dossier_id, label, status, requires_document, order_index, assigned_comptable_id, month, export_scope, hidden, created_at, norm_seconds) VALUES (?, ?, ?, \'a_faire\', ?, ?, ?, ?, ?, ?, datetime(\'now\'), ?)').bind(taskId, d.id, tmpl.label, tmpl.requires_document, tmpl.order_index, tmpl.assigned_comptable_id || null, m, tmpl.export_scope || null, hidden, tmpl.norm_seconds ?? null).run();
+            await env.DB.prepare('INSERT INTO org_tasks (id, dossier_id, label, status, requires_document, order_index, assigned_comptable_id, month, export_scope, hidden, created_at, norm_seconds, part) VALUES (?, ?, ?, \'a_faire\', ?, ?, ?, ?, ?, ?, datetime(\'now\'), ?, ?)').bind(taskId, d.id, tmpl.label, tmpl.requires_document, tmpl.order_index, tmpl.assigned_comptable_id || null, m, tmpl.export_scope || null, hidden, tmpl.norm_seconds ?? null, tmpl.part || 'comptable').run();
             if (tmpl.requires_document) {
               const docLabel = m ? `${tmpl.label} — ${orgMonthNames[m - 1]} ${d.exercice}` : tmpl.label;
               await env.DB.prepare('INSERT INTO org_expected_documents (id, dossier_id, task_id, label, received) VALUES (?, ?, ?, ?, 0)').bind(genId(), d.id, taskId, docLabel).run();

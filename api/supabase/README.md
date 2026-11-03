@@ -70,9 +70,13 @@ primaire à ce moment-là (la double écriture les a déjà copiées : les rejou
 ferait des doublons).
 
 Exemples prêts à l'emploi : `api/supabase/rattrapage-0035-0038.sql`,
-`api/supabase/migration-0043-cabinet-time-costs.sql` et
-`api/supabase/migration-0044-dossier-billing.sql` (idempotents, avec contrôle
-des colonnes). Appliquer le miroir PostgreSQL avant de déployer une migration D1.
+`api/supabase/migration-0043-cabinet-time-costs.sql`,
+`api/supabase/migration-0045-cabinet-time-parts.sql` et
+`api/supabase/migration-0046-dossier-billing.sql` (idempotents, avec contrôle
+des colonnes). Appliquer les miroirs PostgreSQL dans l'ordre avant de déployer
+les migrations D1 correspondantes. Garder un numéro unique par migration ; ne
+pas réutiliser un numéro publié, même si deux branches l'ont attribué à des
+fonctionnalités différentes.
 
 ---
 
