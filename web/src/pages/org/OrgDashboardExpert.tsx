@@ -545,11 +545,7 @@ export default function OrgDashboardExpert() {
     .filter(d => hoursComptableFilter === 'all' || d.comptable_id === hoursComptableFilter)
     .filter(d => !hoursSearch || `${d.client_name || ''} ${d.comptable_name || ''}`.toLocaleLowerCase().includes(hoursSearch.toLocaleLowerCase()));
   const hoursSecondsTotal = filteredHoursDossiers.reduce((sum, d) => sum + (Number(d.total_time_seconds) || 0), 0);
-  const hoursByPartTotal = filteredHoursDossiers.reduce((acc: { entreprise: number; comptable: number }, d: any) => {
-    acc.entreprise += Number(d.time_by_part?.entreprise) || 0;
-    acc.comptable += Number(d.time_by_part?.comptable) || 0;
-    return acc;
-  }, { entreprise: 0, comptable: 0 });
+  const hoursByPartTotal = filteredHoursDossiers.reduce((sum, d) => sum + (Number(d.time_by_part?.comptable) || 0) + (Number(d.time_by_part?.entreprise) || 0), 0);
   const costComplete = filteredHoursDossiers.length > 0 && filteredHoursDossiers.every(d => d.time_cost_complete);
   const costTotalCents = costComplete ? filteredHoursDossiers.reduce((sum, d) => sum + (Number(d.time_cost_cents) || 0), 0) : null;
   const fmtMoney = (cents: number | null | undefined) => cents == null ? 'à compléter' : `${(cents / 100).toFixed(2)} DT`;
@@ -1272,7 +1268,7 @@ export default function OrgDashboardExpert() {
         <section className="space-y-4" data-testid="cabinet-hours-dashboard">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="card rounded-xl p-4"><p className="text-xs text-gray-500">Dossiers affichés</p><p className="text-2xl font-bold">{filteredHoursDossiers.length}</p></div>
-            <div className="card rounded-xl p-4"><p className="text-xs text-gray-500">Temps imputé</p><p className="text-2xl font-bold font-mono">{fmtHm(hoursSecondsTotal)}</p><p className="text-[11px] text-gray-400 mt-1">Entreprise {fmtHm(hoursByPartTotal.entreprise)} · Comptable {fmtHm(hoursByPartTotal.comptable)}</p></div>
+            <div className="card rounded-xl p-4"><p className="text-xs text-gray-500">Temps imputé — Comptable</p><p className="text-2xl font-bold font-mono">{fmtHm(hoursByPartTotal)}</p></div>
             <div className="card rounded-xl p-4"><p className="text-xs text-gray-500">Coût du temps pointé</p><p className="text-2xl font-bold text-emerald-700">{fmtMoney(costTotalCents)}</p><p className="text-[11px] text-gray-400 mt-1">Calculé à partir du coût horaire défini pour chaque intervenant.</p></div>
           </div>
           <div className="card rounded-xl p-3 flex flex-wrap items-center gap-3">
@@ -1310,10 +1306,10 @@ export default function OrgDashboardExpert() {
           </div>
           <div className="card rounded-2xl overflow-x-auto">
             <table className="w-full text-sm min-w-[760px]">
-              <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-600"><th className="px-4 py-3">✓</th><th className="px-4 py-3">Dossier</th><th className="px-4 py-3">Comptable assigné</th><th className="px-4 py-3 text-right">Temps total</th><th className="px-4 py-3 text-right">Répartition E / C</th><th className="px-4 py-3 text-right">Coût du temps</th><th className="px-4 py-3 text-right">Prévu</th><th className="px-4 py-3 text-right">Facturé</th><th className="px-4 py-3 text-right">Encaissé</th><th className="px-4 py-3 text-right">Marge prévue</th><th className="px-4 py-3 text-center">Détail</th></tr></thead>
+              <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-600"><th className="px-4 py-3">✓</th><th className="px-4 py-3">Dossier</th><th className="px-4 py-3">Comptable assigné</th><th className="px-4 py-3 text-right">Temps total</th><th className="px-4 py-3 text-right">Coût du temps</th><th className="px-4 py-3 text-right">Facturé</th><th className="px-4 py-3 text-center">Détail</th></tr></thead>
               <tbody>
-                {hoursLoading ? <tr><td colSpan={11} className="p-6 text-center text-gray-400">Chargement des heures…</td></tr>
-                  : filteredHoursDossiers.length === 0 ? <tr><td colSpan={11} className="p-6 text-center text-gray-400">Aucun dossier pour ce filtre.</td></tr>
+                {hoursLoading ? <tr><td colSpan={7} className="p-6 text-center text-gray-400">Chargement des heures…</td></tr>
+                  : filteredHoursDossiers.length === 0 ? <tr><td colSpan={7} className="p-6 text-center text-gray-400">Aucun dossier pour ce filtre.</td></tr>
                     : filteredHoursDossiers.map(d => (
                       <Fragment key={d.id}>
                       <tr className="border-b last:border-0 hover:bg-purple-50/30" data-testid="hours-dossier-row">
@@ -1321,15 +1317,13 @@ export default function OrgDashboardExpert() {
                         <td className="px-4 py-3"><Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:underline">{d.client_name}</Link><span className="ml-2 text-xs text-gray-400">{d.exercice}</span></td>
                         <td className="px-4 py-3 text-gray-600">{d.comptable_name || '—'}</td>
                         <td className="px-4 py-3 text-right font-mono">{fmtHm(d.total_time_seconds)}</td>
-                        <td className="px-4 py-3 text-right text-xs text-gray-500 font-mono">{fmtHm(d.time_by_part?.entreprise)} / {fmtHm(d.time_by_part?.comptable)}</td>
                         <td className="px-4 py-3 text-right font-semibold text-emerald-700">{fmtMoney(d.time_cost_cents)}</td>
-                        <td className="px-4 py-3 text-right">{fmtMoney(d.billing?.quoted_cents)}</td><td className="px-4 py-3 text-right">{fmtMoney(d.billing?.invoiced_cents)}</td><td className="px-4 py-3 text-right">{fmtMoney(d.billing?.collected_cents)}</td>
-                        <td className="px-4 py-3 text-right font-semibold">{d.billing?.quoted_cents != null && d.time_cost_cents != null ? fmtMoney(Number(d.billing.quoted_cents) - Number(d.time_cost_cents)) : '—'}</td>
+                        <td className="px-4 py-3 text-right">{fmtMoney(d.billing?.invoiced_cents)}</td>
                         <td className="px-4 py-3 text-center"><Link to={`/cabinet/dossier/${d.id}`} className="text-xs text-blue-700 hover:underline">Dossier</Link></td>
               </tr>
               {d.time_by_person?.length > 0 && (
                 <tr key={`${d.id}-people`} className="border-b bg-gray-50/60" data-testid="hours-person-detail">
-                  <td colSpan={11} className="px-6 py-2">
+                  <td colSpan={7} className="px-6 py-2">
                     <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-gray-600">
                       {(d.time_by_person as { user_id: string; full_name: string; role: string; seconds: number; cost_cents: number | null }[]).map(p => <span key={p.user_id}><b>{p.full_name}</b> ({p.role}) · {fmtHm(p.seconds)} · {fmtMoney(p.cost_cents)}</span>)}
                     </div>

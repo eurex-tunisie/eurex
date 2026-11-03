@@ -31,7 +31,7 @@ export default function OrgSettings() {
   const isExpert = state.user?.role === 'expert' || state.user?.role === 'manager';
   const [tab, setTab] = useState<Tab>('templates');
   const [templates, setTemplates] = useState<OrgTemplate[]>([]);
-  const [pendingTemplateEdits, setPendingTemplateEdits] = useState<Record<string, { part?: 'entreprise' | 'comptable'; client_ids?: string[] }>>({});
+  const [pendingTemplateEdits, setPendingTemplateEdits] = useState<Record<string, { client_ids?: string[] }>>({});
   const [savedTemplateNotice, setSavedTemplateNotice] = useState<string | null>(null);
   const [savingTemplateIds, setSavingTemplateIds] = useState<string[]>([]);
   const [comptables, setComptables] = useState<OrgComptable[]>([]);
@@ -39,7 +39,6 @@ export default function OrgSettings() {
   const [newLabel, setNewLabel] = useState('');
   const [newNormH, setNewNormH] = useState('');
   const [newNormM, setNewNormM] = useState('');
-  const [newPart, setNewPart] = useState<'entreprise' | 'comptable'>('comptable');
   const [newRequiresDoc, setNewRequiresDoc] = useState(false);
   const [newAssignedComp, setNewAssignedComp] = useState('');
   const [newFrequency, setNewFrequency] = useState<OrgFrequency>('annuelle');
@@ -113,10 +112,9 @@ export default function OrgSettings() {
     if (!newLabel.trim()) return;
     try {
       const norm = newNormH || newNormM ? (Number(newNormH || 0) * 3600 + Number(newNormM || 0) * 60) : null;
-      await orgApi.createTemplate(newLabel.trim(), newRequiresDoc, newAssignedComp || null, newFrequency, newMonth ? Number(newMonth) : null, newClientId || null, norm, newPart);
+      await orgApi.createTemplate(newLabel.trim(), newRequiresDoc, newAssignedComp || null, newFrequency, newMonth ? Number(newMonth) : null, newClientId || null, norm, 'comptable');
       setNewLabel('');
       setNewNormH(''); setNewNormM('');
-      setNewPart('comptable');
       setNewRequiresDoc(false);
       setNewAssignedComp('');
       setNewMonth('');
@@ -166,36 +164,24 @@ export default function OrgSettings() {
     } catch (err: any) { alert(err.message); }
   };
 
-  const changePart = async (id: string, part: 'entreprise' | 'comptable', clientId?: string | null) => {
-    const tmpl = templates.find(t => t.id === id);
-    let existingIds: string[] = [];
-    try { existingIds = Array.isArray(tmpl?.client_ids) ? tmpl!.client_ids! : (tmpl?.client_id ? [tmpl.client_id] : []); } catch { existingIds = []; }
-    const client_ids = part === 'entreprise'
-      ? (pendingTemplateEdits[id]?.client_ids ?? existingIds)
-      : [];
-    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], part, client_ids } }));
-  };
-
   const changeClients = (id: string, clientId: string, checked: boolean) => {
     const tmpl = templates.find(t => t.id === id);
     let baseIds: string[] = pendingTemplateEdits[id]?.client_ids ?? (Array.isArray(tmpl?.client_ids) ? tmpl!.client_ids! : (tmpl?.client_id ? [tmpl.client_id] : []));
     const client_ids = checked
       ? [...new Set([...baseIds, clientId])]
       : baseIds.filter(existingId => existingId !== clientId);
-    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], part: 'entreprise', client_ids } }));
+    setPendingTemplateEdits(prev => ({ ...prev, [id]: { ...prev[id], client_ids } }));
   };
 
   const saveTemplatePart = async (id: string) => {
     const edit = pendingTemplateEdits[id];
     if (!edit) return;
-    const currentPart = templates.find(t => t.id === id)?.part || 'comptable';
-    const part = edit.part ?? currentPart;
-    if (part === 'entreprise' && !(edit.client_ids?.length)) { alert('Sélectionnez au moins une entreprise avant d’enregistrer.'); return; }
+    if (!(edit.client_ids?.length)) { alert('Sélectionnez au moins une entreprise avant d’enregistrer.'); return; }
     setSavingTemplateIds(prev => [...prev, id]);
     try {
-      const client_ids = part === 'entreprise' ? edit.client_ids || [] : [];
-      await orgApi.updateTemplate(id, { part, client_ids });
-      setTemplates(prev => prev.map(t => t.id === id ? { ...t, part, client_ids, client_id: client_ids[0] || null, client_name: clients.find(c => c.id === client_ids[0])?.name || null } : t));
+      const client_ids = edit.client_ids || [];
+      await orgApi.updateTemplate(id, { part: 'comptable', client_ids });
+      setTemplates(prev => prev.map(t => t.id === id ? { ...t, part: 'comptable', client_ids, client_id: client_ids[0] || null, client_name: clients.find(c => c.id === client_ids[0])?.name || null } : t));
       setPendingTemplateEdits(prev => { const next = { ...prev }; delete next[id]; return next; });
       setSavedTemplateNotice('Modèle enregistré avec succès.');
       window.setTimeout(() => setSavedTemplateNotice(null), 3500);
@@ -230,7 +216,12 @@ export default function OrgSettings() {
   };
 
   const applyTemplate = async (id: string) => {
-    if (!confirm('Créer cette tâche dans tous les dossiers ouverts qui ne l\'ont pas encore ?')) return;
+    const tmpl = templates.find(t => t.id === id);
+    let targets: string[] = [];
+    try { targets = tmpl?.client_ids || (tmpl?.client_id ? [tmpl.client_id] : []); } catch { targets = []; }
+    const companyNames = clients.filter(c => targets.includes(c.id)).map(c => c.name);
+    const scope = companyNames.length ? ` pour ${companyNames.join(', ')}` : ' pour toutes les entreprises';
+    if (!confirm(`Appliquer « ${tmpl?.label || 'cette tâche'} »${scope} aux dossiers ouverts correspondants ? Les tâches existantes seront mises à jour et les manquantes seront créées.`)) return;
     try {
       const r = await orgApi.applyTemplate(id);
       alert(`${r.created} tâche(s) créée(s) dans ${r.dossiers} dossier(s)`);
@@ -374,16 +365,6 @@ export default function OrgSettings() {
                 <span className="text-xs text-gray-400">min</span>
               </div>
               <select
-                value={newPart}
-                onChange={e => setNewPart(e.target.value as 'entreprise' | 'comptable')}
-                className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer"
-                title="Partie : entreprise (sur place) ou comptable (cabinet)"
-                aria-label="Partie de la tâche"
-              >
-                <option value="comptable">Comptable</option>
-                <option value="entreprise">Entreprise</option>
-              </select>
-              <select
                 data-testid="template-freq-new"
                 value={newFrequency}
                 onChange={e => setNewFrequency(e.target.value as OrgFrequency)}
@@ -457,18 +438,8 @@ export default function OrgSettings() {
                 <input aria-label={`Heures norme ${tmpl.label}`} type="number" min="0" max="720" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor(tmpl.norm_seconds / 3600)} onBlur={e => changeNorm(tmpl.id, Number(e.target.value || 0), Number((e.currentTarget.parentElement?.querySelector('[data-norm-min]') as HTMLInputElement)?.value || 0))} data-testid="template-norm-hours" className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="h" />
                 <span className="text-[10px] text-gray-400">h</span>
                 <input aria-label={`Minutes norme ${tmpl.label}`} data-norm-min="1" type="number" min="0" max="59" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor((tmpl.norm_seconds % 3600) / 60)} onBlur={e => changeNorm(tmpl.id, Number((e.currentTarget.parentElement?.querySelector('[data-testid="template-norm-hours"]') as HTMLInputElement)?.value || 0), Number(e.target.value || 0))} className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="min" />
-                <span className="text-[10px] text-gray-400">min</span>
-              </div>
-              <select
-                value={tmpl.part || 'comptable'}
-                onChange={e => changePart(tmpl.id, e.target.value as 'entreprise' | 'comptable')}
-                className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer"
-                title="Partie : entreprise (sur place) ou comptable (cabinet)"
-                aria-label={`Partie ${tmpl.label}`}
-              >
-                <option value="comptable">Comptable</option>
-                <option value="entreprise">Entreprise</option>
-              </select>
+                  <span className="text-[10px] text-gray-400">min</span>
+                  </div>
               <span
                 data-testid="template-target"
                 className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap ${
@@ -710,8 +681,8 @@ export default function OrgSettings() {
       {tab === 'heures' && (
         <div className="space-y-4">
           <div className="card p-4">
-            <h3 className="font-semibold text-sm text-gray-700 mb-3">Norme et partie par tâche</h3>
-            <p className="text-xs text-gray-500 mb-3">Temps prévu pour réaliser chaque tâche, et à quelle partie elle appartient (Entreprise = sur place client, Comptable = au cabinet).</p>
+            <h3 className="font-semibold text-sm text-gray-700 mb-3">Norme de temps par tâche</h3>
+            <p className="text-xs text-gray-500 mb-3">Toutes les tâches et tous les pointages sont de type Comptable. Sélectionnez les dossiers clients où appliquer chaque modèle.</p>
             {savedTemplateNotice && <p role="status" className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3">✓ {savedTemplateNotice}</p>}
             <div className="space-y-2">
               {templates.map(tmpl => (
@@ -724,32 +695,26 @@ export default function OrgSettings() {
                     <input aria-label={`Minutes norme ${tmpl.label}`} data-norm-min="1" type="number" min="0" max="59" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor((tmpl.norm_seconds % 3600) / 60)} onBlur={e => changeNorm(tmpl.id, Number((e.currentTarget.parentElement?.querySelector('[data-testid="template-norm-hours"]') as HTMLInputElement)?.value || 0), Number(e.target.value || 0))} className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="min" />
                     <span className="text-[10px] text-gray-400">min</span>
                   </div>
-                  <select value={pendingTemplateEdits[tmpl.id]?.part ?? tmpl.part ?? 'comptable'} onChange={e => changePart(tmpl.id, e.target.value as 'entreprise' | 'comptable')} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Partie" aria-label={`Partie ${tmpl.label}`}>
-                    <option value="comptable">Comptable</option>
-                    <option value="entreprise">Entreprise</option>
-                  </select>
-                  {(pendingTemplateEdits[tmpl.id]?.part ?? tmpl.part ?? 'comptable') === 'entreprise' && (
-                    <div className="min-w-[230px] rounded-lg border border-gray-200 bg-white p-2" data-testid={`template-companies-${tmpl.id}`}>
-                      <p className="mb-1 text-[10px] text-gray-500">Entreprises concernées (sélection multiple)</p>
-                      <div className="max-h-28 space-y-1 overflow-y-auto">
-                        {clients.map(c => {
-                          const selectedIds = pendingTemplateEdits[tmpl.id]?.client_ids ?? tmpl.client_ids ?? (tmpl.client_id ? [tmpl.client_id] : []);
-                          return (
-                            <label key={c.id} className="flex cursor-pointer items-center gap-2 text-[11px] text-gray-700">
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.includes(c.id)}
-                                onChange={e => changeClients(tmpl.id, c.id, e.target.checked)}
-                                aria-label={`Entreprise ${c.name} pour ${tmpl.label}`}
-                              />
-                              <span>{c.name}</span>
-                            </label>
-                          );
-                        })}
-                        {clients.length === 0 && <p className="text-[11px] text-gray-400">Aucune entreprise disponible.</p>}
-                      </div>
+                  <div className="min-w-[230px] rounded-lg border border-gray-200 bg-white p-2" data-testid={`template-companies-${tmpl.id}`}>
+                    <p className="mb-1 text-[10px] text-gray-500">Dossiers clients concernés (sélection multiple)</p>
+                    <div className="max-h-28 space-y-1 overflow-y-auto">
+                      {clients.map(c => {
+                        const selectedIds = pendingTemplateEdits[tmpl.id]?.client_ids ?? tmpl.client_ids ?? (tmpl.client_id ? [tmpl.client_id] : []);
+                        return (
+                          <label key={c.id} className="flex cursor-pointer items-center gap-2 text-[11px] text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(c.id)}
+                              onChange={e => changeClients(tmpl.id, c.id, e.target.checked)}
+                              aria-label={`Entreprise ${c.name} pour ${tmpl.label}`}
+                            />
+                            <span>{c.name}</span>
+                          </label>
+                        );
+                      })}
+                      {clients.length === 0 && <p className="text-[11px] text-gray-400">Aucune entreprise disponible.</p>}
                     </div>
-                  )}
+                  </div>
                   <button
                     type="button"
                     data-testid={`save-template-part-${tmpl.id}`}

@@ -601,12 +601,12 @@ export const orgApi = {
     req<any>(`/org/dossiers/${dossierId}/notes/${noteId}`, { method: 'DELETE' }),
 
   // Timer
-  startTimer: (dossierId: string, taskId: string, part: 'entreprise' | 'comptable') =>
-    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/timer/start`, { method: 'POST', body: JSON.stringify({ part }) }),
+  startTimer: (dossierId: string, taskId: string) =>
+    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/timer/start`, { method: 'POST' }),
     stopTimer: (dossierId: string, taskId: string) =>
       req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/timer/stop`, { method: 'POST' }),
-  addTaskTime: (dossierId: string, taskId: string, seconds: number, note?: string, part: 'entreprise' | 'comptable' = 'comptable') =>
-    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/time`, { method: 'POST', body: JSON.stringify({ seconds, note, part }) }),
+  addTaskTime: (dossierId: string, taskId: string, seconds: number, note?: string) =>
+    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/time`, { method: 'POST', body: JSON.stringify({ seconds, note }) }),
   getTimers: (dossierId: string) =>
     req<{ entries: any[]; tasks: any[] }>(`/org/dossiers/${dossierId}/timers`),
 
@@ -633,8 +633,8 @@ export const orgApi = {
 
   // Templates
   getTemplates: () => req<OrgTemplate[]>('/org/templates'),
-  createTemplate: (label: string, requiresDocument: boolean, assignedComptableId?: string | null, frequency?: OrgFrequency, month?: number | null, clientId?: string | null, normSeconds?: number | null, part?: 'entreprise' | 'comptable') =>
-    req<any>('/org/templates', { method: 'POST', body: JSON.stringify({ label, requires_document: requiresDocument, assigned_comptable_id: assignedComptableId || null, frequency: frequency || 'annuelle', month: month ?? null, client_id: clientId || null, norm_seconds: normSeconds ?? null, part: part || undefined }) }),
+  createTemplate: (label: string, requiresDocument: boolean, assignedComptableId?: string | null, frequency?: OrgFrequency, month?: number | null, clientId?: string | null, normSeconds?: number | null) =>
+    req<any>('/org/templates', { method: 'POST', body: JSON.stringify({ label, requires_document: requiresDocument, assigned_comptable_id: assignedComptableId || null, frequency: frequency || 'annuelle', month: month ?? null, client_id: clientId || null, norm_seconds: normSeconds ?? null, part: 'comptable' }) }),
   updateTemplate: (id: string, patch: { assigned_comptable_id?: string | null; frequency?: OrgFrequency; month?: number | null; client_id?: string | null; client_ids?: string[]; requires_document?: boolean; norm_seconds?: number | null; part?: 'entreprise' | 'comptable' }) =>
     req<any>(`/org/templates/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   // Application retroactive du modele aux dossiers encore ouverts (idempotent)

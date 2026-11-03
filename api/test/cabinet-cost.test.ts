@@ -20,7 +20,7 @@ test('migration adds nullable rate and task norms on D1 and PostgreSQL', () => {
   }
 });
 
-test('time split migration has a unique sequence after hourly-cost migration in both databases', () => {
+test('legacy time split migrations are present for upgrade compatibility', () => {
   assert.match(TIME_PARTS, /org_task_templates ADD COLUMN part/);
   assert.match(TIME_PARTS, /org_tasks ADD COLUMN part/);
   assert.match(TIME_PARTS_PG, /org_task_templates ADD COLUMN IF NOT EXISTS part/);
@@ -30,17 +30,22 @@ test('time split migration has a unique sequence after hourly-cost migration in 
   assert.match(BILLING_PG, /org_time_entries ADD COLUMN IF NOT EXISTS part/);
 });
 
-test('timer and manual time persist the selected part, dossier reports entry part', () => {
-  assert.match(SRC, /INSERT INTO org_time_entries \(id, dossier_id, task_id, user_id, started_at, part\)/);
-  assert.match(SRC, /duration_seconds, note, part\) VALUES/);
-  assert.match(SRC, /COALESCE\(te\.part, t\.part, 'comptable'\) as task_part/);
-  assert.match(SRC, /COALESCE\(te\.part, t\.part, 'comptable'\) AS task_part/);
+test('legacy part field is ignored: all historical and new time is reported as Comptable', () => {
+  assert.match(SRC, /'comptable' as task_part/);
+  assert.match(SRC, /p\.comptable \+= secs/);
+  assert.match(SRC, /const timeByPart = \{ entreprise: 0, comptable: \(timeEntries as any\[\]\)\.reduce/);
   const page = readFileSync(new URL('../../web/src/pages/org/OrgDossierPage.tsx', import.meta.url), 'utf8');
-  assert.match(page, /data-testid="timer-part"/);
-  assert.match(page, /data-testid="manual-time-part"/);
-  assert.match(page, /timerPartByTask\[task\.id\] \|\| task\.part \|\| 'comptable'/);
-  assert.match(page, /manualTimePartByTask\[taskId\] \|\| dossier\.tasks\.find\(t => t\.id === taskId\)\?\.part \|\| 'comptable'/);
-  assert.match(SRC, /body\.part \?\? task\.part \?\? 'comptable'/);
+  assert.doesNotMatch(page, /<option value="entreprise">Entreprise<\/option>/);
+  const settings = readFileSync(new URL('../../web/src/pages/org/OrgSettings.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(settings, /<option value="entreprise">Entreprise<\/option>/);
+});
+
+test('timer and manual time are always saved as Comptable', () => {
+  assert.match(SRC, /started_at, part\) VALUES[\s\S]{0,100}'comptable'/);
+  assert.match(SRC, /duration_seconds, note, part\) VALUES[\s\S]{0,120}'comptable'/);
+  const page = readFileSync(new URL('../../web/src/pages/org/OrgDossierPage.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(page, /data-testid="timer-part"/);
+  assert.doesNotMatch(page, /data-testid="manual-time-part"/);
 });
 
 test('hourly rate is supervisor-managed, range checked and audited; non-supervisors do not receive it', () => {
@@ -110,9 +115,7 @@ test('dossier billing is separate from labor cost and persisted per selected dos
 
 test('switching a task template to Entreprise assigns a company and keeps it selectable', () => {
   const settings = readFileSync(new URL('../../web/src/pages/org/OrgSettings.tsx', import.meta.url), 'utf8');
-  assert.match(settings, /pendingTemplateEdits/);
-  assert.match(settings, /const saveTemplatePart = async/);
-  assert.match(settings, /part, client_ids/);
+  assert.doesNotMatch(settings, /<option value="entreprise">Entreprise<\/option>/);
   assert.match(settings, /type="checkbox"/);
   assert.match(settings, /changeClients\(tmpl\.id, c\.id, e\.target\.checked\)/);
   assert.match(settings, /save-template-part-\$\{tmpl\.id\}/);
@@ -121,7 +124,14 @@ test('switching a task template to Entreprise assigns a company and keeps it sel
   assert.match(MULTI_CLIENTS, /ADD COLUMN client_ids TEXT/);
   assert.match(MULTI_CLIENTS_PG, /ADD COLUMN IF NOT EXISTS client_ids TEXT/);
   assert.match(SRC, /tmpl\.client_ids/);
-  assert.match(SRC, /const propagatePart = part !== undefined \|\| client_ids !== undefined \|\| client_id !== undefined \|\| label !== undefined/);
-  assert.match(SRC, /UPDATE org_tasks SET \$\{taskUpdates\.join\(', '\)\} WHERE label IN \(\?, \?\)/);
-  assert.match(SRC, /if \(exists\) \{[\s\S]*UPDATE org_tasks SET part = \?, norm_seconds = \?/);
+  assert.match(SRC, /UPDATE org_tasks SET \$\{taskUpdates\.join\(', '\)\} WHERE label = \?/);
+  assert.match(SRC, /if \(exists\) \{[\s\S]*UPDATE org_tasks SET part = 'comptable', norm_seconds = \?/);
+});
+
+test('task templates and manual task creation keep all work in the Comptable category', () => {
+  assert.match(SRC, /taskUpdates: string\[\] = \['part = \?'/);
+  assert.match(SRC, /part\) VALUES \(\?, \?, \?, \?, datetime\('now'\), 'comptable'\)/);
+  assert.match(SRC, /duration_seconds, note, part\) VALUES[\s\S]{0,160}'comptable'/);
+  const settings = readFileSync(new URL('../../web/src/pages/org/OrgSettings.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(settings, /<option value="entreprise">Entreprise<\/option>/);
 });

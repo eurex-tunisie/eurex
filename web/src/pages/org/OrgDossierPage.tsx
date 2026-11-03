@@ -127,7 +127,6 @@ export default function OrgDossierPage() {
   const [newExercice, setNewExercice] = useState(new Date().getFullYear());
   const [newDossierComp, setNewDossierComp] = useState('');
   const [timerNow, setTimerNow] = useState(Date.now());
-  const [timerPartByTask, setTimerPartByTask] = useState<Record<string, 'entreprise' | 'comptable'>>({});
   const [newTaskLabel, setNewTaskLabel] = useState('');
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -544,10 +543,10 @@ export default function OrgDossierPage() {
     }
   };
 
-  const startTimer = async (taskId: string, part: 'entreprise' | 'comptable') => {
+  const startTimer = async (taskId: string) => {
     if (!dossier) return;
     try {
-      await orgApi.startTimer(dossier.id, taskId, part);
+      await orgApi.startTimer(dossier.id, taskId);
       load();
     } catch (err: any) {
       alert(err.message);
@@ -568,7 +567,6 @@ export default function OrgDossierPage() {
   const [timeH, setTimeH] = useState('');
   const [timeM, setTimeM] = useState('');
   const [timeNote, setTimeNote] = useState('');
-  const [manualTimePartByTask, setManualTimePartByTask] = useState<Record<string, 'entreprise' | 'comptable'>>({});
 
   const addManualTime = async (taskId: string) => {
     if (!dossier) return;
@@ -578,7 +576,7 @@ export default function OrgDossierPage() {
     if (seconds <= 0) { alert('Indiquez une durée : heures et/ou minutes'); return; }
     if (seconds > 86400) { alert('Durée maximale : 24 h par saisie'); return; }
     try {
-      await orgApi.addTaskTime(dossier.id, taskId, seconds, timeNote.trim() || undefined, manualTimePartByTask[taskId] || dossier.tasks.find(t => t.id === taskId)?.part || 'comptable');
+      await orgApi.addTaskTime(dossier.id, taskId, seconds, timeNote.trim() || undefined);
       setTimeTaskId(null);
       setTimeH('');
       setTimeM('');
@@ -1042,9 +1040,7 @@ export default function OrgDossierPage() {
               <div className="border-t px-3 py-2 text-right font-semibold text-sm">
                 Total dossier : {formatTime((dossier.time_entries || []).reduce((sum: number, entry: any) => sum + (Number(entry.duration_seconds) || 0), 0))}
                 {' · '}
-                <span className="text-amber-700">Entreprise {formatTime((dossier.time_by_part?.entreprise) || 0)}</span>
-                {' · '}
-                <span className="text-blue-700">Comptable {formatTime((dossier.time_by_part?.comptable) || 0)}</span>
+                <span className="text-blue-700">Comptable {formatTime((dossier.time_by_part?.entreprise || 0) + (dossier.time_by_part?.comptable || 0))}</span>
               </div>
             </div>
           )}
@@ -1304,9 +1300,7 @@ export default function OrgDossierPage() {
                       {formatTime(task.total_time_seconds)}
                     </span>
                   )}
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${task.part === 'entreprise' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
-                    {task.part === 'entreprise' ? 'Entreprise' : 'Comptable'}
-                  </span>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700">Comptable</span>
                   {task.assigned_comptable_name && (
                     <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full font-medium">
                       <UserRound size={10} />
@@ -1352,7 +1346,7 @@ export default function OrgDossierPage() {
 
                 {isExpanded && (
                   <div className="px-3 pb-3 pt-1 border-t border-gray-100">
-                    {/* Timer section : chrono par comptable (plusieurs comptables en parallele sur la meme tache) */}
+                    {/* Timer section : le temps du cabinet est comptabilisé côté Comptable. */}
                     <div className="flex items-center gap-3 mb-3 p-2 bg-gray-50 rounded-lg">
                       {(() => {
                         const running = (dossier?.running_timers || []).filter(r => r.task_id === task.id);
@@ -1417,20 +1411,9 @@ export default function OrgDossierPage() {
                             >
                               ➕ Temps
                             </button>
-                            <select
-                              value={timerPartByTask[task.id] || task.part || 'comptable'}
-                              onChange={e => setTimerPartByTask(prev => ({ ...prev, [task.id]: e.target.value as 'entreprise' | 'comptable' }))}
-                              disabled={task.status === 'fait'}
-                              aria-label={`Partie du temps ${task.label}`}
-                              data-testid="timer-part"
-                              className="border border-emerald-200 rounded-lg px-2 py-1.5 text-xs bg-white text-gray-700 disabled:opacity-40"
-                            >
-                              <option value="comptable">Comptable</option>
-                              <option value="entreprise">Entreprise</option>
-                            </select>
                             <button
                               data-testid="timer-start"
-                              onClick={() => startTimer(task.id, timerPartByTask[task.id] || task.part || 'comptable')}
+                              onClick={() => startTimer(task.id)}
                               disabled={task.status === 'fait'}
                               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                             >
@@ -1552,16 +1535,6 @@ export default function OrgDossierPage() {
                         onClick={e => e.stopPropagation()}
                       >
                         <span className="text-xs font-medium text-purple-700">Temps passé :</span>
-                        <select
-                          value={manualTimePartByTask[task.id] || task.part || 'comptable'}
-                          onChange={e => setManualTimePartByTask(prev => ({ ...prev, [task.id]: e.target.value as 'entreprise' | 'comptable' }))}
-                          aria-label={`Partie du temps saisi ${task.label}`}
-                          data-testid="manual-time-part"
-                          className="border border-purple-200 rounded-lg px-2 py-1 text-xs bg-white text-gray-700"
-                        >
-                          <option value="comptable">Comptable</option>
-                          <option value="entreprise">Entreprise</option>
-                        </select>
                         <input
                           value={timeH}
                           onChange={e => setTimeH(e.target.value.replace(/[^0-9]/g, ''))}
