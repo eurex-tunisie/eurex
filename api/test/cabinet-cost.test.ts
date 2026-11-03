@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 const SRC = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
 const D1 = readFileSync(new URL('../migrations/0043_cabinet_time_costs.sql', import.meta.url), 'utf8');
 const PG = readFileSync(new URL('../supabase/migration-0043-cabinet-time-costs.sql', import.meta.url), 'utf8');
+const BILLING = readFileSync(new URL('../migrations/0044_dossier_billing.sql', import.meta.url), 'utf8');
+const BILLING_PG = readFileSync(new URL('../supabase/migration-0044-dossier-billing.sql', import.meta.url), 'utf8');
 
 test('migration adds nullable rate and task norms on D1 and PostgreSQL', () => {
   for (const [name, sql] of [['D1', D1], ['PostgreSQL', PG]] as const) {
@@ -44,5 +46,21 @@ test('expert dashboard exposes a separate detailed hours/cost view and asks the 
   assert.match(page, /key: 'heures' as Tab, label: 'Heures & coûts'/);
   assert.match(page, /orgApi\.getAllDossiers\(exercice, true\)/);
   assert.match(page, /data-testid="cabinet-hours-dashboard"/);
-  assert.match(page, /Détail par tâche\/personne|Ouvrir le détail par tâche\/personne/);
+  assert.match(page, /data-testid="hours-dossier-row"/);
+  assert.match(page, /data-testid="hours-person-detail"/);
+  assert.match(page, /time_by_person/);
+});
+
+test('dossier billing is separate from labor cost and persisted per selected dossier', () => {
+  assert.match(BILLING, /org_dossier_billing/);
+  assert.match(BILLING_PG, /org_dossier_billing/);
+  assert.match(SRC, /dossier_billing_updated/);
+  assert.match(SRC, /quoted_cents/);
+  assert.match(SRC, /collected_cents/);
+  const settings = readFileSync(new URL('../../web/src/pages/org/OrgSettings.tsx', import.meta.url), 'utf8');
+  assert.match(settings, /selectedBillingDossierIds/);
+  assert.match(settings, /upsertDossierBilling/);
+  assert.match(settings, /Marge provisoire/);
+  assert.match(settings, /settings-hours-costs/);
+  assert.match(settings, /Sélectionnez au moins un dossier/);
 });

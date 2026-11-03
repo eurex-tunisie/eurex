@@ -3435,6 +3435,12 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const { results: notes } = await env.DB.prepare('SELECT n.*, u.full_name as author_name FROM org_notes n LEFT JOIN org_users u ON n.user_id = u.id WHERE n.dossier_id = ? ORDER BY n.created_at DESC').bind(orgDossierGetMatch[1]).all();
         // Time entries breakdown
         const { results: timeEntries } = await env.DB.prepare('SELECT te.*, t.label as task_label, u.full_name as user_name, u.role as user_role, u.role_label as user_role_label FROM org_time_entries te JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC').bind(orgDossierGetMatch[1]).all();
+        const { results: customNorms } = await env.DB.prepare('SELECT task_label, norm_seconds FROM org_dossier_task_norms WHERE dossier_id = ?').bind(orgDossierGetMatch[1]).all();
+        const customNormByLabel = new Map((customNorms as any[]).map(n => [n.task_label, Number(n.norm_seconds)]));
+        for (const t of tasks as any[]) {
+          t.dossier_norm_seconds = customNormByLabel.get(t.label) ?? null;
+          t.effective_norm_seconds = t.dossier_norm_seconds ?? t.norm_seconds ?? null;
+        }
         const timeByUser: Record<string, { user_name: string; seconds: number }> = {};
         for (const te of timeEntries as any[]) {
           if (!timeByUser[te.user_id]) timeByUser[te.user_id] = { user_name: te.user_name, seconds: 0 };
@@ -3506,14 +3512,32 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
         if (!await orgCanAccessDossier(user, orgDossierCostMatch[1])) return json({ error: 'Accès refusé' }, 403);
-        const { results: rows } = await env.DB.prepare('SELECT te.user_id, u.full_name, u.role, u.role_label, u.hourly_cost_cents, COALESCE(SUM(te.duration_seconds), 0) AS seconds FROM org_time_entries te JOIN org_users u ON u.id = te.user_id WHERE te.dossier_id = ? AND te.stopped_at IS NOT NULL GROUP BY te.user_id, u.full_name, u.role, u.role_label, u.hourly_cost_cents ORDER BY seconds DESC').bind(orgDossierCostMatch[1]).all();
+        const { results: rows } = await env.DB.prepare('SELECT te.task_id, t.label AS task_label, te.user_id, u.full_name, u.role, u.role_label, u.hourly_cost_cents, COALESCE(SUM(te.duration_seconds), 0) AS seconds FROM org_time_entries te JOIN org_users u ON u.id = te.user_id JOIN org_tasks t ON t.id = te.task_id WHERE te.dossier_id = ? AND te.stopped_at IS NOT NULL GROUP BY te.task_id, t.label, te.user_id, u.full_name, u.role, u.role_label, u.hourly_cost_cents ORDER BY task_label, seconds DESC').bind(orgDossierCostMatch[1]).all();
         const time_cost_by_user = (rows as any[]).map(r => {
           const seconds = Number(r.seconds) || 0;
           const rate = r.hourly_cost_cents == null ? null : Number(r.hourly_cost_cents);
-          return { user_id: r.user_id, full_name: r.full_name, role: r.role, role_label: r.role_label || r.role, seconds, hourly_cost_cents: rate, cost_cents: rate == null ? null : Math.round(rate * seconds / 3600) };
+          return { task_id: r.task_id, task_label: r.task_label, user_id: r.user_id, full_name: r.full_name, role: r.role, role_label: r.role_label || r.role, seconds, hourly_cost_cents: rate, cost_cents: rate == null ? null : Math.round(rate * seconds / 3600) };
         });
         const time_cost_complete = time_cost_by_user.every(r => r.hourly_cost_cents !== null);
         return json({ time_cost_by_user, total_time_cost_cents: time_cost_complete ? time_cost_by_user.reduce((s, r) => s + (r.cost_cents || 0), 0) : null, time_cost_complete });
+      }
+
+      const orgDossierNormMatch = path.match(/^\/api\/org\/dossiers\/([^/]+)\/norms$/);
+      if (orgDossierNormMatch && method === 'PUT') {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
+        const dossierId = orgDossierNormMatch[1];
+        const d = await env.DB.prepare('SELECT d.id FROM org_dossiers d JOIN org_clients c ON c.id = d.client_id WHERE d.id = ? AND c.organization_id = ?').bind(dossierId, user.organization_id).first();
+        if (!d) return json({ error: 'Dossier non trouvé' }, 404);
+        const { task_label, norm_seconds } = await request.json() as any;
+        const label = String(task_label || '').trim();
+        if (!label) return json({ error: 'Libellé tâche requis' }, 400);
+        if (norm_seconds !== null && (!Number.isInteger(norm_seconds) || norm_seconds < 60 || norm_seconds > 86400 * 30)) return json({ error: 'Norme invalide (1 minute à 30 jours)' }, 400);
+        if (norm_seconds === null) await env.DB.prepare('DELETE FROM org_dossier_task_norms WHERE dossier_id = ? AND task_label = ?').bind(dossierId, label).run();
+        else await env.DB.prepare("INSERT INTO org_dossier_task_norms (dossier_id, task_label, norm_seconds, updated_by, updated_at) VALUES (?, ?, ?, ?, datetime('now')) ON CONFLICT(dossier_id, task_label) DO UPDATE SET norm_seconds=excluded.norm_seconds, updated_by=excluded.updated_by, updated_at=excluded.updated_at").bind(dossierId, label, norm_seconds, user.id).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'dossier_task_norm_updated', 'dossier', dossierId, JSON.stringify({ task_label: label, norm_seconds })).run();
+        return json({ ok: true, task_label: label, norm_seconds });
       }
 
       // --- ORG: TRANSFERT DE DOSSIER — autre comptable (override du client) ---
@@ -4034,11 +4058,16 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!await orgCanAccessDossier(user, orgTaskMatch[1])) return json({ error: 'Accès refusé' }, 403);
         const body = await request.json() as any;
-        const { status, blocked_reason, label, assigned_comptable_id, due_date, export_scope, verify_due_hours, verify_seconds, verify_note } = body;
+        const { status, blocked_reason, label, assigned_comptable_id, due_date, export_scope, verify_due_hours, verify_seconds, verify_note, norm_seconds } = body;
         const task = await env.DB.prepare('SELECT * FROM org_tasks WHERE id = ? AND dossier_id = ?').bind(orgTaskMatch[2], orgTaskMatch[1]).first() as any;
         if (!task) return json({ error: 'Tâche non trouvée' }, 404);
         const updates: string[] = [];
         const binds: any[] = [];
+        if (norm_seconds !== undefined) {
+          if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
+          if (norm_seconds !== null && (!Number.isInteger(norm_seconds) || norm_seconds < 60 || norm_seconds > 86400 * 30)) return json({ error: 'Norme invalide (1 minute à 30 jours)' }, 400);
+          updates.push('norm_seconds = ?'); binds.push(norm_seconds);
+        }
         let effStatus: string | undefined;
         if (status !== undefined) {
           if (!['a_faire', 'en_cours', 'fait', 'a_verifier', 'bloque_client'].includes(status)) return json({ error: 'Status invalide' }, 400);
@@ -5213,15 +5242,21 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           }
           return { ...d, task_stats: s, progress: s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0, total_time_seconds: totalTime };
         });
+        const actualHoursByDossier = new Map<string, Map<string, { full_name: string; seconds: number; hourly_cost_cents: number | null }>>();
         if (includeCost) {
-          const taskIds = (results as any[]).flatMap((d: any) => (tasksByDossier.get(d.id) || []).map((t: any) => t.id));
-          const costsByDossier = new Map<string, { seconds: number; cost_cents: number; complete: boolean }>();
-          for (const chunk of chunkIds(taskIds)) {
+        const costsByDossier = new Map<string, { seconds: number; cost_cents: number; complete: boolean }>();
+          const dossierIds = (results as any[]).map((d: any) => d.id);
+          for (const chunk of chunkIds(dossierIds)) {
             if (!chunk.length) continue;
             const { results: entries } = await env.DB.prepare(
-              `SELECT te.dossier_id, te.duration_seconds, u.hourly_cost_cents FROM org_time_entries te JOIN org_users u ON u.id = te.user_id WHERE te.stopped_at IS NOT NULL AND te.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+              `SELECT te.dossier_id, te.task_id, te.user_id, te.duration_seconds, t.label AS task_label, u.full_name, u.role, u.role_label, u.hourly_cost_cents FROM org_time_entries te JOIN org_users u ON u.id = te.user_id JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NOT NULL AND te.dossier_id IN (${chunk.map(() => '?').join(',')})`,
             ).bind(...chunk).all();
             for (const e of entries as any[]) {
+              const people = actualHoursByDossier.get(e.dossier_id) || new Map();
+              const person = people.get(e.user_id) || { full_name: e.full_name, role: e.role_label || e.role, seconds: 0, hourly_cost_cents: e.hourly_cost_cents == null ? null : Number(e.hourly_cost_cents) };
+              person.seconds += Number(e.duration_seconds) || 0;
+              people.set(e.user_id, person);
+              actualHoursByDossier.set(e.dossier_id, people);
               const prev = costsByDossier.get(e.dossier_id) || { seconds: 0, cost_cents: 0, complete: true };
               const secs = Number(e.duration_seconds) || 0;
               prev.seconds += secs;
@@ -5234,9 +5269,47 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             const c = costsByDossier.get(d.id);
             d.time_cost_cents = c?.complete ? (c?.cost_cents || 0) : null;
             d.time_cost_complete = !!c && c.complete;
+            d.time_by_person = [...(actualHoursByDossier.get(d.id)?.entries() || [])].map(([user_id, p]) => ({ user_id, ...p, cost_cents: p.hourly_cost_cents == null ? null : Math.round(p.hourly_cost_cents * p.seconds / 3600) }));
           }
+          const billingIds = (enriched as any[]).map(d => d.id);
+          const billingMap = new Map<string, any>();
+          for (const chunk of chunkIds(billingIds)) {
+            if (!chunk.length) continue;
+            const { results: billing } = await env.DB.prepare(`SELECT dossier_id, quoted_cents, invoiced_cents, collected_cents, note, updated_at FROM org_dossier_billing WHERE dossier_id IN (${chunk.map(() => '?').join(',')})`).bind(...chunk).all();
+            for (const b of billing as any[]) billingMap.set(b.dossier_id, b);
+          }
+          for (const d of enriched as any[]) d.billing = billingMap.get(d.id) || null;
         }
         return json(enriched);
+      }
+
+      // Saisie honoraires client : superviseurs uniquement. Coût salarial reste calcul séparé.
+      const orgBillingMatch = path.match(/^\/api\/org\/dossiers\/([^/]+)\/billing$/);
+      if (orgBillingMatch && method === 'PUT') {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
+        const dossierId = orgBillingMatch[1];
+        const dossier = await env.DB.prepare('SELECT d.id FROM org_dossiers d JOIN org_clients c ON c.id = d.client_id WHERE d.id = ? AND c.organization_id = ?').bind(dossierId, user.organization_id).first();
+        if (!dossier) return json({ error: 'Dossier non trouvé' }, 404);
+        const body = await request.json() as any;
+        const money = (v: any, label: string) => {
+          if (v === undefined || v === null || v === '') return null;
+          const n = Number(v);
+          if (!Number.isSafeInteger(n) || n < 0 || n > 100000000000) throw new Error(`${label} invalide`);
+          return n;
+        };
+        let quoted: number | null, invoiced: number | null, collected: number | null;
+        try {
+          quoted = money(body.quoted_cents, 'Honoraires prévus');
+          invoiced = money(body.invoiced_cents, 'Facturé');
+          collected = money(body.collected_cents, 'Encaissé');
+        } catch (e: any) { return json({ error: e.message }, 400); }
+        const note = body.note == null ? null : String(body.note).trim().slice(0, 500);
+        const old = await env.DB.prepare('SELECT quoted_cents, invoiced_cents, collected_cents, note FROM org_dossier_billing WHERE dossier_id = ?').bind(dossierId).first() as any;
+        await env.DB.prepare("INSERT INTO org_dossier_billing (dossier_id, quoted_cents, invoiced_cents, collected_cents, note, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now')) ON CONFLICT(dossier_id) DO UPDATE SET quoted_cents=excluded.quoted_cents, invoiced_cents=excluded.invoiced_cents, collected_cents=excluded.collected_cents, note=excluded.note, updated_by=excluded.updated_by, updated_at=excluded.updated_at").bind(dossierId, quoted, invoiced, collected, note, user.id).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'dossier_billing_updated', 'dossier', dossierId, JSON.stringify({ old: old || null, new: { quoted_cents: quoted, invoiced_cents: invoiced, collected_cents: collected, note } })).run();
+        return json({ ok: true, billing: { dossier_id: dossierId, quoted_cents: quoted, invoiced_cents: invoiced, collected_cents: collected, note } });
       }
 
       // --- ORG: RECHERCHE GLOBALE (clients, dossiers, taches, documents, notes) ---

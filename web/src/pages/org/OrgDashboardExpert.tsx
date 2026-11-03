@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { orgApi, OrgComptable, OrgDossier, OrgClient, OrgVerifyTask, OrgGrantRow } from '../../lib/orgApi';
 import { t } from '../../lib/orgI18n';
@@ -87,6 +87,16 @@ export default function OrgDashboardExpert() {
   const [hoursComptableFilter, setHoursComptableFilter] = useState(searchParams.get('heures_comptable') || 'all');
   const [hoursSearch, setHoursSearch] = useState(searchParams.get('heures_q') || '');
   const [hoursYearFilter, setHoursYearFilter] = useState<number | 'all'>('all');
+  const [taskNormHours, setTaskNormHours] = useState('');
+  const [taskNormMinutes, setTaskNormMinutes] = useState('');
+  const [taskNormLabel, setTaskNormLabel] = useState('');
+  const [taskNormSaving, setTaskNormSaving] = useState(false);
+  const [billingForm, setBillingForm] = useState({ amount: '', invoiced: '', collected: '', note: '' });
+  const [billingDossiers, setBillingDossiers] = useState<any[]>([]);
+  const [billingYear, setBillingYear] = useState<number | 'all'>('all');
+  const [billingSearch, setBillingSearch] = useState('');
+  const [selectedBillingDossierIds, setSelectedBillingDossierIds] = useState<string[]>([]);
+  const [billingSaving, setBillingSaving] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [allClients, setAllClients] = useState<OrgClient[]>([]);
   const [allGrants, setAllGrants] = useState<OrgGrantRow[]>([]);
@@ -529,6 +539,45 @@ export default function OrgDashboardExpert() {
   const costComplete = filteredHoursDossiers.length > 0 && filteredHoursDossiers.every(d => d.time_cost_complete);
   const costTotalCents = costComplete ? filteredHoursDossiers.reduce((sum, d) => sum + (Number(d.time_cost_cents) || 0), 0) : null;
   const fmtMoney = (cents: number | null | undefined) => cents == null ? 'à compléter' : `${(cents / 100).toFixed(2)} DT`;
+  const filteredBillingDossiers = billingDossiers
+    .filter(d => billingYear === 'all' || Number(d.exercice) === billingYear)
+    .filter(d => !billingSearch || `${d.client_name || ''} ${d.comptable_name || ''}`.toLowerCase().includes(billingSearch.toLowerCase()));
+  const selectedBilling = filteredBillingDossiers.filter(d => selectedBillingDossierIds.includes(d.id));
+  const selectedBillingCost = selectedBilling.every(d => d.time_cost_complete) && selectedBilling.length
+    ? selectedBilling.reduce((sum, d) => sum + (Number(d.time_cost_cents) || 0), 0) : null;
+  const saveDirectBilling = async () => {
+    if (!selectedBilling.length) { alert('Sélectionnez au moins une entreprise/dossier'); return; }
+    const money = (s: string) => s.trim() ? Math.round(Number(s.replace(',', '.')) * 100) : null;
+    const vals = [money(billingForm.amount), money(billingForm.invoiced), money(billingForm.collected)].filter(x => x !== null) as number[];
+    if (vals.some(x => !Number.isSafeInteger(x) || x < 0)) { alert('Montant invalide'); return; }
+    setBillingSaving(true);
+    try {
+      await Promise.all(selectedBilling.map(d => orgApi.upsertDossierBilling(d.id, {
+        quoted_cents: money(billingForm.amount), invoiced_cents: money(billingForm.invoiced),
+        collected_cents: money(billingForm.collected), note: billingForm.note.trim() || null,
+      })));
+      const detailed = await orgApi.getAllDossiers(undefined, true);
+      setBillingDossiers(detailed as any[]);
+      setBillingForm({ amount: '', invoiced: '', collected: '', note: '' });
+    } catch (e: any) { alert(e.message || 'Erreur en enregistrant la facturation'); }
+    finally { setBillingSaving(false); }
+  };
+  const saveDirectNorm = async () => {
+    if (!selectedBilling.length) { alert('Sélectionnez au moins une entreprise/dossier'); return; }
+    const h = Number(taskNormHours || 0), m = Number(taskNormMinutes || 0);
+    const norm_seconds = h * 3600 + m * 60;
+    if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 720 || m < 0 || m > 59 || norm_seconds < 60 || norm_seconds > 86400 * 30) { alert('Norme invalide'); return; }
+    const label = taskNormLabel.trim();
+    if (!label) { alert('Saisissez le libellé de la tâche'); return; }
+    setTaskNormSaving(true);
+    try {
+      await Promise.all(selectedBilling.map(d => orgApi.upsertDossierTaskNorm(d.id, label, norm_seconds)));
+      const detailed = await orgApi.getAllDossiers(undefined, true);
+      setBillingDossiers(detailed as any[]);
+      setTaskNormLabel(''); setTaskNormHours(''); setTaskNormMinutes('');
+    } catch (e: any) { alert(e.message || 'Erreur en enregistrant les normes'); }
+    finally { setTaskNormSaving(false); }
+  };
 
   // Presence comptables : heures pointees aujourd'hui / norme 8h30
   const fmtHm = (sec?: number) => {
@@ -1226,21 +1275,59 @@ export default function OrgDashboardExpert() {
               {comptables.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
             </select>
           </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+            <div className="card rounded-xl p-4 space-y-2" data-testid="dashboard-direct-billing">
+              <h3 className="text-sm font-semibold">Facturation client — saisie directe</h3>
+              <p className="text-[11px] text-gray-500">{selectedBilling.length} dossier(s) sélectionné(s). Cette partie suit les sommes dues/encaissées, séparément du coût salarial.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="number" min="0" step="0.01" value={billingForm.amount} onChange={e => setBillingForm({ ...billingForm, amount: e.target.value })} className="input-field text-sm" placeholder="Honoraires prévus DT" aria-label="Honoraires prévus DT dashboard" />
+                <input type="number" min="0" step="0.01" value={billingForm.invoiced} onChange={e => setBillingForm({ ...billingForm, invoiced: e.target.value })} className="input-field text-sm" placeholder="Facturé DT" aria-label="Facturé DT dashboard" />
+                <input type="number" min="0" step="0.01" value={billingForm.collected} onChange={e => setBillingForm({ ...billingForm, collected: e.target.value })} className="input-field text-sm" placeholder="Encaissé DT" aria-label="Encaissé DT dashboard" />
+                <input type="text" maxLength={300} value={billingForm.note} onChange={e => setBillingForm({ ...billingForm, note: e.target.value })} className="input-field text-sm" placeholder="Note (optionnelle)" aria-label="Note facturation dashboard" />
+              </div>
+              <button onClick={saveDirectBilling} disabled={!selectedBilling.length || billingSaving} className="btn btn-accent px-3 py-2 text-xs disabled:opacity-50">{billingSaving ? 'Enregistrement…' : 'Enregistrer sur les dossiers sélectionnés'}</button>
+            </div>
+            <div className="card rounded-xl p-4 space-y-2" data-testid="dashboard-direct-norm">
+              <h3 className="text-sm font-semibold">Norme de tâche par entreprise</h3>
+              <p className="text-[11px] text-gray-500">Applique une durée de référence à la tâche nommée pour chaque dossier sélectionné.</p>
+              <div className="grid grid-cols-3 gap-2">
+                <input type="text" value={taskNormLabel} onChange={e => setTaskNormLabel(e.target.value)} className="input-field text-sm col-span-3" placeholder="Libellé exact de la tâche" aria-label="Libellé tâche norme entreprise" />
+                <input type="number" min="0" max="720" value={taskNormHours} onChange={e => setTaskNormHours(e.target.value)} className="input-field text-sm" placeholder="Heures" aria-label="Heures norme entreprise" />
+                <input type="number" min="0" max="59" value={taskNormMinutes} onChange={e => setTaskNormMinutes(e.target.value)} className="input-field text-sm" placeholder="Minutes" aria-label="Minutes norme entreprise" />
+                <span className="text-[11px] text-gray-500 self-center">temps prévu / tâche</span>
+              </div>
+              <button onClick={saveDirectNorm} disabled={!selectedBilling.length || taskNormSaving} className="px-3 py-2 text-xs rounded-lg bg-indigo-600 text-white disabled:opacity-50">{taskNormSaving ? 'Enregistrement…' : 'Appliquer la norme aux dossiers sélectionnés'}</button>
+            </div>
+          </div>
           <div className="card rounded-2xl overflow-x-auto">
             <table className="w-full text-sm min-w-[760px]">
-              <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-600"><th className="px-4 py-3">Dossier</th><th className="px-4 py-3">Comptable assigné</th><th className="px-4 py-3 text-right">Temps total</th><th className="px-4 py-3 text-right">Coût du temps</th><th className="px-4 py-3 text-center">Détail</th></tr></thead>
+              <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-600"><th className="px-4 py-3">✓</th><th className="px-4 py-3">Dossier</th><th className="px-4 py-3">Comptable assigné</th><th className="px-4 py-3 text-right">Temps total</th><th className="px-4 py-3 text-right">Coût du temps</th><th className="px-4 py-3 text-right">Prévu</th><th className="px-4 py-3 text-right">Facturé</th><th className="px-4 py-3 text-right">Encaissé</th><th className="px-4 py-3 text-right">Marge prévue</th><th className="px-4 py-3 text-center">Détail</th></tr></thead>
               <tbody>
-                {hoursLoading ? <tr><td colSpan={5} className="p-6 text-center text-gray-400">Chargement des heures…</td></tr>
-                  : filteredHoursDossiers.length === 0 ? <tr><td colSpan={5} className="p-6 text-center text-gray-400">Aucun dossier pour ce filtre.</td></tr>
+                {hoursLoading ? <tr><td colSpan={10} className="p-6 text-center text-gray-400">Chargement des heures…</td></tr>
+                  : filteredHoursDossiers.length === 0 ? <tr><td colSpan={10} className="p-6 text-center text-gray-400">Aucun dossier pour ce filtre.</td></tr>
                     : filteredHoursDossiers.map(d => (
-                      <tr key={d.id} className="border-b last:border-0 hover:bg-purple-50/30" data-testid="hours-dossier-row">
+                      <Fragment key={d.id}>
+                      <tr className="border-b last:border-0 hover:bg-purple-50/30" data-testid="hours-dossier-row">
+                        <td className="px-4 py-3"><input type="checkbox" aria-label={`Sélectionner ${d.client_name}`} checked={selectedBillingDossierIds.includes(d.id)} onChange={e => setSelectedBillingDossierIds(e.target.checked ? [...new Set([...selectedBillingDossierIds, d.id])] : selectedBillingDossierIds.filter(x => x !== d.id))} /></td>
                         <td className="px-4 py-3"><Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:underline">{d.client_name}</Link><span className="ml-2 text-xs text-gray-400">{d.exercice}</span></td>
                         <td className="px-4 py-3 text-gray-600">{d.comptable_name || '—'}</td>
                         <td className="px-4 py-3 text-right font-mono">{fmtHm(d.total_time_seconds)}</td>
                         <td className="px-4 py-3 text-right font-semibold text-emerald-700">{fmtMoney(d.time_cost_cents)}</td>
-                        <td className="px-4 py-3 text-center"><Link to={`/cabinet/dossier/${d.id}`} className="text-xs text-blue-700 hover:underline">Ouvrir le détail par tâche/personne</Link></td>
-                      </tr>
-                    ))}
+                        <td className="px-4 py-3 text-right">{fmtMoney(d.billing?.quoted_cents)}</td><td className="px-4 py-3 text-right">{fmtMoney(d.billing?.invoiced_cents)}</td><td className="px-4 py-3 text-right">{fmtMoney(d.billing?.collected_cents)}</td>
+                        <td className="px-4 py-3 text-right font-semibold">{d.billing?.quoted_cents != null && d.time_cost_cents != null ? fmtMoney(Number(d.billing.quoted_cents) - Number(d.time_cost_cents)) : '—'}</td>
+                        <td className="px-4 py-3 text-center"><Link to={`/cabinet/dossier/${d.id}`} className="text-xs text-blue-700 hover:underline">Dossier</Link></td>
+              </tr>
+              {d.time_by_person?.length > 0 && (
+                <tr key={`${d.id}-people`} className="border-b bg-gray-50/60" data-testid="hours-person-detail">
+                  <td colSpan={5} className="px-6 py-2">
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-gray-600">
+                              {(d.time_by_person as { user_id: string; full_name: string; role: string; seconds: number; cost_cents: number | null }[]).map(p => <span key={p.user_id}><b>{p.full_name}</b> ({p.role}) · {fmtHm(p.seconds)} · {fmtMoney(p.cost_cents)}</span>)}
+                    </div>
+                  </td>
+                </tr>
+                    )}
+                    </Fragment>
+                  ))}
               </tbody>
             </table>
           </div>

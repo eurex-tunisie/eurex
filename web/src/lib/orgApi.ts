@@ -72,6 +72,8 @@ export interface OrgDossier {
   total_time_seconds?: number;
   time_cost_cents?: number | null;
   time_cost_complete?: boolean;
+  time_by_person?: { user_id: string; full_name: string; role: string; seconds: number; hourly_cost_cents: number | null; cost_cents: number | null }[];
+  billing?: { dossier_id: string; quoted_cents: number | null; invoiced_cents: number | null; collected_cents: number | null; note: string | null } | null;
   is_granted?: boolean;
   grants?: OrgGrant[];
   running_timers?: OrgRunningTimer[];
@@ -166,6 +168,8 @@ export interface OrgTask {
   updated_at: string;
   total_time_seconds: number;
   norm_seconds?: number | null;
+  dossier_norm_seconds?: number | null;
+  effective_norm_seconds?: number | null;
   time_cost_cents?: number | null;
   timer_started_at: string | null;
   timer_user_id: string | null;
@@ -611,6 +615,10 @@ export const orgApi = {
   getComptableDetail: (id: string) => req<any>(`/org/comptables/${id}/detail`),
   createComptable: (d: { full_name: string; email: string; password: string; role: 'comptable' | 'manager' | 'expert'; hourly_cost_cents?: number | null }) => req<any>('/org/comptables', { method: 'POST', body: JSON.stringify(d) }),
   getDossierCost: (dossierId: string) => req<{ time_cost_by_user: { user_id: string; full_name: string; role: string | null; role_label: string | null; seconds: number; hourly_cost_cents: number | null; cost_cents: number | null }[]; total_time_cost_cents: number | null; time_cost_complete: boolean }>(`/org/dossiers/${dossierId}/cost`),
+  upsertDossierBilling: (dossierId: string, body: { quoted_cents: number | null; invoiced_cents: number | null; collected_cents: number | null; note: string | null }) =>
+    req<any>(`/org/dossiers/${dossierId}/billing`, { method: 'PUT', body: JSON.stringify(body) }),
+  upsertDossierTaskNorm: (dossierId: string, taskLabel: string, norm_seconds: number | null) =>
+    req<any>(`/org/dossiers/${dossierId}/norms`, { method: 'PUT', body: JSON.stringify({ task_label: taskLabel, norm_seconds }) }),
   toggleComptable: (id: string, isActive: boolean) =>
     req<any>(`/org/comptables/${id}`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) }),
   updateComptable: (id: string, patch: { full_name?: string; email?: string; password?: string; role?: 'comptable' | 'manager' | 'expert'; hourly_cost_cents?: number | null }) =>

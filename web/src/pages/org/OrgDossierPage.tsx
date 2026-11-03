@@ -1351,11 +1351,14 @@ export default function OrgDossierPage() {
                                 '⏱ Pas encore chronométré'
                               )}
                             </span>
-                            {task.norm_seconds != null && (
-                              <span className="text-[11px] text-indigo-700 bg-indigo-50 rounded px-2 py-1" data-testid="task-norm">
-                                Norme {formatTime(task.norm_seconds)} · {task.total_time_seconds > task.norm_seconds ? `+${formatTime(task.total_time_seconds - task.norm_seconds)} au-dessus` : `${formatTime(task.norm_seconds - task.total_time_seconds)} restantes`}
-                              </span>
-                            )}
+                            {(() => {
+                              const norm = task.effective_norm_seconds ?? task.norm_seconds ?? null;
+                              if (norm == null) return null;
+                              return <span className="text-[11px] text-indigo-700 bg-indigo-50 rounded px-2 py-1" data-testid="task-norm">
+                                Norme {formatTime(norm)} · {task.total_time_seconds > norm ? `+${formatTime(task.total_time_seconds - norm)} au-dessus` : `${formatTime(norm - task.total_time_seconds)} restantes`}
+                              </span>;
+                            })()}
+                            {isExpert && task.dossier_norm_seconds != null && <span className="text-[10px] text-violet-600">(norme entreprise)</span>}
                             {isExpert && task.time_cost_cents != null && (
                               <span className="text-[11px] text-emerald-700 bg-emerald-50 rounded px-2 py-1" data-testid="task-time-cost">Coût { (task.time_cost_cents / 100).toFixed(2) } DT</span>
                             )}

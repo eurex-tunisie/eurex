@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { orgApi, OrgTemplate, OrgComptable, OrgFrequency, OrgClient } from '../../lib/orgApi';
 import { useOrgAuth } from '../../lib/orgAuth';
 import { t } from '../../lib/orgI18n';
@@ -8,7 +9,7 @@ import { SkeletonSection } from '../../components/Skeleton';
 import PwdField from '../../components/PwdField';
 import { Settings, Users, ListChecks, Plus, Trash2, Eye, EyeOff, RefreshCw, Pencil, Check, X } from 'lucide-react';
 
-type Tab = 'templates' | 'comptables' | 'trash';
+type Tab = 'templates' | 'hours-costs' | 'comptables' | 'trash';
 type Role = 'comptable' | 'manager' | 'expert';
 
 const ROLE_LABEL: Record<string, string> = { comptable: 'Comptable', manager: 'Manager', expert: 'Expert' };
@@ -39,6 +40,13 @@ export default function OrgSettings() {
   const [newMonth, setNewMonth] = useState('');
   const [newClientId, setNewClientId] = useState('');
   const [clients, setClients] = useState<OrgClient[]>([]);
+  const [billingDossiers, setBillingDossiers] = useState<any[]>([]);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingSearch, setBillingSearch] = useState('');
+  const [billingYear, setBillingYear] = useState<number | 'all'>('all');
+  const [selectedBillingDossierIds, setSelectedBillingDossierIds] = useState<string[]>([]);
+  const [billingForm, setBillingForm] = useState({ amount: '', invoiced: '', collected: '', note: '' });
+  const [billingSaving, setBillingSaving] = useState(false);
   const [newCompName, setNewCompName] = useState('');
   const [newCompEmail, setNewCompEmail] = useState('');
   const [newCompPassword, setNewCompPassword] = useState('');
@@ -85,6 +93,18 @@ export default function OrgSettings() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (tab !== 'hours-costs') return;
+    setBillingLoading(true);
+    Promise.all([orgApi.getAllDossiers(), orgApi.getAllDossiers(undefined, true)])
+      .then(([plain, detailed]) => {
+        const costById = new Map((detailed as any[]).map(d => [d.id, d]));
+        setBillingDossiers((plain as any[]).map(d => ({ ...d, ...(costById.get(d.id) || {}) })));
+      })
+      .catch(err => { console.error(err); setBillingDossiers([]); })
+      .finally(() => setBillingLoading(false));
+  }, [tab]);
 
   const addTemplate = async () => {
     if (!newLabel.trim()) return;
@@ -250,6 +270,7 @@ export default function OrgSettings() {
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
         {([
           { key: 'templates' as Tab, label: t('templates.title'), icon: <ListChecks size={14} /> },
+          { key: 'hours-costs' as Tab, label: 'Heures & coûts', icon: <Settings size={14} /> },
           { key: 'comptables' as Tab, label: 'Comptables', icon: <Users size={14} /> },
           { key: 'trash' as Tab, label: 'Corbeille', icon: <Trash2 size={14} /> },
         ]).map(t2 => (
@@ -448,6 +469,84 @@ export default function OrgSettings() {
           ))}
         </div>
       )}
+
+      {tab === 'hours-costs' && (() => {
+        const visible = billingDossiers
+          .filter(d => billingYear === 'all' || Number(d.exercice) === billingYear)
+          .filter(d => !billingSearch || `${d.client_name || ''} ${d.comptable_name || ''}`.toLowerCase().includes(billingSearch.toLowerCase()));
+        const selected = billingDossiers.filter(d => selectedBillingDossierIds.includes(d.id));
+        const selectedCostCents = selected.reduce((sum, d) => sum + (Number(d.time_cost_cents) || 0), 0);
+        const selectedTimeSeconds = selected.reduce((sum, d) => sum + (Number(d.total_time_seconds) || 0), 0);
+        const parseMoneyCents = (s: string) => s.trim() ? Math.round(Number(s.replace(',', '.')) * 100) : null;
+        const saveBilling = async () => {
+          if (!selected.length) { alert('Sélectionnez au moins un dossier'); return; }
+          const amount_cents = parseMoneyCents(billingForm.amount);
+          const invoiced_cents = parseMoneyCents(billingForm.invoiced);
+          const collected_cents = parseMoneyCents(billingForm.collected);
+          const vals = [amount_cents, invoiced_cents, collected_cents].filter(x => x !== null) as number[];
+          if (vals.some(x => x < 0 || !Number.isSafeInteger(x))) { alert('Montant invalide'); return; }
+          setBillingSaving(true);
+          try {
+            await Promise.all(selected.map(d => orgApi.upsertDossierBilling(d.id, {
+              quoted_cents: amount_cents,
+              invoiced_cents,
+              collected_cents,
+              note: billingForm.note.trim() || null,
+            })));
+            const detailed = await orgApi.getAllDossiers(undefined, true);
+            setBillingDossiers(detailed as any[]);
+            setBillingForm({ amount: '', invoiced: '', collected: '', note: '' });
+          } catch (err: any) { alert(err.message || 'Erreur lors de l’enregistrement'); }
+          finally { setBillingSaving(false); }
+        };
+        return (
+          <section className="space-y-4" data-testid="settings-hours-costs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="card p-4"><p className="text-xs text-gray-500">Dossiers sélectionnés</p><p className="text-xl font-bold">{selected.length}</p></div>
+              <div className="card p-4"><p className="text-xs text-gray-500">Temps pointé (coût interne)</p><p className="text-xl font-bold font-mono">{Math.floor(selectedTimeSeconds / 3600)}h{String(Math.floor(selectedTimeSeconds % 3600 / 60)).padStart(2, '0')}</p></div>
+              <div className="card p-4"><p className="text-xs text-gray-500">Coût interne calculable</p><p className="text-xl font-bold text-emerald-700">{selected.every(d => d.time_cost_complete) && selected.length ? `${(selectedCostCents / 100).toFixed(2)} DT` : 'à compléter'}</p></div>
+            </div>
+            <div className="card p-4 space-y-3">
+              <div><h3 className="text-sm font-semibold">Facturation client — saisie directe</h3><p className="text-xs text-gray-500 mt-1">Sélectionnez un ou plusieurs dossiers. Le montant proposé/facturé/encaissé est distinct du coût salarial interne.</p></div>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+                <input type="number" min="0" step="0.01" value={billingForm.amount} onChange={e => setBillingForm({ ...billingForm, amount: e.target.value })} className="input-field text-sm" placeholder="Honoraires prévus (DT)" aria-label="Honoraires prévus DT" />
+                <input type="number" min="0" step="0.01" value={billingForm.invoiced} onChange={e => setBillingForm({ ...billingForm, invoiced: e.target.value })} className="input-field text-sm" placeholder="Facturé (DT)" aria-label="Montant facturé DT" />
+                <input type="number" min="0" step="0.01" value={billingForm.collected} onChange={e => setBillingForm({ ...billingForm, collected: e.target.value })} className="input-field text-sm" placeholder="Encaissé (DT)" aria-label="Montant encaissé DT" />
+                <input type="text" maxLength={300} value={billingForm.note} onChange={e => setBillingForm({ ...billingForm, note: e.target.value })} className="input-field text-sm" placeholder="Note (optionnelle)" aria-label="Note facturation" />
+                <button onClick={saveBilling} disabled={billingSaving || !selected.length} className="btn btn-accent px-3 py-2 text-sm disabled:opacity-50">{billingSaving ? 'Enregistrement…' : `Enregistrer (${selected.length})`}</button>
+              </div>
+            </div>
+            <div className="card p-3 flex flex-wrap gap-2">
+              <input type="search" value={billingSearch} onChange={e => setBillingSearch(e.target.value)} className="input-field min-w-[220px] flex-1 text-sm" placeholder="Rechercher entreprise ou comptable" aria-label="Rechercher entreprise ou comptable" />
+              <select value={billingYear} onChange={e => setBillingYear(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="input-sm px-3 py-2 text-sm" aria-label="Exercice facturation">
+                <option value="all">Tous exercices</option>{[...new Set(billingDossiers.map(d => Number(d.exercice)))].sort((a,b) => b-a).map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <button onClick={() => setSelectedBillingDossierIds(visible.map(d => d.id))} className="text-xs text-blue-700 hover:underline">Tout sélectionner ({visible.length})</button>
+              <button onClick={() => setSelectedBillingDossierIds([])} className="text-xs text-gray-500 hover:underline">Effacer</button>
+            </div>
+            <div className="card rounded-xl overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-600"><th className="p-3">✓</th><th className="p-3">Entreprise / dossier</th><th className="p-3">Comptable assigné</th><th className="p-3 text-right">Temps</th><th className="p-3 text-right">Coût interne</th><th className="p-3 text-right">Honoraires prévus</th><th className="p-3 text-right">Facturé</th><th className="p-3 text-right">Encaissé</th><th className="p-3 text-right">Marge vs prévu</th></tr></thead>
+                <tbody>
+                  {billingLoading ? <tr><td colSpan={9} className="p-5 text-center text-gray-400">Chargement…</td></tr> : visible.map(d => {
+                    const b = d.billing || {};
+                    const margin = b.quoted_cents != null && d.time_cost_cents != null ? Number(b.quoted_cents) - Number(d.time_cost_cents) : null;
+                    return <tr key={d.id} className="border-b last:border-0 hover:bg-gray-50" data-testid="billing-dossier-row">
+                      <td className="p-3"><input type="checkbox" aria-label={`Sélectionner ${d.client_name}`} checked={selectedBillingDossierIds.includes(d.id)} onChange={e => setSelectedBillingDossierIds(e.target.checked ? [...new Set([...selectedBillingDossierIds,d.id])] : selectedBillingDossierIds.filter(x => x !== d.id))} /></td>
+                      <td className="p-3"><Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:underline">{d.client_name}</Link><span className="ml-2 text-xs text-gray-400">{d.exercice}</span></td>
+                      <td className="p-3 text-gray-600">{d.comptable_name || '—'}</td><td className="p-3 text-right font-mono">{Math.floor((d.total_time_seconds||0)/3600)}h{String(Math.floor((d.total_time_seconds||0)%3600/60)).padStart(2,'0')}</td>
+                      <td className="p-3 text-right text-emerald-700">{d.time_cost_cents == null ? '—' : `${(d.time_cost_cents/100).toFixed(2)} DT`}</td>
+                      <td className="p-3 text-right">{b.quoted_cents == null ? '—' : `${(b.quoted_cents/100).toFixed(2)} DT`}</td><td className="p-3 text-right">{b.invoiced_cents == null ? '—' : `${(b.invoiced_cents/100).toFixed(2)} DT`}</td><td className="p-3 text-right">{b.collected_cents == null ? '—' : `${(b.collected_cents/100).toFixed(2)} DT`}</td>
+                      <td className={`p-3 text-right font-semibold ${margin == null ? 'text-gray-400' : margin < 0 ? 'text-red-600' : 'text-emerald-700'}`}>{margin == null ? '—' : `${(margin/100).toFixed(2)} DT`}</td>
+                    </tr>;
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-gray-500">Marge provisoire = honoraires prévus − coût salarial du temps pointé. Hors charges patronales, loyer et frais généraux.</p>
+          </section>
+        );
+      })()}
 
       {/* Tab: Comptables */}
       {tab === 'comptables' && (
