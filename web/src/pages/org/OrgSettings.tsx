@@ -163,10 +163,20 @@ export default function OrgSettings() {
     } catch (err: any) { alert(err.message); }
   };
 
-  const changePart = async (id: string, part: 'entreprise' | 'comptable') => {
+  const changePart = async (id: string, part: 'entreprise' | 'comptable', clientId?: string | null) => {
     try {
-      await orgApi.updateTemplate(id, { part });
-      setTemplates(templates.map(tmpl => tmpl.id === id ? { ...tmpl, part } : tmpl));
+      // En sélectionnant Entreprise on attache par défaut le modèle à la
+      // première entreprise disponible. Le choix explicite reste modifiable.
+      const nextClientId = part === 'entreprise'
+        ? (clientId === undefined ? (clients[0]?.id || null) : clientId)
+        : null;
+      await orgApi.updateTemplate(id, { part, client_id: nextClientId });
+      setTemplates(templates.map(tmpl => tmpl.id === id ? {
+        ...tmpl,
+        part,
+        client_id: nextClientId,
+        client_name: clients.find(c => c.id === nextClientId)?.name || null,
+      } : tmpl));
     } catch (err: any) { alert(err.message); }
   };
 
@@ -704,7 +714,7 @@ export default function OrgSettings() {
                   </select>
                   {(tmpl.part || 'comptable') === 'entreprise' && (
                     <select value={tmpl.client_id || ''} onChange={e => changeClient(tmpl.id, e.target.value || null)} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Entreprise concernée" aria-label={`Entreprise ${tmpl.label}`}>
-                      <option value="">Toutes les entreprises</option>
+                      <option value="" disabled>Choisir l’entreprise…</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   )}

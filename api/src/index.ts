@@ -3966,7 +3966,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const task = await env.DB.prepare('SELECT * FROM org_tasks WHERE id = ? AND dossier_id = ?').bind(taskId, dossierId).first() as any;
         if (!task) return json({ error: 'Tâche non trouvée' }, 404);
         const body = await request.json().catch(() => ({})) as any;
-        const part = body.part ?? 'comptable';
+        const part = body.part ?? task.part ?? 'comptable';
         if (part !== 'entreprise' && part !== 'comptable') return json({ error: 'Partie invalide (entreprise ou comptable)' }, 400);
         // Chrono deja actif de CE comptable sur cette tache ? (le chrono est par comptable)
         const mineActive = await env.DB.prepare('SELECT 1 AS x FROM org_time_entries WHERE task_id = ? AND user_id = ? AND stopped_at IS NULL').bind(taskId, user.id).first();
@@ -4035,7 +4035,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (myRunning) return json({ error: 'Arrêtez votre chrono d\'abord' }, 400);
         const body = await request.json() as any;
         const { seconds, note } = body;
-        const part = body.part ?? 'comptable';
+        const part = body.part ?? task.part ?? 'comptable';
         if (part !== 'entreprise' && part !== 'comptable') return json({ error: 'Partie invalide (entreprise ou comptable)' }, 400);
         const secs = Math.floor(Number(seconds));
         if (!Number.isFinite(secs) || secs <= 0) return json({ error: 'Durée invalide' }, 400);

@@ -36,6 +36,9 @@ test('timer and manual time persist the selected part, dossier reports entry par
   const page = readFileSync(new URL('../../web/src/pages/org/OrgDossierPage.tsx', import.meta.url), 'utf8');
   assert.match(page, /data-testid="timer-part"/);
   assert.match(page, /data-testid="manual-time-part"/);
+  assert.match(page, /timerPartByTask\[task\.id\] \|\| task\.part \|\| 'comptable'/);
+  assert.match(page, /manualTimePartByTask\[taskId\] \|\| dossier\.tasks\.find\(t => t\.id === taskId\)\?\.part \|\| 'comptable'/);
+  assert.match(SRC, /body\.part \?\? task\.part \?\? 'comptable'/);
 });
 
 test('hourly rate is supervisor-managed, range checked and audited; non-supervisors do not receive it', () => {
@@ -87,4 +90,11 @@ test('dossier billing is separate from labor cost and persisted per selected dos
   assert.match(settings, /applyBillingToSelected/);
   assert.match(settings, /data-testid="direct-client-billing"/);
   assert.match(settings, /applyBillingToSelected/);
+});
+
+test('switching a task template to Entreprise assigns a company and keeps it selectable', () => {
+  const settings = readFileSync(new URL('../../web/src/pages/org/OrgSettings.tsx', import.meta.url), 'utf8');
+  assert.match(settings, /clients\[0\]\?\.id \|\| null/);
+  assert.match(settings, /part, client_id: nextClientId/);
+  assert.match(settings, /Choisir l’entreprise…/);
 });
