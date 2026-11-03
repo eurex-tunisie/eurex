@@ -152,6 +152,13 @@ export default function OrgSettings() {
     } catch (err: any) { alert(err.message); }
   };
 
+  const changeClient = async (id: string, clientId: string | null) => {
+    try {
+      await orgApi.updateTemplate(id, { client_id: clientId });
+      setTemplates(templates.map(tmpl => tmpl.id === id ? { ...tmpl, client_id: clientId, client_name: clients.find(c => c.id === clientId)?.name || null } : tmpl));
+    } catch (err: any) { alert(err.message); }
+  };
+
   const toggleRequiresDoc = async (id: string) => {
     const tmpl = templates.find(t => t.id === id);
     if (!tmpl) return;
@@ -662,6 +669,12 @@ export default function OrgSettings() {
                     <option value="comptable">Comptable</option>
                     <option value="entreprise">Entreprise</option>
                   </select>
+                  {(tmpl.part || 'comptable') === 'entreprise' && (
+                    <select value={tmpl.client_id || ''} onChange={e => changeClient(tmpl.id, e.target.value || null)} className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer" title="Entreprise concernée" aria-label={`Entreprise ${tmpl.label}`}>
+                      <option value="">Toutes les entreprises</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  )}
                 </div>
               ))}
               {templates.length === 0 && <p className="text-xs text-gray-400 text-center py-4">Aucun modèle de tâche.</p>}
