@@ -9,7 +9,7 @@ import { SkeletonSection } from '../../components/Skeleton';
 import PwdField from '../../components/PwdField';
 import { Settings, Users, ListChecks, Plus, Trash2, Eye, EyeOff, RefreshCw, Pencil, Check, X } from 'lucide-react';
 
-type BillingForm = { amount: string; invoiced: string; collected: string; note: string };
+type BillingForm = { invoiced: string; note: string };
 
 type Tab = 'templates' | 'comptables' | 'trash' | 'heures';
 type Role = 'comptable' | 'manager' | 'expert';
@@ -51,7 +51,7 @@ export default function OrgSettings() {
   const [billingSearch, setBillingSearch] = useState('');
   const [billingYear, setBillingYear] = useState<number | 'all'>('all');
   const [selectedBillingDossierIds, setSelectedBillingDossierIds] = useState<string[]>([]);
-  const [billingForm, setBillingForm] = useState<BillingForm>({ amount: '', invoiced: '', collected: '', note: '' });
+  const [billingForm, setBillingForm] = useState<BillingForm>({ invoiced: '', note: '' });
   const [billingSaving, setBillingSaving] = useState(false);
   const [newCompName, setNewCompName] = useState('');
   const [newCompEmail, setNewCompEmail] = useState('');
@@ -206,14 +206,13 @@ export default function OrgSettings() {
   const applyBillingToSelected = async () => {
     const selected = billingDossiers.filter(d => selectedBillingDossierIds.includes(d.id));
     if (!selected.length) { alert('Sélectionnez au moins un dossier'); return; }
-    const money = (s: string) => s.trim() ? Math.round(Number(s.replace(',', '.')) * 100) : null;
-    const quoted_cents = money(billingForm.amount), invoiced_cents = money(billingForm.invoiced), collected_cents = money(billingForm.collected);
-    if ([quoted_cents, invoiced_cents, collected_cents].some(x => x !== null && (!Number.isSafeInteger(x) || x < 0))) { alert('Montant invalide'); return; }
+    const invoiced_cents = billingForm.invoiced.trim() ? Math.round(Number(billingForm.invoiced.replace(',', '.')) * 100) : null;
+    if (invoiced_cents !== null && (!Number.isSafeInteger(invoiced_cents) || invoiced_cents < 0)) { alert('Montant facturé invalide'); return; }
     setBillingSaving(true);
     try {
-      await Promise.all(selected.map(d => orgApi.upsertDossierBilling(d.id, { quoted_cents, invoiced_cents, collected_cents, note: billingForm.note.trim() || null })));
+      await Promise.all(selected.map(d => orgApi.upsertDossierBilling(d.id, { invoiced_cents, note: billingForm.note.trim() || null })));
       setBillingDossiers(await orgApi.getAllDossiers(undefined, true));
-      setBillingForm({ amount: '', invoiced: '', collected: '', note: '' });
+      setBillingForm({ invoiced: '', note: '' });
     } catch (err: any) { alert(err.message || 'Erreur lors de la sauvegarde'); }
     finally { setBillingSaving(false); }
   };
@@ -796,7 +795,7 @@ export default function OrgSettings() {
 
           <div className="card p-4 space-y-3" data-testid="direct-client-billing">
             <h3 className="font-semibold text-sm text-gray-700">Honoraires / facturation client</h3>
-            <p className="text-xs text-gray-500">Ce volet est séparé du coût salarial. Choisissez les dossiers, saisissez les honoraires proposés, facturés et encaissés, puis enregistrez.</p>
+            <p className="text-xs text-gray-500">Choisissez un ou plusieurs clients dans la liste, saisissez le montant facturé puis enregistrez.</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input type="search" value={billingSearch} onChange={e => setBillingSearch(e.target.value)} className="input-field text-sm" placeholder="Filtrer les entreprises" aria-label="Filtrer les entreprises" />
               <select value={billingYear} onChange={e => setBillingYear(e.target.value === 'all' ? 'all' : Number(e.target.value))} className="input-field text-sm" aria-label="Exercice">
@@ -809,19 +808,20 @@ export default function OrgSettings() {
                 <span>{selectedBillingDossierIds.length} sélectionné(s)</span>
               </div>
             </div>
-            <div className="max-h-52 overflow-y-auto border rounded-lg divide-y">
-              {billingLoading ? <p className="p-3 text-xs text-gray-400">Chargement…</p> : billingDossiers.filter(d => (billingYear === 'all' || Number(d.exercice) === billingYear) && (!billingSearch || `${d.client_name || ''} ${d.comptable_name || ''}`.toLowerCase().includes(billingSearch.toLowerCase()))).map(d => (
-                <label key={d.id} className="flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-gray-50">
-                  <input type="checkbox" checked={selectedBillingDossierIds.includes(d.id)} onChange={e => setSelectedBillingDossierIds(e.target.checked ? [...new Set([...selectedBillingDossierIds,d.id])] : selectedBillingDossierIds.filter(x => x !== d.id))} />
-                  <span className="flex-1">{d.client_name} · {d.exercice} · {d.comptable_name || 'sans comptable'}</span>
-                  <span className="text-gray-400">coût temps {d.time_cost_cents == null ? 'inconnu' : `${(d.time_cost_cents/100).toFixed(2)} DT`}</span>
+            <div className="max-h-52 overflow-y-auto border rounded-lg divide-y" data-testid="billing-client-list">
+              {billingLoading ? <p className="p-3 text-xs text-gray-400">Chargement…</p> : [...new Map(billingDossiers.filter(d => (billingYear === 'all' || Number(d.exercice) === billingYear) && (!billingSearch || `${d.client_name || ''} ${d.comptable_name || ''}`.toLowerCase().includes(billingSearch.toLowerCase()))).map(d => [d.client_id || d.client_name, d])).values()].map(d => (
+                <label key={d.client_id || d.client_name} className="flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-gray-50">
+                  <input type="checkbox" aria-label={`Sélectionner ${d.client_name}`} checked={billingDossiers.filter(x => x.client_id === d.client_id).every(x => selectedBillingDossierIds.includes(x.id)) && billingDossiers.some(x => x.client_id === d.client_id)} onChange={e => {
+                    const dossierIds = billingDossiers.filter(x => x.client_id === d.client_id).map(x => x.id);
+                    setSelectedBillingDossierIds(prev => e.target.checked ? [...new Set([...prev, ...dossierIds])] : prev.filter(id => !dossierIds.includes(id)));
+                  }} />
+                  <span className="flex-1">{d.client_name}</span>
+                  <span className="text-gray-400">{billingDossiers.filter(x => x.client_id === d.client_id).map(x => x.exercice).sort((a,b) => b-a).join(', ')}</span>
                 </label>
               ))}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-              <input type="number" min="0" step="0.01" value={billingForm.amount} onChange={e => setBillingForm({...billingForm, amount:e.target.value})} className="input-field text-sm" placeholder="Prévu DT" aria-label="Honoraires prévus DT" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input type="number" min="0" step="0.01" value={billingForm.invoiced} onChange={e => setBillingForm({...billingForm, invoiced:e.target.value})} className="input-field text-sm" placeholder="Facturé DT" aria-label="Facturé DT" />
-              <input type="number" min="0" step="0.01" value={billingForm.collected} onChange={e => setBillingForm({...billingForm, collected:e.target.value})} className="input-field text-sm" placeholder="Encaissé DT" aria-label="Encaissé DT" />
               <input type="text" maxLength={300} value={billingForm.note} onChange={e => setBillingForm({...billingForm, note:e.target.value})} className="input-field text-sm" placeholder="Note" aria-label="Note facturation" />
             </div>
             <button type="button" onClick={applyBillingToSelected} disabled={billingSaving || !selectedBillingDossierIds.length} className="btn btn-accent px-4 py-2 text-sm disabled:opacity-50">{billingSaving ? 'Enregistrement…' : 'Enregistrer pour les entreprises sélectionnées'}</button>

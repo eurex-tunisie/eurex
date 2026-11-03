@@ -92,6 +92,20 @@ test('dossier billing is separate from labor cost and persisted per selected dos
   assert.match(settings, /applyBillingToSelected/);
   assert.match(settings, /data-testid="direct-client-billing"/);
   assert.match(settings, /applyBillingToSelected/);
+  assert.match(settings, /data-testid="billing-client-list"/);
+  assert.match(settings, /Sélectionner \$\{d\.client_name\}/);
+  assert.match(settings, /placeholder="Facturé DT"/);
+  assert.doesNotMatch(settings, /placeholder="Prévu DT"/);
+  assert.doesNotMatch(settings, /placeholder="Encaissé DT"/);
+  const dashboard = readFileSync(new URL('../../web/src/pages/org/OrgDashboardExpert.tsx', import.meta.url), 'utf8');
+  assert.match(dashboard, /placeholder="Facturé DT"/);
+  assert.doesNotMatch(dashboard, /placeholder="Honoraires prévus DT"/);
+  assert.doesNotMatch(dashboard, /placeholder="Encaissé DT"/);
+  assert.match(dashboard, /const invoiced_cents = billingForm\.invoiced/);
+  assert.match(dashboard, /upsertDossierBilling\(d\.id, \{ invoiced_cents, note:/);
+  const billingApi = SRC.slice(SRC.indexOf('const orgBillingMatch'), SRC.indexOf('// --- ORG: RECHERCHE GLOBALE'));
+  assert.match(billingApi, /INSERT INTO org_dossier_billing \(dossier_id, invoiced_cents, note/);
+  assert.doesNotMatch(billingApi, /quoted_cents=excluded|collected_cents=excluded/);
 });
 
 test('switching a task template to Entreprise assigns a company and keeps it selectable', () => {

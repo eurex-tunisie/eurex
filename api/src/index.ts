@@ -5341,17 +5341,15 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           if (!Number.isSafeInteger(n) || n < 0 || n > 100000000000) throw new Error(`${label} invalide`);
           return n;
         };
-        let quoted: number | null, invoiced: number | null, collected: number | null;
+        let invoiced: number | null;
         try {
-          quoted = money(body.quoted_cents, 'Honoraires prévus');
           invoiced = money(body.invoiced_cents, 'Facturé');
-          collected = money(body.collected_cents, 'Encaissé');
         } catch (e: any) { return json({ error: e.message }, 400); }
         const note = body.note == null ? null : String(body.note).trim().slice(0, 500);
-        const old = await env.DB.prepare('SELECT quoted_cents, invoiced_cents, collected_cents, note FROM org_dossier_billing WHERE dossier_id = ?').bind(dossierId).first() as any;
-        await env.DB.prepare("INSERT INTO org_dossier_billing (dossier_id, quoted_cents, invoiced_cents, collected_cents, note, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now')) ON CONFLICT(dossier_id) DO UPDATE SET quoted_cents=excluded.quoted_cents, invoiced_cents=excluded.invoiced_cents, collected_cents=excluded.collected_cents, note=excluded.note, updated_by=excluded.updated_by, updated_at=excluded.updated_at").bind(dossierId, quoted, invoiced, collected, note, user.id).run();
-        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'dossier_billing_updated', 'dossier', dossierId, JSON.stringify({ old: old || null, new: { quoted_cents: quoted, invoiced_cents: invoiced, collected_cents: collected, note } })).run();
-        return json({ ok: true, billing: { dossier_id: dossierId, quoted_cents: quoted, invoiced_cents: invoiced, collected_cents: collected, note } });
+        const old = await env.DB.prepare('SELECT invoiced_cents, note FROM org_dossier_billing WHERE dossier_id = ?').bind(dossierId).first() as any;
+        await env.DB.prepare("INSERT INTO org_dossier_billing (dossier_id, invoiced_cents, note, updated_by, updated_at) VALUES (?, ?, ?, ?, datetime('now')) ON CONFLICT(dossier_id) DO UPDATE SET invoiced_cents=excluded.invoiced_cents, note=excluded.note, updated_by=excluded.updated_by, updated_at=excluded.updated_at").bind(dossierId, invoiced, note, user.id).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'dossier_billing_updated', 'dossier', dossierId, JSON.stringify({ old: old || null, new: { invoiced_cents: invoiced, note } })).run();
+        return json({ ok: true, billing: { dossier_id: dossierId, invoiced_cents: invoiced, note } });
       }
 
       // --- ORG: RECHERCHE GLOBALE (clients, dossiers, taches, documents, notes) ---

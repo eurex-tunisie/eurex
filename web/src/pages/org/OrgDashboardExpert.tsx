@@ -562,14 +562,11 @@ export default function OrgDashboardExpert() {
   const saveDirectBilling = async () => {
     if (!selectedBilling.length) { alert('Sélectionnez au moins une entreprise/dossier'); return; }
     const money = (s: string) => s.trim() ? Math.round(Number(s.replace(',', '.')) * 100) : null;
-    const vals = [money(billingForm.amount), money(billingForm.invoiced), money(billingForm.collected)].filter(x => x !== null) as number[];
-    if (vals.some(x => !Number.isSafeInteger(x) || x < 0)) { alert('Montant invalide'); return; }
+    const invoiced_cents = billingForm.invoiced.trim() ? money(billingForm.invoiced) : null;
+    if (invoiced_cents !== null && (!Number.isSafeInteger(invoiced_cents) || invoiced_cents < 0)) { alert('Montant facturé invalide'); return; }
     setBillingSaving(true);
     try {
-      await Promise.all(selectedBilling.map(d => orgApi.upsertDossierBilling(d.id, {
-        quoted_cents: money(billingForm.amount), invoiced_cents: money(billingForm.invoiced),
-        collected_cents: money(billingForm.collected), note: billingForm.note.trim() || null,
-      })));
+      await Promise.all(selectedBilling.map(d => orgApi.upsertDossierBilling(d.id, { invoiced_cents, note: billingForm.note.trim() || null })));
       const detailed = await orgApi.getAllDossiers(undefined, true);
       setBillingDossiers(detailed as any[]);
       setBillingForm({ amount: '', invoiced: '', collected: '', note: '' });
@@ -1292,11 +1289,9 @@ export default function OrgDashboardExpert() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
             <div className="card rounded-xl p-4 space-y-2" data-testid="dashboard-direct-billing">
               <h3 className="text-sm font-semibold">Facturation client — saisie directe</h3>
-              <p className="text-[11px] text-gray-500">{selectedBilling.length} dossier(s) sélectionné(s). Cette partie suit les sommes dues/encaissées, séparément du coût salarial.</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="number" min="0" step="0.01" value={billingForm.amount} onChange={e => setBillingForm({ ...billingForm, amount: e.target.value })} className="input-field text-sm" placeholder="Honoraires prévus DT" aria-label="Honoraires prévus DT dashboard" />
+              <p className="text-[11px] text-gray-500">{selectedBilling.length} dossier(s) sélectionné(s). Choisissez les clients dans la liste ci-dessous et indiquez le montant facturé.</p>
+              <div className="grid grid-cols-1 gap-2">
                 <input type="number" min="0" step="0.01" value={billingForm.invoiced} onChange={e => setBillingForm({ ...billingForm, invoiced: e.target.value })} className="input-field text-sm" placeholder="Facturé DT" aria-label="Facturé DT dashboard" />
-                <input type="number" min="0" step="0.01" value={billingForm.collected} onChange={e => setBillingForm({ ...billingForm, collected: e.target.value })} className="input-field text-sm" placeholder="Encaissé DT" aria-label="Encaissé DT dashboard" />
                 <input type="text" maxLength={300} value={billingForm.note} onChange={e => setBillingForm({ ...billingForm, note: e.target.value })} className="input-field text-sm" placeholder="Note (optionnelle)" aria-label="Note facturation dashboard" />
               </div>
               <button onClick={saveDirectBilling} disabled={!selectedBilling.length || billingSaving} className="btn btn-accent px-3 py-2 text-xs disabled:opacity-50">{billingSaving ? 'Enregistrement…' : 'Enregistrer sur les dossiers sélectionnés'}</button>
