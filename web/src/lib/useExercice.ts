@@ -9,13 +9,16 @@ export function currentExercice(): number {
 
 // Exercice affiche sur le dashboard : annee courante par defaut, choix memorise
 // (permet de revenir sur l'exercice precedent une fois le nouveau ouvert)
-export default function useExercice(): [number, (y: number) => void] {
+export default function useExercice(opts?: { defaultAll?: boolean }): [number, (y: number) => void] {
   const [exercice, setState] = useState<number>(() => {
     try {
-      const saved = Number(localStorage.getItem(LS_KEY));
-      if (Number.isInteger(saved) && saved >= 2000 && saved <= 2100) return saved;
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved !== null) {
+        const n = Number(saved);
+        if (Number.isInteger(n) && n >= 0 && n <= 2100) return n;
+      }
     } catch { /* stockage indisponible */ }
-    return currentExercice();
+    return opts?.defaultAll ? 0 : currentExercice();
   });
   const setExercice = (y: number) => {
     setState(y);

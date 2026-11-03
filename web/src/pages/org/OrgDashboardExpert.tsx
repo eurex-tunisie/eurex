@@ -140,7 +140,7 @@ export default function OrgDashboardExpert() {
   // Carte "À vérifier" repliable (etage memorise)
   const { min: verifyMin, toggleMin: toggleVerifyMin } = useCardMin('eurex_verify_min');
   // Exercice affiche : annee courante par defaut, choix memorise (retour au n-1)
-  const [exercice, setExercice] = useExercice();
+  const [exercice, setExercice] = useExercice({ defaultAll: true });
   const [exercices, setExercices] = useState<number[]>([]);
   const [exportingCsv, setExportingCsv] = useState(false);
   // Export CSV de toutes les heures du cabinet (meme filtre d'exercice que les KPIs)
