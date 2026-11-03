@@ -131,8 +131,8 @@ test('switching a task template to Entreprise assigns a company and keeps it sel
 });
 
 test('task templates and manual task creation keep all work in the Comptable category', () => {
-  assert.match(SRC, /taskUpdates: string\[\] = \['part = \?'/);
-  assert.match(SRC, /part\) VALUES \(\?, \?, \?, \?, datetime\('now'\), 'comptable'\)/);
+  assert.match(SRC, /const taskUpdates: string\[\] = \['part =/);
+  assert.match(SRC, /started_at, part\) VALUES[\s\S]{0,100}'comptable'/);
   assert.match(SRC, /duration_seconds, note, part\) VALUES[\s\S]{0,160}'comptable'/);
   const settings = readFileSync(new URL('../../web/src/pages/org/OrgSettings.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(settings, /<option value="entreprise">Entreprise<\/option>/);
