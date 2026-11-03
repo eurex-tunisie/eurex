@@ -24,6 +24,18 @@ test('time split migration has a unique sequence after hourly-cost migration in 
   assert.match(TIME_PARTS_PG, /org_task_templates ADD COLUMN IF NOT EXISTS part/);
   assert.match(TIME_PARTS_PG, /org_tasks ADD COLUMN IF NOT EXISTS part/);
   assert.match(BILLING, /org_dossier_billing/);
+  assert.match(BILLING, /org_time_entries ADD COLUMN part/);
+  assert.match(BILLING_PG, /org_time_entries ADD COLUMN IF NOT EXISTS part/);
+});
+
+test('timer and manual time persist the selected part, dossier reports entry part', () => {
+  assert.match(SRC, /INSERT INTO org_time_entries \(id, dossier_id, task_id, user_id, started_at, part\)/);
+  assert.match(SRC, /duration_seconds, note, part\) VALUES/);
+  assert.match(SRC, /COALESCE\(te\.part, t\.part, 'comptable'\) as task_part/);
+  assert.match(SRC, /COALESCE\(te\.part, t\.part, 'comptable'\) AS task_part/);
+  const page = readFileSync(new URL('../../web/src/pages/org/OrgDossierPage.tsx', import.meta.url), 'utf8');
+  assert.match(page, /data-testid="timer-part"/);
+  assert.match(page, /data-testid="manual-time-part"/);
 });
 
 test('hourly rate is supervisor-managed, range checked and audited; non-supervisors do not receive it', () => {

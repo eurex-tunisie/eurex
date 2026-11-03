@@ -21,10 +21,12 @@ CREATE TABLE IF NOT EXISTS org_dossier_task_norms (
   PRIMARY KEY (dossier_id, task_label)
 );
 CREATE INDEX IF NOT EXISTS idx_org_dossier_task_norms_dossier ON org_dossier_task_norms(dossier_id);
+ALTER TABLE org_time_entries ADD COLUMN IF NOT EXISTS part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable';
 COMMIT;
 
 SELECT table_name, column_name
 FROM information_schema.columns
 WHERE table_schema = 'public'
-  AND table_name IN ('org_dossier_billing', 'org_dossier_task_norms')
+  AND ((table_name IN ('org_dossier_billing', 'org_dossier_task_norms'))
+    OR (table_name = 'org_time_entries' AND column_name = 'part'))
 ORDER BY table_name, column_name;

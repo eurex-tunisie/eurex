@@ -20,3 +20,7 @@ CREATE TABLE IF NOT EXISTS org_dossier_task_norms (
   PRIMARY KEY (dossier_id, task_label)
 );
 CREATE INDEX IF NOT EXISTS idx_org_dossier_task_norms_dossier ON org_dossier_task_norms(dossier_id);
+
+-- The selected part belongs to each time entry (not only to the task), so a
+-- task can accumulate time from both the Entreprise and Comptable sides.
+ALTER TABLE org_time_entries ADD COLUMN part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable';

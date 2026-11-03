@@ -600,12 +600,12 @@ export const orgApi = {
     req<any>(`/org/dossiers/${dossierId}/notes/${noteId}`, { method: 'DELETE' }),
 
   // Timer
-  startTimer: (dossierId: string, taskId: string) =>
-    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/timer/start`, { method: 'POST' }),
+  startTimer: (dossierId: string, taskId: string, part: 'entreprise' | 'comptable') =>
+    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/timer/start`, { method: 'POST', body: JSON.stringify({ part }) }),
     stopTimer: (dossierId: string, taskId: string) =>
       req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/timer/stop`, { method: 'POST' }),
-    addTaskTime: (dossierId: string, taskId: string, seconds: number, note?: string) =>
-      req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/time`, { method: 'POST', body: JSON.stringify({ seconds, note }) }),
+  addTaskTime: (dossierId: string, taskId: string, seconds: number, note?: string, part: 'entreprise' | 'comptable' = 'comptable') =>
+    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/time`, { method: 'POST', body: JSON.stringify({ seconds, note, part }) }),
   getTimers: (dossierId: string) =>
     req<{ entries: any[]; tasks: any[] }>(`/org/dossiers/${dossierId}/timers`),
 

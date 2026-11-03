@@ -3434,7 +3434,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const { results: documents } = await env.DB.prepare('SELECT * FROM org_expected_documents WHERE dossier_id = ? ORDER BY label').bind(orgDossierGetMatch[1]).all();
         const { results: notes } = await env.DB.prepare('SELECT n.*, u.full_name as author_name FROM org_notes n LEFT JOIN org_users u ON n.user_id = u.id WHERE n.dossier_id = ? ORDER BY n.created_at DESC').bind(orgDossierGetMatch[1]).all();
         // Time entries breakdown
-        const { results: timeEntries } = await env.DB.prepare('SELECT te.*, t.label as task_label, t.part as task_part, u.full_name as user_name, u.role as user_role, u.role_label as user_role_label FROM org_time_entries te JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC').bind(orgDossierGetMatch[1]).all();
+        const { results: timeEntries } = await env.DB.prepare("SELECT te.*, t.label as task_label, COALESCE(te.part, t.part, 'comptable') as task_part, u.full_name as user_name, u.role as user_role, u.role_label as user_role_label FROM org_time_entries te JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC").bind(orgDossierGetMatch[1]).all();
         const { results: customNorms } = await env.DB.prepare('SELECT task_label, norm_seconds FROM org_dossier_task_norms WHERE dossier_id = ?').bind(orgDossierGetMatch[1]).all();
         const customNormByLabel = new Map((customNorms as any[]).map(n => [n.task_label, Number(n.norm_seconds)]));
         for (const t of tasks as any[]) {
@@ -3965,6 +3965,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // Check task exists
         const task = await env.DB.prepare('SELECT * FROM org_tasks WHERE id = ? AND dossier_id = ?').bind(taskId, dossierId).first() as any;
         if (!task) return json({ error: 'Tâche non trouvée' }, 404);
+        const body = await request.json().catch(() => ({})) as any;
+        const part = body.part ?? 'comptable';
+        if (part !== 'entreprise' && part !== 'comptable') return json({ error: 'Partie invalide (entreprise ou comptable)' }, 400);
         // Chrono deja actif de CE comptable sur cette tache ? (le chrono est par comptable)
         const mineActive = await env.DB.prepare('SELECT 1 AS x FROM org_time_entries WHERE task_id = ? AND user_id = ? AND stopped_at IS NULL').bind(taskId, user.id).first();
         if (mineActive) return json({ error: 'Votre chrono est déjà en cours sur cette tâche', active: true }, 400);
@@ -3980,7 +3983,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         }
         // Create time entry
         const entryId = genId();
-        await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at) VALUES (?, ?, ?, ?, datetime('now'))").bind(entryId, dossierId, taskId, user.id).run();
+        await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at, part) VALUES (?, ?, ?, ?, datetime('now'), ?)").bind(entryId, dossierId, taskId, user.id, part).run();
         // Timer de la tache = 1er chrono actif : un autre comptable peut chronometrer en parallele
         const first = await env.DB.prepare('SELECT user_id, started_at FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL ORDER BY started_at, id LIMIT 1').bind(taskId).first() as any;
         await env.DB.prepare("UPDATE org_tasks SET timer_started_at = ?, timer_user_id = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?").bind(first.started_at, first.user_id, user.id, taskId).run();
@@ -4030,7 +4033,10 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // Le chrono est par comptable : seule la saisie pendant SON propre chrono est bloquee
         const myRunning = await env.DB.prepare('SELECT 1 AS x FROM org_time_entries WHERE task_id = ? AND user_id = ? AND stopped_at IS NULL').bind(taskId, user.id).first();
         if (myRunning) return json({ error: 'Arrêtez votre chrono d\'abord' }, 400);
-        const { seconds, note } = await request.json() as any;
+        const body = await request.json() as any;
+        const { seconds, note } = body;
+        const part = body.part ?? 'comptable';
+        if (part !== 'entreprise' && part !== 'comptable') return json({ error: 'Partie invalide (entreprise ou comptable)' }, 400);
         const secs = Math.floor(Number(seconds));
         if (!Number.isFinite(secs) || secs <= 0) return json({ error: 'Durée invalide' }, 400);
         if (secs > 86400) return json({ error: 'Durée maximale : 24 h par saisie' }, 400);
@@ -4039,7 +4045,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?").bind(newTotal, user.id, taskId).run();
         // Entrée de temps cohérente : time_by_user / time_by_dossier comptent aussi la saisie manuelle
         const entryId = genId();
-        await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at, stopped_at, duration_seconds, note) VALUES (?, ?, ?, ?, datetime('now', ?), datetime('now'), ?, ?)").bind(entryId, dossierId, taskId, user.id, `-${secs} seconds`, secs, noteTxt).run();
+        await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at, stopped_at, duration_seconds, note, part) VALUES (?, ?, ?, ?, datetime('now', ?), datetime('now'), ?, ?, ?)").bind(entryId, dossierId, taskId, user.id, `-${secs} seconds`, secs, noteTxt, part).run();
         await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'time_manual', 'task', taskId, JSON.stringify({ dossier_id: dossierId, duration_seconds: secs, total_seconds: newTotal, note: noteTxt })).run();
         return json({ ok: true, duration_seconds: secs, total_seconds: newTotal, note: noteTxt });
       }
@@ -5273,7 +5279,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           for (const chunk of chunkIds(taskIds)) {
             if (!chunk.length) continue;
             const { results: entries } = await env.DB.prepare(
-              `SELECT te.dossier_id, te.task_id, te.user_id, te.duration_seconds, t.label AS task_label, t.part AS task_part, u.full_name, u.role, u.role_label, u.hourly_cost_cents FROM org_time_entries te JOIN org_users u ON u.id = te.user_id LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NOT NULL AND te.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+              `SELECT te.dossier_id, te.task_id, te.user_id, te.duration_seconds, COALESCE(te.part, t.part, 'comptable') AS task_part, u.full_name, u.role, u.role_label, u.hourly_cost_cents FROM org_time_entries te JOIN org_users u ON u.id = te.user_id LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NOT NULL AND te.dossier_id IN (${chunk.map(() => '?').join(',')})`,
             ).bind(...chunk).all();
             for (const e of entries as any[]) {
               const people = actualHoursByDossier.get(e.dossier_id) || new Map();

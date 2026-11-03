@@ -127,6 +127,7 @@ export default function OrgDossierPage() {
   const [newExercice, setNewExercice] = useState(new Date().getFullYear());
   const [newDossierComp, setNewDossierComp] = useState('');
   const [timerNow, setTimerNow] = useState(Date.now());
+  const [timerPart, setTimerPart] = useState<'entreprise' | 'comptable'>('comptable');
   const [newTaskLabel, setNewTaskLabel] = useState('');
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -543,10 +544,10 @@ export default function OrgDossierPage() {
     }
   };
 
-  const startTimer = async (taskId: string) => {
+  const startTimer = async (taskId: string, part: 'entreprise' | 'comptable') => {
     if (!dossier) return;
     try {
-      await orgApi.startTimer(dossier.id, taskId);
+      await orgApi.startTimer(dossier.id, taskId, part);
       load();
     } catch (err: any) {
       alert(err.message);
@@ -567,6 +568,7 @@ export default function OrgDossierPage() {
   const [timeH, setTimeH] = useState('');
   const [timeM, setTimeM] = useState('');
   const [timeNote, setTimeNote] = useState('');
+  const [manualTimePart, setManualTimePart] = useState<'entreprise' | 'comptable'>('comptable');
 
   const addManualTime = async (taskId: string) => {
     if (!dossier) return;
@@ -576,11 +578,12 @@ export default function OrgDossierPage() {
     if (seconds <= 0) { alert('Indiquez une durée : heures et/ou minutes'); return; }
     if (seconds > 86400) { alert('Durée maximale : 24 h par saisie'); return; }
     try {
-      await orgApi.addTaskTime(dossier.id, taskId, seconds, timeNote.trim() || undefined);
+      await orgApi.addTaskTime(dossier.id, taskId, seconds, timeNote.trim() || undefined, manualTimePart);
       setTimeTaskId(null);
       setTimeH('');
       setTimeM('');
       setTimeNote('');
+      setManualTimePart('comptable');
       load();
     } catch (err: any) {
       alert(err.message);
@@ -1415,9 +1418,20 @@ export default function OrgDossierPage() {
                             >
                               ➕ Temps
                             </button>
+                            <select
+                              value={timerPart}
+                              onChange={e => setTimerPart(e.target.value as 'entreprise' | 'comptable')}
+                              disabled={task.status === 'fait'}
+                              aria-label={`Partie du temps ${task.label}`}
+                              data-testid="timer-part"
+                              className="border border-emerald-200 rounded-lg px-2 py-1.5 text-xs bg-white text-gray-700 disabled:opacity-40"
+                            >
+                              <option value="comptable">Comptable</option>
+                              <option value="entreprise">Entreprise</option>
+                            </select>
                             <button
                               data-testid="timer-start"
-                              onClick={() => startTimer(task.id)}
+                              onClick={() => startTimer(task.id, timerPart)}
                               disabled={task.status === 'fait'}
                               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                             >
@@ -1539,6 +1553,16 @@ export default function OrgDossierPage() {
                         onClick={e => e.stopPropagation()}
                       >
                         <span className="text-xs font-medium text-purple-700">Temps passé :</span>
+                        <select
+                          value={manualTimePart}
+                          onChange={e => setManualTimePart(e.target.value as 'entreprise' | 'comptable')}
+                          aria-label={`Partie du temps saisi ${task.label}`}
+                          data-testid="manual-time-part"
+                          className="border border-purple-200 rounded-lg px-2 py-1 text-xs bg-white text-gray-700"
+                        >
+                          <option value="comptable">Comptable</option>
+                          <option value="entreprise">Entreprise</option>
+                        </select>
                         <input
                           value={timeH}
                           onChange={e => setTimeH(e.target.value.replace(/[^0-9]/g, ''))}
