@@ -33,6 +33,7 @@ export default function OrgSettings() {
   const [newLabel, setNewLabel] = useState('');
   const [newNormH, setNewNormH] = useState('');
   const [newNormM, setNewNormM] = useState('');
+  const [newPart, setNewPart] = useState<'entreprise' | 'comptable'>('comptable');
   const [newRequiresDoc, setNewRequiresDoc] = useState(false);
   const [newAssignedComp, setNewAssignedComp] = useState('');
   const [newFrequency, setNewFrequency] = useState<OrgFrequency>('annuelle');
@@ -49,6 +50,7 @@ export default function OrgSettings() {
   const [editPwd, setEditPwd] = useState('');
   const [editRole, setEditRole] = useState<Role>('comptable');
   const [editHourlyCost, setEditHourlyCost] = useState('');
+  const [editPart, setEditPart] = useState<'entreprise' | 'comptable'>('comptable');
   const [newCompRole, setNewCompRole] = useState<Role>('comptable');
   // Corbeille clients (soft-delete 30 jours)
   const [trash, setTrash] = useState<any[]>([]);
@@ -90,9 +92,10 @@ export default function OrgSettings() {
     if (!newLabel.trim()) return;
     try {
       const norm = newNormH || newNormM ? (Number(newNormH || 0) * 3600 + Number(newNormM || 0) * 60) : null;
-      await orgApi.createTemplate(newLabel.trim(), newRequiresDoc, newAssignedComp || null, newFrequency, newMonth ? Number(newMonth) : null, newClientId || null, norm);
+      await orgApi.createTemplate(newLabel.trim(), newRequiresDoc, newAssignedComp || null, newFrequency, newMonth ? Number(newMonth) : null, newClientId || null, norm, newPart);
       setNewLabel('');
       setNewNormH(''); setNewNormM('');
+      setNewPart('comptable');
       setNewRequiresDoc(false);
       setNewAssignedComp('');
       setNewMonth('');
@@ -139,6 +142,13 @@ export default function OrgSettings() {
       const norm_seconds = h * 3600 + m * 60;
       await orgApi.updateTemplate(id, { norm_seconds: norm_seconds || null });
       setTemplates(templates.map(tmpl => tmpl.id === id ? { ...tmpl, norm_seconds: norm_seconds || null } : tmpl));
+    } catch (err: any) { alert(err.message); }
+  };
+
+  const changePart = async (id: string, part: 'entreprise' | 'comptable') => {
+    try {
+      await orgApi.updateTemplate(id, { part });
+      setTemplates(templates.map(tmpl => tmpl.id === id ? { ...tmpl, part } : tmpl));
     } catch (err: any) { alert(err.message); }
   };
 
@@ -298,6 +308,16 @@ export default function OrgSettings() {
                 <span className="text-xs text-gray-400">min</span>
               </div>
               <select
+                value={newPart}
+                onChange={e => setNewPart(e.target.value as 'entreprise' | 'comptable')}
+                className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer"
+                title="Partie : entreprise (sur place) ou comptable (cabinet)"
+                aria-label="Partie de la tâche"
+              >
+                <option value="comptable">Comptable</option>
+                <option value="entreprise">Entreprise</option>
+              </select>
+              <select
                 data-testid="template-freq-new"
                 value={newFrequency}
                 onChange={e => setNewFrequency(e.target.value as OrgFrequency)}
@@ -373,6 +393,16 @@ export default function OrgSettings() {
                 <input aria-label={`Minutes norme ${tmpl.label}`} data-norm-min="1" type="number" min="0" max="59" defaultValue={tmpl.norm_seconds == null ? '' : Math.floor((tmpl.norm_seconds % 3600) / 60)} onBlur={e => changeNorm(tmpl.id, Number((e.currentTarget.parentElement?.querySelector('[data-testid="template-norm-hours"]') as HTMLInputElement)?.value || 0), Number(e.target.value || 0))} className="input-sm w-14 px-1 py-1 text-[11px]" placeholder="min" />
                 <span className="text-[10px] text-gray-400">min</span>
               </div>
+              <select
+                value={tmpl.part || 'comptable'}
+                onChange={e => changePart(tmpl.id, e.target.value as 'entreprise' | 'comptable')}
+                className="input-sm px-2 py-1 text-[11px] font-medium cursor-pointer"
+                title="Partie : entreprise (sur place) ou comptable (cabinet)"
+                aria-label={`Partie ${tmpl.label}`}
+              >
+                <option value="comptable">Comptable</option>
+                <option value="entreprise">Entreprise</option>
+              </select>
               <span
                 data-testid="template-target"
                 className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border whitespace-nowrap ${

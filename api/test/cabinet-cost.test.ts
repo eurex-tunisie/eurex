@@ -24,7 +24,7 @@ test('hourly rate is supervisor-managed, range checked and audited; non-supervis
 test('norms are validated, configurable and copied from task templates to new tasks', () => {
   assert.match(SRC, /norm_seconds < 60 \|\| norm_seconds > 86400 \* 30/);
   assert.match(SRC, /UPDATE org_task_templates SET \$\{updates\.join\(', '\)\}/);
-  assert.match(SRC, /created_at, norm_seconds\) VALUES/);
+  assert.match(SRC, /created_at, norm_seconds, part\) VALUES/);
 });
 
 test('verification minute entry stays explicit, is attributed to verifier and persists as time entry', () => {

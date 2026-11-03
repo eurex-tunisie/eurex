@@ -360,7 +360,8 @@ CREATE TABLE IF NOT EXISTS org_tasks (
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
   done_by TEXT,
   hidden BIGINT NOT NULL DEFAULT 0,
-  norm_seconds BIGINT
+  norm_seconds BIGINT,
+  part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable'
 );
 
 CREATE TABLE IF NOT EXISTS org_expected_documents (
@@ -390,7 +391,8 @@ CREATE TABLE IF NOT EXISTS org_task_templates (
   export_scope TEXT,
   month BIGINT,
   client_id TEXT,
-  norm_seconds BIGINT
+  norm_seconds BIGINT,
+  part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable'
 );
 
 CREATE TABLE IF NOT EXISTS org_audit_log (
