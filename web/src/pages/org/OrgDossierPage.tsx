@@ -1031,7 +1031,7 @@ export default function OrgDossierPage() {
                         <td className="px-3 py-2">{entry.user_name} <span className="text-xs text-gray-400">({entry.user_role_label || entry.user_role || ''})</span></td>
                         <td className="px-3 py-2 text-xs text-gray-500">{new Date(String(entry.started_at).replace(' ', 'T') + 'Z').toLocaleString('fr-FR')}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatTime(Number(entry.duration_seconds) || 0)}</td>
-                        <td className="px-3 py-2 text-xs text-gray-500">{entry.note || '—'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{entry.note || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1043,6 +1043,32 @@ export default function OrgDossierPage() {
                 <span className="text-amber-700">Entreprise {formatTime((dossier.time_by_part?.entreprise) || 0)}</span>
                 {' · '}
                 <span className="text-blue-700">Comptable {formatTime((dossier.time_by_part?.comptable) || 0)}</span>
+              </div>
+            </div>
+          )}
+          {isExpert && costSummary?.time_cost_by_user?.length > 0 && (
+            <div className="card overflow-hidden" data-testid="dossier-cost-by-user">
+              <div className="px-3 py-2 bg-gray-50 border-b text-sm font-semibold text-gray-700">Coût du temps par intervenant (confidentiel)</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="text-left text-xs font-semibold uppercase table-header">
+                    <th className="px-3 py-2">Intervenant</th><th className="px-3 py-2">Rôle</th><th className="px-3 py-2 text-right">Temps</th><th className="px-3 py-2 text-right">Taux horaire</th><th className="px-3 py-2 text-right">Coût</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {costSummary.time_cost_by_user.map((r: any) => (
+                      <tr key={r.user_id}>
+                        <td className="px-3 py-2">{r.full_name}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{r.role_label || r.role}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatTime(Number(r.seconds) || 0)}</td>
+                        <td className="px-3 py-2 text-right text-xs text-gray-500">{r.hourly_cost_cents == null ? '—' : `${(r.hourly_cost_cents / 100).toFixed(2)} DT/h`}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-emerald-700">{r.cost_cents == null ? 'à compléter' : `${(r.cost_cents / 100).toFixed(2)} DT`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t px-3 py-2 text-right font-semibold text-sm">
+                Total : {costSummary.time_cost_complete && costSummary.total_time_cost_cents != null ? `${(costSummary.total_time_cost_cents / 100).toFixed(2)} DT` : 'à compléter (taux horaire manquant)'}
               </div>
             </div>
           )}
