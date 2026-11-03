@@ -5541,23 +5541,26 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         await env.DB.prepare(`UPDATE org_task_templates SET ${updates.join(', ')} WHERE id = ? AND organization_id = ?`).bind(...binds).run();
         // Propagate changed template attributes to matching tasks already present
         // in dossiers for the selected companies. Keep task progress/status/time.
-        const propagatePart = part !== undefined || client_ids !== undefined || client_id !== undefined;
+        const propagatePart = part !== undefined || client_ids !== undefined || client_id !== undefined || label !== undefined;
         if (propagatePart) {
           const latest = await env.DB.prepare('SELECT * FROM org_task_templates WHERE id = ? AND organization_id = ?').bind(orgTmplMatch[1], user.organization_id).first() as any;
           let targetClientIds: string[] = [];
           try { targetClientIds = latest.client_ids ? JSON.parse(latest.client_ids) : []; } catch { targetClientIds = []; }
           if (!Array.isArray(targetClientIds) || !targetClientIds.length) targetClientIds = latest.client_id ? [latest.client_id] : [];
-          if (latest.part === 'entreprise' && targetClientIds.length) {
-            for (const ids of chunkIds(targetClientIds)) {
+          const targetIds = latest.part === 'entreprise' ? targetClientIds : [...new Set([...(targetClientIds || []), ...(client_ids || []), ...(client_id ? [client_id] : [])])];
+          if (targetIds.length) {
+            for (const ids of chunkIds(targetIds)) {
               if (!ids.length) continue;
               const marks = ids.map(() => '?').join(',');
               const taskUpdates: string[] = [];
               const taskBinds: any[] = [];
-              if (part !== undefined) { taskUpdates.push('part = ?'); taskBinds.push(latest.part || 'comptable'); }
+              if (part !== undefined || client_ids !== undefined || client_id !== undefined) { taskUpdates.push('part = ?'); taskBinds.push(latest.part || 'comptable'); }
               if (norm_seconds !== undefined) { taskUpdates.push('norm_seconds = ?'); taskBinds.push(latest.norm_seconds ?? null); }
+              if (label !== undefined && String(label).trim()) { taskUpdates.push('label = ?'); taskBinds.push(String(label).trim()); }
               if (!taskUpdates.length) continue;
-              taskBinds.push(latest.label, ...ids);
-              await env.DB.prepare(`UPDATE org_tasks SET ${taskUpdates.join(', ')} WHERE label = ? AND dossier_id IN (SELECT d.id FROM org_dossiers d WHERE d.client_id IN (${marks}))`).bind(...taskBinds).run();
+              const previousLabel = label !== undefined && String(label).trim() ? tmpl.label : latest.label;
+              taskBinds.push(previousLabel, latest.label, ...ids);
+              await env.DB.prepare(`UPDATE org_tasks SET ${taskUpdates.join(', ')} WHERE label IN (?, ?) AND dossier_id IN (SELECT d.id FROM org_dossiers d WHERE d.client_id IN (${marks}))`).bind(...taskBinds).run();
             }
           }
         }
