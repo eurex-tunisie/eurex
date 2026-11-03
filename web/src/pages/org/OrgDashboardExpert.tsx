@@ -82,6 +82,7 @@ export default function OrgDashboardExpert() {
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'global' ? 'global' : 'comptables');
   const [comptables, setComptables] = useState<OrgComptable[]>([]);
   const [allDossiers, setAllDossiers] = useState<any[]>([]);
+  const [globalAllDossiers, setGlobalAllDossiers] = useState<any[]>([]);
   const [hoursDossiers, setHoursDossiers] = useState<any[]>([]);
   const [hoursLoading, setHoursLoading] = useState(false);
   const [hoursComptableFilter, setHoursComptableFilter] = useState(searchParams.get('heures_comptable') || 'all');
@@ -140,7 +141,7 @@ export default function OrgDashboardExpert() {
   // Carte "À vérifier" repliable (etage memorise)
   const { min: verifyMin, toggleMin: toggleVerifyMin } = useCardMin('eurex_verify_min');
   // Exercice affiche : annee courante par defaut, choix memorise (retour au n-1)
-  const [exercice, setExercice] = useExercice({ defaultAll: true, storageKey: 'eurex_expert_exercice' });
+  const [exercice, setExercice] = useExercice();
   const [exercices, setExercices] = useState<number[]>([]);
   const [exportingCsv, setExportingCsv] = useState(false);
   // Export CSV de toutes les heures du cabinet (meme filtre d'exercice que les KPIs)
@@ -226,13 +227,17 @@ export default function OrgDashboardExpert() {
   useEffect(() => { fetchDashboard(); }, [exercice]);
 
   useEffect(() => {
+    orgApi.getAllDossiers(null).then(setGlobalAllDossiers).catch(() => setGlobalAllDossiers([]));
+  }, []);
+
+  useEffect(() => {
     if (tab !== 'heures') return;
     setHoursLoading(true);
-    orgApi.getAllDossiers(exercice, true).then(setHoursDossiers).catch(err => {
+    orgApi.getAllDossiers(null, true).then(setHoursDossiers).catch(err => {
       console.error(err);
       setHoursDossiers([]);
     }).finally(() => setHoursLoading(false));
-  }, [tab, exercice]);
+  }, [tab]);
 
   // Renfort : ouvrir un acces temporaire directement depuis le dashboard (expert)
   const openRenfort = (c: OrgComptable) => {
@@ -518,6 +523,10 @@ export default function OrgDashboardExpert() {
   const pointingToday = comptables.filter(c => (c.worked_today_seconds || 0) > 0).length;
 
   const filteredDossiers = allDossiers
+    .filter(d => filterComptable === 'all' || d.comptable_id === filterComptable)
+    .filter(d => !search || d.client_name?.toLowerCase().includes(search.toLowerCase()));
+
+  const filteredGlobalDossiers = globalAllDossiers
     .filter(d => filterComptable === 'all' || d.comptable_id === filterComptable)
     .filter(d => !search || d.client_name?.toLowerCase().includes(search.toLowerCase()));
 
@@ -1085,7 +1094,7 @@ export default function OrgDashboardExpert() {
               data-testid="dossiers-export-csv"
               className="px-3 py-2 rounded-lg text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors whitespace-nowrap"
             >
-              ⬇ CSV ({filteredDossiers.length})
+              ⬇ CSV ({filteredGlobalDossiers.length})
             </button>
           </div>
 
@@ -1106,7 +1115,7 @@ export default function OrgDashboardExpert() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDossiers.map(d => (
+                {filteredGlobalDossiers.map(d => (
                   <tr key={d.id} data-testid="dossier-row" className="border-b border-gray-50 hover:bg-purple-50/30 transition-all duration-200">
                     <td className="px-5 py-4">
                       <Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:text-purple-900 hover:underline transition-colors">
