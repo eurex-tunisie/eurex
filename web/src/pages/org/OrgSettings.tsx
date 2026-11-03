@@ -112,7 +112,7 @@ export default function OrgSettings() {
     if (!newLabel.trim()) return;
     try {
       const norm = newNormH || newNormM ? (Number(newNormH || 0) * 3600 + Number(newNormM || 0) * 60) : null;
-      await orgApi.createTemplate(newLabel.trim(), newRequiresDoc, newAssignedComp || null, newFrequency, newMonth ? Number(newMonth) : null, newClientId || null, norm, 'comptable');
+      await orgApi.createTemplate(newLabel.trim(), newRequiresDoc, newAssignedComp || null, newFrequency, newMonth ? Number(newMonth) : null, newClientId || null, norm);
       setNewLabel('');
       setNewNormH(''); setNewNormM('');
       setNewRequiresDoc(false);

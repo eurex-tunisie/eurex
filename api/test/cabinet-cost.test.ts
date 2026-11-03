@@ -125,6 +125,8 @@ test('switching a task template to Entreprise assigns a company and keeps it sel
   assert.match(MULTI_CLIENTS_PG, /ADD COLUMN IF NOT EXISTS client_ids TEXT/);
   assert.match(SRC, /tmpl\.client_ids/);
   assert.match(SRC, /UPDATE org_tasks SET \$\{taskUpdates\.join\(', '\)\} WHERE label = \?/);
+  assert.match(SRC, /if \(frequency !== undefined \|\| month !== undefined\)/);
+  assert.match(SRC, /SELECT d\.id, d\.exercice FROM org_dossiers d JOIN org_clients c ON c\.id = d\.client_id WHERE d\.status = 'en_cours' AND c\.id = \? AND c\.organization_id = \?/);
   assert.match(SRC, /if \(exists\) \{[\s\S]*UPDATE org_tasks SET part = 'comptable', norm_seconds = \?/);
 });
 

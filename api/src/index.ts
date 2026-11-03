@@ -5533,7 +5533,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         await env.DB.prepare(`UPDATE org_task_templates SET ${updates.join(', ')} WHERE id = ? AND organization_id = ?`).bind(...binds).run();
         // Propagate changed template attributes to matching tasks already present
         // in dossiers for the selected companies. Keep task progress/status/time.
-        const propagatePart = client_ids !== undefined || client_id !== undefined || norm_seconds !== undefined;
+        const propagatePart = client_ids !== undefined || client_id !== undefined || norm_seconds !== undefined || frequency !== undefined || month !== undefined;
         if (propagatePart) {
           const latest = await env.DB.prepare('SELECT * FROM org_task_templates WHERE id = ? AND organization_id = ?').bind(orgTmplMatch[1], user.organization_id).first() as any;
           let targetClientIds: string[] = [];
@@ -5547,9 +5547,41 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
               const taskUpdates: string[] = ['part = ?'];
               const taskBinds: any[] = ['comptable'];
               if (norm_seconds !== undefined) { taskUpdates.push('norm_seconds = ?'); taskBinds.push(latest.norm_seconds ?? null); }
-              if (!taskUpdates.length) continue;
+              if (frequency !== undefined || month !== undefined) {
+                const months: (number | null)[] = latest.month ? [latest.month]
+                  : latest.frequency === 'mensuelle' ? [1,2,3,4,5,6,7,8,9,10,11,12]
+                  : latest.frequency === 'trimestrielle' ? [1,4,7,10]
+                  : [null];
+                const keepMonths = new Set(months.map(value => value ?? 0));
+                const { results: oldTasks } = await env.DB.prepare(`SELECT id, month FROM org_tasks WHERE label = ? AND dossier_id IN (SELECT d.id FROM org_dossiers d WHERE d.client_id IN (${marks}))`).bind(latest.label, ...ids).all();
+                for (const oldTask of oldTasks as any[]) {
+                  if (keepMonths.has(Number(oldTask.month) || 0)) continue;
+                  const hasTime = await env.DB.prepare('SELECT 1 AS found FROM org_time_entries WHERE task_id = ? LIMIT 1').bind(oldTask.id).first();
+                  if (hasTime) continue; // Never remove a task that already contains time entries.
+                  await env.DB.prepare('DELETE FROM org_expected_documents WHERE task_id = ?').bind(oldTask.id).run();
+                  await env.DB.prepare('DELETE FROM org_tasks WHERE id = ?').bind(oldTask.id).run();
+                }
+                const insertMonths = months.filter(value => !((oldTasks as any[]).some(oldTask => (Number(oldTask.month) || 0) === (value ?? 0))));
+                for (const clientId of ids) {
+                  const { results: openDossiers } = await env.DB.prepare("SELECT d.id, d.exercice FROM org_dossiers d JOIN org_clients c ON c.id = d.client_id WHERE d.status = 'en_cours' AND c.id = ? AND c.organization_id = ?").bind(clientId, user.organization_id).all();
+                  for (const dossierRow of openDossiers as any[]) for (const insertMonth of months) {
+                    const exists = await env.DB.prepare('SELECT 1 AS found FROM org_tasks WHERE dossier_id = ? AND label = ? AND COALESCE(month, 0) = COALESCE(?, 0)').bind(dossierRow.id, latest.label, insertMonth).first();
+                    if (exists) continue;
+                    const newTaskId = genId();
+                    const hidden = latest.label === 'Reporting mensuel' ? 1 : 0;
+                    await env.DB.prepare("INSERT INTO org_tasks (id, dossier_id, label, status, requires_document, order_index, assigned_comptable_id, month, export_scope, hidden, created_at, norm_seconds, part) VALUES (?, ?, ?, 'a_faire', ?, ?, ?, ?, ?, ?, datetime('now'), ?, 'comptable')").bind(newTaskId, dossierRow.id, latest.label, latest.requires_document, latest.order_index, latest.assigned_comptable_id || null, insertMonth, latest.export_scope || null, hidden, latest.norm_seconds ?? null).run();
+                    if (latest.requires_document) {
+                      const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+                      const docLabel = insertMonth ? `${latest.label} — ${monthNames[insertMonth - 1]} ${dossierRow.exercice}` : latest.label;
+                      await env.DB.prepare('INSERT INTO org_expected_documents (id, dossier_id, task_id, label, received) VALUES (?, ?, ?, ?, 0)').bind(genId(), dossierRow.id, newTaskId, docLabel).run();
+                    }
+                  }
+                }
+              }
               taskBinds.push(latest.label, ...ids);
-              await env.DB.prepare(`UPDATE org_tasks SET ${taskUpdates.join(', ')} WHERE label = ? AND dossier_id IN (SELECT d.id FROM org_dossiers d WHERE d.client_id IN (${marks}))`).bind(...taskBinds).run();
+              if (norm_seconds !== undefined || client_ids !== undefined || client_id !== undefined) {
+                await env.DB.prepare(`UPDATE org_tasks SET ${taskUpdates.join(', ')} WHERE label = ? AND dossier_id IN (SELECT d.id FROM org_dossiers d WHERE d.client_id IN (${marks}))`).bind(...taskBinds).run();
+              }
             }
           }
         }
