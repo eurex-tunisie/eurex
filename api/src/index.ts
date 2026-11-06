@@ -1677,9 +1677,13 @@ export default {
           const nums = dayFactures.map((f: any) => f.numero_facture.replace(/[^0-9]/g, '')).sort((a: string, b: string) => a.localeCompare(b));
           const numPiece = !nums.length
             ? 'CAISSE ' + date
-            : (nums.length === 1 ? 'FAC N' + nums[0] + '-26' : 'FAC N' + nums.join('-') + '-26');
+            : (nums.length === 1 ? 'FAC N°' + nums[0] : 'FAC N°' + nums.join(','));
           const clients = [...new Set(dayFactures.map((f: any) => f.client).filter(Boolean))];
-          const defaultLibelle = clients.length > 0 ? 'CLTS PASSAGERS/' + clients.join('/') : 'CLTS PASSAGERS';
+          const otherClients = clients.filter((c: any) => c !== '99').map((c: any) => CLIENT_NAMES[c] || c);
+          const vtLibelle = !nums.length
+            ? 'CLTS PASSAGERS'
+            : ('FAC N°' + nums.join(',') + '-26 CLT PASSAGERS' + (otherClients.length ? '/' + otherClients.join('/') : ''));
+          const defaultLibelle = vtLibelle;
 
           const result = buildDayEcritures(date, dayFactures, modes, defaultLibelle, journal);
           if (result.excluded) {
