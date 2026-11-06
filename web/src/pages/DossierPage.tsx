@@ -180,7 +180,7 @@ export default function DossierPage() {
   const [pieces, setPieces] = useState<any[]>([]);
   const [ecritures, setEcritures] = useState<any[]>([]);
   const [factures, setFactures] = useState<any[]>([]);
-  const [journal, setJournal] = useState<'VT J.C' | 'VT C' | 'FISC' | null>(null);
+  const [journal, setJournal] = useState<'VT J.C' | 'VT C' | 'FISC' | 'CASSE' | null>(null);
   const [tab, setTab] = useState<'factures' | 'rapport' | 'ecritures' | 'analyse' | 'verification'>('factures');
   const [rapport, setRapport] = useState<any[]>([]);
   const [analyse, setAnalyse] = useState<any[]>([]);
@@ -218,7 +218,7 @@ export default function DossierPage() {
 
   useEffect(() => { reload(); }, [id]);
 
-  const ecrituresFiltered = journal ? ecritures.filter(e => e.journal_code === journal) : ecritures;
+  const ecrituresFiltered = journal ? ecritures.filter(e => e.journal_code === (journal === 'CASSE' ? 'CAI' : journal)) : ecritures;
   // Un dossier peut contenir les 2 depots : chaque facture / ligne de rapport est
   // rattachee a son journal (VT C = depot 6, VT J.C = depot 7).
   const jrCourant: 'VT J.C' | 'VT C' = journal === 'VT C' ? 'VT C' : 'VT J.C';
@@ -335,12 +335,17 @@ export default function DossierPage() {
   };
 
   const generate = async () => {
-    if (!id || (journal !== 'VT J.C' && journal !== 'VT C')) return;
+    if (!id || (journal !== 'VT J.C' && journal !== 'VT C' && journal !== 'CASSE')) return;
     setGenerating(true);
     setVtjcResult(null);
     try {
-      const result = await api.generateVTJC(id, journal);
-      setVtjcResult(result);
+      if (journal === 'CASSE') {
+        const result = await api.generateCasse(id);
+        setVtjcResult({ days: result.factures, entries: result.entries?.map((e: any) => ({ ...e, piece: e.numPiece })) || [], casse: true });
+      } else {
+        const result = await api.generateVTJC(id, journal);
+        setVtjcResult(result);
+      }
       reload(true);
     } catch (e: any) { alert('Erreur: ' + e.message); }
     finally { setGenerating(false); }
@@ -418,6 +423,7 @@ export default function DossierPage() {
     const ACCOUNT_LABELS: Record<string, string> = {
       '411004': 'CLIENTS PASSAGERS ESPECES', '411003': 'CLIENTS PASSAGERS CHEQUES',
       '411005': 'CLIENTS PASSAGERS TPE', '709500': 'AVOIRS FINACIERS',
+      '541100': 'CAISSE J.C',
       '707200': 'VENTES MARCHANDISES J.C 0%', '707219': 'VENTES MARCHANDISES J.C 19%',
       '707100': 'VENTES MARCHANDISES C 0%', '707119': 'VENTES MARCHANDISES C 19%',
       '436711': 'TVA COLLECTEE 19% J.C', '436710': 'TVA COLLECTEE 19% C',
@@ -457,6 +463,7 @@ export default function DossierPage() {
   const ecrituresVTJC = ecritures.filter(e => e.journal_code === 'VT J.C');
   const ecrituresVTC = ecritures.filter(e => e.journal_code === 'VT C');
   const ecrituresFISC = ecritures.filter(e => e.journal_code === 'FISC');
+  const ecrituresCAI = ecritures.filter(e => e.journal_code === 'CAI');
 
   if (!journal) {
     return (
@@ -466,7 +473,7 @@ export default function DossierPage() {
           <div className="bg-white rounded-xl border p-6 text-center">
             <h1 className="text-xl font-bold mb-1">{dossier?.nom}</h1>
             <p className="text-sm text-gray-500 mb-6">Choisir le journal :</p>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <button onClick={() => { setJournal('VT J.C'); setTab('factures'); }} className="border-2 border-violet-200 rounded-xl p-6 hover:border-violet-500 hover:bg-violet-50 transition-all group">
                 <Zap className="w-10 h-10 mx-auto text-violet-500 mb-3 group-hover:scale-110 transition-transform" />
                 <h3 className="font-semibold text-violet-700">VT J.C</h3>
@@ -485,12 +492,19 @@ export default function DossierPage() {
                 <p className="text-xs text-gray-500 mt-1">DMI → Extraction PDF</p>
                 <p className="text-xs text-gray-400 mt-2">{ecrituresFISC.length} ecriture(s)</p>
               </button>
+              <button onClick={() => { setJournal('CASSE'); setTab('ecritures'); }} className="border-2 border-emerald-200 rounded-xl p-6 hover:border-emerald-500 hover:bg-emerald-50 transition-all group">
+                <FileSpreadsheet className="w-10 h-10 mx-auto text-emerald-500 mb-3 group-hover:scale-110 transition-transform" />
+                <h3 className="font-semibold text-emerald-700">CASSE</h3>
+                <p className="text-xs text-gray-500 mt-1">Factures → 1 piece (541100 / 411004)</p>
+                <p className="text-xs text-gray-400 mt-2">{ecrituresCAI.length} ecriture(s)</p>
+              </button>
             </div>
           </div>
           <div className="flex gap-2 justify-center">
             {ecrituresVTJC.length > 0 && <button onClick={() => { setJournal('VT J.C'); exportXLSX(); }} className="bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-violet-700 flex items-center gap-1.5"><FileSpreadsheet className="w-4 h-4" /> XLSX VT J.C</button>}
             {ecrituresVTC.length > 0 && <button onClick={() => { setJournal('VT C'); exportXLSX(); }} className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 flex items-center gap-1.5"><FileSpreadsheet className="w-4 h-4" /> XLSX VT C</button>}
             {ecrituresFISC.length > 0 && <button onClick={() => { setJournal('FISC'); exportXLSX(); }} className="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 flex items-center gap-1.5"><FileSpreadsheet className="w-4 h-4" /> XLSX FISC</button>}
+            {ecrituresCAI.length > 0 && <button onClick={() => { setJournal('CASSE'); exportXLSX(); }} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 flex items-center gap-1.5"><FileSpreadsheet className="w-4 h-4" /> XLSX CASSE</button>}
           </div>
           <div className="bg-white rounded-xl border p-4 flex items-center justify-between gap-3 text-left">
             <div className="flex items-center gap-3">
@@ -513,6 +527,7 @@ export default function DossierPage() {
   const isVTJC = journal === 'VT J.C';
   const isVTC = journal === 'VT C';
   const isFISC = journal === 'FISC';
+  const isCASSE = journal === 'CASSE';
 
   return (
     <div className="space-y-6">
@@ -524,10 +539,10 @@ export default function DossierPage() {
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className={`px-3 py-1 rounded-lg text-sm font-bold ${isFISC ? 'bg-amber-100 text-amber-700' : isVTJC ? 'bg-violet-100 text-violet-700' : 'bg-teal-100 text-teal-700'}`}>
-              {isFISC ? <FileText className="w-4 h-4 inline mr-1" /> : isVTJC ? <Zap className="w-4 h-4 inline mr-1" /> : <FileText className="w-4 h-4 inline mr-1" />} {journal}
+            <span className={`px-3 py-1 rounded-lg text-sm font-bold ${isFISC ? 'bg-amber-100 text-amber-700' : isCASSE ? 'bg-emerald-100 text-emerald-700' : isVTJC ? 'bg-violet-100 text-violet-700' : 'bg-teal-100 text-teal-700'}`}>
+              {isFISC ? <FileText className="w-4 h-4 inline mr-1" /> : isCASSE ? <FileSpreadsheet className="w-4 h-4 inline mr-1" /> : isVTJC ? <Zap className="w-4 h-4 inline mr-1" /> : <FileText className="w-4 h-4 inline mr-1" />} {journal}
             </span>
-            <span className="text-sm text-gray-500">{isFISC ? `${ecrituresFiltered.length} ecriture(s)` : `${ecrituresFiltered.length} ecriture(s) | ${facturesDuJournal.length} facture(s) | ${rapportDuJournal.length} jour(s) rapport`}</span>
+            <span className="text-sm text-gray-500">{isFISC || isCASSE ? `${ecrituresFiltered.length} ecriture(s)` : `${ecrituresFiltered.length} ecriture(s) | ${facturesDuJournal.length} facture(s) | ${rapportDuJournal.length} jour(s) rapport`}</span>
           </div>
           <div className="flex gap-2">
             <button onClick={exportCSV} disabled={!ecrituresFiltered.length} className="btn btn-blue px-3 py-2 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"><Download className="w-3 h-3" /> CSV</button>
@@ -537,7 +552,7 @@ export default function DossierPage() {
       </div>
 
       <div className="flex gap-2">
-        {(isFISC ? ['ecritures'] as const : (['factures', 'rapport', 'ecritures', 'analyse', 'verification'] as const)).map(t => (
+        {(isFISC || isCASSE ? ['ecritures'] as const : (['factures', 'rapport', 'ecritures', 'analyse', 'verification'] as const)).map(t => (
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${tab === t ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
             {t === 'analyse' ? <><AlertTriangle className="w-3 h-3 inline mr-1" />Analyse</> : t === 'verification' ? <>Verification TVA</> : t} {t === 'factures' ? `(${facturesDuJournal.length})` : t === 'ecritures' ? `(${ecrituresFiltered.length})` : t === 'rapport' ? `(${rapportDuJournal.length})` : ''}
           </button>
@@ -717,7 +732,7 @@ export default function DossierPage() {
                 <h3 className={`font-semibold ${isVTJC ? 'text-violet-800' : 'text-teal-800'}`}>Resultat — {journal}</h3>
                 <button onClick={() => setVtjcResult(null)} className="text-gray-400 hover:text-gray-600 text-sm">Fermer</button>
               </div>
-              <p className={`text-sm ${isVTJC ? 'text-violet-700' : 'text-teal-700'}`}>{vtjcResult.days} jour(s) traite(s), {vtjcResult.entries?.filter((e: any) => !e.excluded).length || 0} ecriture(s)</p>
+              <p className={`text-sm ${isVTJC ? 'text-violet-700' : 'text-teal-700'}`}>{vtjcResult.casse ? `${vtjcResult.days} facture(s), ${vtjcResult.entries?.length || 0} ligne(s)` : `${vtjcResult.days} jour(s) traite(s), ${vtjcResult.entries?.filter((e: any) => !e.excluded).length || 0} ecriture(s)`}</p>
               {vtjcResult.anomalies?.length > 0 && (
                 <div className="mt-3">
                   <p className="text-sm font-semibold text-red-700 mb-1">Jours excludes (ecart &gt; 3DT) :</p>
@@ -780,6 +795,16 @@ export default function DossierPage() {
 
       {tab === 'ecritures' && (
         <div className="space-y-3">
+          {isCASSE && (
+            <div className="bg-white rounded-xl border p-5">
+              <h2 className="font-semibold mb-3">Generer les ecritures CASSE</h2>
+              <p className="text-xs text-gray-500 mb-3">Une piece par facture : Debit 541100 CAISSE J.C / Credit 411004 CLIENTS PASSAGERS ESPECES (TTC).</p>
+              <button onClick={generate} disabled={generating} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                {generating ? 'Generation...' : 'Generer CASSE'}
+              </button>
+            </div>
+          )}
           {ecrituresFiltered.length > 0 ? (
             <div className="bg-white rounded-xl border overflow-hidden">
               <div className="overflow-x-auto">

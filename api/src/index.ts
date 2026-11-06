@@ -342,11 +342,26 @@ async function ensureCurrentExercice(env: Env, orgId: string): Promise<void> {
 //  2) échéance dans la fenêtre lead  -> comptable du dossier (ou experts si échéance globale)
 //  3) vérification dépassée          -> experts/managers
 async function ensureNotifications(env: Env, orgId: string): Promise<void> {
+  // Throttle : on ne regenere les notifications qu'une fois par org toutes les 5 min.
+  // Sans ca, chaque poll /org/notifications (120 s) relance les 3 requetes lourdes
+  // + les INSERTs, ce qui depasse la limite CPU du Worker (erreur 1102).
+  try {
+    if (env.DOCS_KV) {
+      const key = `notif:throttle:${orgId}`;
+      const last = await env.DOCS_KV.get(key);
+      if (last) return;
+      await env.DOCS_KV.put(key, String(Date.now()), { expirationTtl: 300 });
+    }
+  } catch { /* KV indisponible : on continue sans throttle */ }
+
+  // Collecte des inserts pour un seul batch (evite N round-trips individuels).
+  const pending: { id: string; userId: string; dossierId: string | null; message: string }[] = [];
+  const queue = (id: string, userId: string, dossierId: string | null, message: string) => {
+    pending.push({ id, userId, dossierId, message });
+  };
+
   try {
     const today = new Date(Date.now() + 3600000).toISOString().slice(0, 10);
-    const ins = async (id: string, userId: string, dossierId: string | null, message: string) => {
-      await env.DB.prepare('INSERT OR IGNORE INTO org_notifications (id, user_id, dossier_id, message) VALUES (?, ?, ?, ?)').bind(id, userId, dossierId, message).run();
-    };
 
     // 1) Tâches en retard (date butoir passée, pas « fait »)
     const { results: late } = await env.DB.prepare(
@@ -354,11 +369,11 @@ async function ensureNotifications(env: Env, orgId: string): Promise<void> {
        FROM org_tasks t JOIN org_dossiers d ON d.id = t.dossier_id JOIN org_clients c ON c.id = d.client_id
        WHERE c.organization_id = ? AND d.status = 'en_cours' AND t.hidden = 0 AND t.status != 'fait'
          AND t.due_date IS NOT NULL AND t.due_date < ? AND COALESCE(t.assigned_comptable_id, c.assigned_comptable_id) IS NOT NULL
-       ORDER BY t.due_date ASC LIMIT 200`
+       ORDER BY t.due_date ASC LIMIT 100`
     ).bind(orgId, today).all();
     for (const t of late as any[]) {
       const dd = String(t.due_date);
-      await ins(`late:${t.id}:${today}`, t.uid, t.dossier_id,
+      queue(`late:${t.id}:${today}`, t.uid, t.dossier_id,
         `🔴 En retard depuis le ${dd.slice(8)}/${dd.slice(5, 7)} : « ${t.label} » — ${t.client_name}`);
     }
 
@@ -372,7 +387,7 @@ async function ensureNotifications(env: Env, orgId: string): Promise<void> {
          AND a.due_date <= date(?, '+' || COALESCE(a.lead_days, 7) || ' days')
          AND (a.done = 0 OR a.done IS NULL)
          AND (a.recurrence IS NULL OR NOT EXISTS (SELECT 1 FROM org_alert_dones od WHERE od.alert_id = a.id AND od.due_date = a.due_date))
-       ORDER BY a.due_date ASC LIMIT 150`
+       ORDER BY a.due_date ASC LIMIT 50`
     ).bind(orgId, today).all();
     let supIds: string[] = [];
     if (alerts.length) {
@@ -385,7 +400,7 @@ async function ensureNotifications(env: Env, orgId: string): Promise<void> {
       const dd = String(a.due_date);
       const msg = `⏰ Échéance « ${a.title} » le ${dd.slice(8)}/${dd.slice(5, 7)} (${when})`;
       const targets = a.dossier_id ? (a.client_uid ? [String(a.client_uid)] : supIds) : supIds;
-      for (const uid of targets) await ins(`alert:${a.id}:${a.due_date}`, uid, a.dossier_id, msg);
+      for (const uid of targets) queue(`alert:${a.id}:${a.due_date}`, uid, a.dossier_id, msg);
     }
 
     // 3) Tâches en vérification dont le délai de validation est passé -> experts
@@ -394,7 +409,7 @@ async function ensureNotifications(env: Env, orgId: string): Promise<void> {
        FROM org_tasks t JOIN org_dossiers d ON d.id = t.dossier_id JOIN org_clients c ON c.id = d.client_id
        WHERE c.organization_id = ? AND t.status = 'a_verifier' AND t.hidden = 0
          AND t.verify_due_at IS NOT NULL AND t.verify_due_at < datetime('now')
-       ORDER BY t.verify_due_at ASC LIMIT 100`
+       ORDER BY t.verify_due_at ASC LIMIT 50`
     ).bind(orgId).all();
     if (verifies.length) {
       if (!supIds.length) {
@@ -402,9 +417,15 @@ async function ensureNotifications(env: Env, orgId: string): Promise<void> {
         supIds = (sups as any[]).map(u => String(u.id));
       }
       for (const t of verifies as any[]) {
-        for (const uid of supIds) await ins(`verify:${t.id}:${today}`, uid, t.dossier_id,
+        for (const uid of supIds) queue(`verify:${t.id}:${today}`, uid, t.dossier_id,
           `🟠 Validation dépassée : « ${t.label} » — ${t.client_name}`);
       }
+    }
+
+    // Batch insert (INSERT OR IGNORE) en paquets de 50.
+    const stmts = pending.map(p => env.DB.prepare('INSERT OR IGNORE INTO org_notifications (id, user_id, dossier_id, message) VALUES (?, ?, ?, ?)').bind(p.id, p.userId, p.dossierId, p.message));
+    for (let i = 0; i < stmts.length; i += 50) {
+      if (stmts.length) await env.DB.batch(stmts.slice(i, i + 50));
     }
   } catch (e) {
     console.error('ensureNotifications', e);
@@ -1597,6 +1618,45 @@ export default {
         }
 
         return json({ days: allEntries.length, entries: allEntries, anomalies });
+      }
+
+      // --- GENERATE CASSE (journal caisse / espèces) ---
+      // Une pièce PAR FACTURE : Débit 541100 CAISSE J.C / Crédit 411004 CLIENTS
+      // PASSAGERS ESPECES, même montant (TTC), libellé « FAC N°XX-26 CLT PASSAGERS ».
+      const casseMatch = path.match(/^\/api\/dossiers\/([^/]+)\/generate-casse$/);
+      if (casseMatch && method === 'POST') {
+        const did = casseMatch[1];
+        const d = await env.DB.prepare('SELECT * FROM dossiers WHERE id = ?').bind(did).first() as any;
+        if (!d) return json({ error: 'Dossier non trouve' }, 404);
+
+        // Factures comptant (VT J.C par défaut) : mêmes ventes que lit VT J.C.
+        const facturesR = await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? AND COALESCE(journal, 'VT J.C') = 'VT J.C' ORDER BY date_facture, numero_facture").bind(did).all();
+        if (!facturesR.results.length) return json({ error: 'Aucune facture' }, 400);
+
+        // Remplace un éventuel précédent (idempotent).
+        await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = 'CAI'").bind(did).run();
+
+        const entries: any[] = [];
+        for (const f of facturesR.results as any[]) {
+          const ttc = Math.round((Number(f.total_ttc) || 0) * 1000) / 1000;
+          if (!ttc) continue;
+          const raw = String(f.numero_facture || '').trim();
+          const num = (raw.match(/(\d+)\s*$/) || [])[1] || raw;
+          const numPiece = `FAC N°${num}`;
+          const libelle = `${numPiece}-26 CLT PASSAGERS`;
+          const date = f.date_facture;
+          // Débit caisse / Crédit client espèces.
+          for (const l of [
+            { compte: '541100', sens: 'D' },   // CAISSE J.C
+            { compte: '411004', sens: 'C' },   // CLIENTS PASSAGERS ESPECES
+          ]) {
+            await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+              .bind(genId(), did, d.societe_id, 'CAI', date, date, numPiece, libelle, l.compte, l.sens, ttc, null).run();
+          }
+          entries.push({ date, numPiece, libelle, montant: ttc });
+        }
+
+        return json({ factures: entries.length, entries });
       }
 
       // --- PROCESS VT C (text from browser) ---

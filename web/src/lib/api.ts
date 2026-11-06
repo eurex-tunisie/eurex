@@ -33,6 +33,7 @@ export const api = {
   deleteAllFactures: (did: string, journal?: string) => req<any>(`/dossiers/${did}/factures${journal ? '?journal=' + encodeURIComponent(journal) : ''}`, { method: 'DELETE' }),
   getExcluded: (did: string, journal?: string) => req<any[]>(`/dossiers/${did}/excluded${journal ? '?journal=' + encodeURIComponent(journal) : ''}`),
   generateVTJC: (did: string, journal: 'VT J.C' | 'VT C' = 'VT J.C') => req<any>(`/dossiers/${did}/generate-vtjc`, { method: 'POST', body: JSON.stringify({ journal }) }),
+  generateCasse: (did: string) => req<any>(`/dossiers/${did}/generate-casse`, { method: 'POST' }),
   getRapport: (did: string, journal?: string) => req<any[]>(`/dossiers/${did}/rapport${journal ? '?journal=' + encodeURIComponent(journal) : ''}`),
   deleteRapport: (did: string, journal?: string) => req<any>(`/dossiers/${did}/rapport${journal ? '?journal=' + encodeURIComponent(journal) : ''}`, { method: 'DELETE' }),
   uploadRapport: (did: string, rows: any[], journal?: string) => req<any>(`/dossiers/${did}/rapport`, { method: 'POST', body: JSON.stringify({ rows, journal }) }),
