@@ -495,7 +495,7 @@ export default function DossierPage() {
               <button onClick={() => { setJournal('CASSE'); setTab('ecritures'); }} className="border-2 border-emerald-200 rounded-xl p-6 hover:border-emerald-500 hover:bg-emerald-50 transition-all group">
                 <FileSpreadsheet className="w-10 h-10 mx-auto text-emerald-500 mb-3 group-hover:scale-110 transition-transform" />
                 <h3 className="font-semibold text-emerald-700">CASSE</h3>
-                <p className="text-xs text-gray-500 mt-1">Factures → 1 piece (541100/541000 / 411004)</p>
+                <p className="text-xs text-gray-500 mt-1">Factures → 1 piece par jour (541100/541000 / 411004)</p>
                 <p className="text-xs text-gray-400 mt-2">{ecrituresCAI.length} ecriture(s)</p>
               </button>
             </div>
@@ -798,7 +798,7 @@ export default function DossierPage() {
           {isCASSE && (
             <div className="bg-white rounded-xl border p-5">
               <h2 className="font-semibold mb-3">Generer les ecritures CASSE</h2>
-              <p className="text-xs text-gray-500 mb-3">Une piece par facture : Debit caisse (541100 J.C / 541000 J.M selon le depot) / Credit 411004 CLIENTS PASSAGERS ESPECES, montant = especes du rapport du jour (pas le TTC; jour sans rapport = pas de piece). Genere automatiquement a l'ajout d'une facture.</p>
+              <p className="text-xs text-gray-500 mb-3">Une piece par jour (et par journal) : Debit caisse (541100 J.C / 541000 J.M selon le depot) / Credit 411004 CLIENTS PASSAGERS ESPECES, montant = especes du rapport du jour (pas le TTC; jour sans rapport = pas de piece). Genere automatiquement a l'ajout d'une facture.</p>
               <button onClick={generate} disabled={generating} className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
                 {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                 {generating ? 'Generation...' : 'Generer CASSE'}
