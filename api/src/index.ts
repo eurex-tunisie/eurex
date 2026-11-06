@@ -1246,20 +1246,30 @@ export function buildDayEcritures(date: string, dayFactures: any[], modes: any, 
   return { lines, ecart, excluded: false, anomaly, totalHT0, totalHT19, tva19, timbres };
 }
 
+// Espèces du rapport par jour : date_jour → especes (0 si le jour n'a pas de rapport).
+async function loadEspecesByDay(env: any, did: string): Promise<Map<string, number>> {
+  const r = await env.DB.prepare('SELECT date_jour, especes FROM rapport_modes WHERE dossier_id = ?').bind(did).all();
+  const m = new Map<string, number>();
+  for (const row of r.results as any[]) m.set(row.date_jour, Number(row.especes) || 0);
+  return m;
+}
+
 // Journal CAI : une pièce PAR FACTURE — Débit caisse / Crédit 411004 CLIENTS
-// PASSAGERS ESPECES, même montant (TTC), libellé « FAC N°XX-26 CLT PASSAGERS ».
+// PASSAGERS ESPECES, libellé « FAC N°XX-26 CLT PASSAGERS ».
+// Le montant vient des ESPÈCES du rapport (rapport_modes.especes) du jour de la
+// facture, pas du TTC. Sans rapport ce jour → aucune pièce.
 // La caisse dépend du dépôt source : VT J.C → 541100 CAISSE J.C,
 // VT C → 541000 CAISSE J.M (même logique que J.M = J.C côté espèces).
-export function casseLinesForFacture(f: any): { numPiece: string; libelle: string; date: string; montant: number; lines: { compte: string; sens: 'D' | 'C' }[] } | null {
-  const ttc = Math.round((Number(f.total_ttc) || 0) * 1000) / 1000;
-  if (!ttc) return null;
+export function casseLinesForFacture(f: any, especes: number | null | undefined): { numPiece: string; libelle: string; date: string; montant: number; lines: { compte: string; sens: 'D' | 'C' }[] } | null {
+  const montant = Math.round((Number(especes) || 0) * 1000) / 1000;
+  if (!(montant > 0)) return null; // jour sans rapport (ou espèces nulles) → pas de pièce
   const raw = String(f.numero_facture || '').trim();
   const num = (raw.match(/(\d+)\s*$/) || [])[1] || raw;
   const numPiece = `FAC N°${num}`;
   const libelle = `${numPiece}-26 CLT PASSAGERS`;
   const caisse = (f.journal || 'VT J.C') === 'VT C' ? '541000' : '541100';
   return {
-    numPiece, libelle, montant: ttc, date: f.date_facture,
+    numPiece, libelle, montant, date: f.date_facture,
     lines: [
       { compte: caisse, sens: 'D' },   // CAISSE J.M (VT C) ou CAISSE J.C (VT J.C)
       { compte: '411004', sens: 'C' }, // CLIENTS PASSAGERS ESPECES
@@ -1270,10 +1280,11 @@ export function casseLinesForFacture(f: any): { numPiece: string; libelle: strin
 // Regénère tout le journal CAI du dossier depuis ses factures (idempotent).
 async function regenCasse(env: any, did: string, societeId: string) {
   const r = await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture").bind(did).all();
+  const especes = await loadEspecesByDay(env, did);
   await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = 'CAI'").bind(did).run();
   let n = 0;
   for (const f of r.results as any[]) {
-    const c = casseLinesForFacture(f);
+    const c = casseLinesForFacture(f, especes.get(f.date_facture));
     if (!c) continue;
     for (const l of c.lines) {
       await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
@@ -1492,7 +1503,7 @@ export default {
         // Vente directe : la piece de caisse suit la facture automatiquement
         // (meme regle que generate-casse, 2 lignes).
         const fFinal = await env.DB.prepare('SELECT * FROM factures WHERE id = ?').bind(id).first() as any;
-        const cc = fFinal ? casseLinesForFacture(fFinal) : null;
+        const cc = fFinal ? casseLinesForFacture(fFinal, (await loadEspecesByDay(env, did)).get(fFinal.date_facture)) : null;
         if (cc) {
           for (const l of cc.lines) {
             await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
@@ -1678,7 +1689,8 @@ export default {
 
       // --- GENERATE CASSE (journal caisse / espèces) ---
       // Une pièce PAR FACTURE : Débit caisse (541100 J.C / 541000 J.M selon le
-      // dépôt) / Crédit 411004 CLIENTS PASSAGERS ESPECES, montant TTC,
+      // dépôt) / Crédit 411004 CLIENTS PASSAGERS ESPECES, montant = ESPÈCES du
+      // rapport du jour (pas le TTC ; jour sans rapport → pas de pièce),
       // libellé « FAC N°XX-26 CLT PASSAGERS ». Lit VT J.C et VT C.
       const casseMatch = path.match(/^\/api\/dossiers\/([^/]+)\/generate-casse$/);
       if (casseMatch && method === 'POST') {
@@ -1692,10 +1704,12 @@ export default {
         // Remplace un éventuel précédent (idempotent).
         await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = 'CAI'").bind(did).run();
 
+        const especes = await loadEspecesByDay(env, did);
         const entries: any[] = [];
+        let sansRapport = 0;
         for (const f of facturesR.results as any[]) {
-          const c = casseLinesForFacture(f);
-          if (!c) continue;
+          const c = casseLinesForFacture(f, especes.get(f.date_facture));
+          if (!c) { sansRapport++; continue; }
           for (const l of c.lines) {
             await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
               .bind(genId(), did, d.societe_id, 'CAI', c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
@@ -1703,7 +1717,7 @@ export default {
           entries.push({ date: c.date, numPiece: c.numPiece, libelle: c.libelle, montant: c.montant, caisse: c.lines[0].compte });
         }
 
-        return json({ factures: entries.length, entries });
+        return json({ factures: entries.length, sansRapport, entries });
       }
 
       // --- PROCESS VT C (text from browser) ---
