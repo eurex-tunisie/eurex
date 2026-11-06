@@ -1289,7 +1289,7 @@ export const casseLinesForFacture = (f: any, especes: number | null | undefined)
 async function regenCasse(env: any, did: string, societeId: string) {
   const r = await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture").bind(did).all();
   const especes = await loadEspecesByDay(env, did);
-  await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = 'CAI'").bind(did).run();
+  await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code IN ('CAI', 'CAI 2')").bind(did).run();
   // Grouper les factures par (jour, journal) pour ne créer qu'une pièce par groupe.
   const groups = new Map<string, any[]>();
   for (const f of r.results as any[]) {
@@ -1303,9 +1303,11 @@ async function regenCasse(env: any, did: string, societeId: string) {
     const journal = fs[0].journal || 'VT J.C';
     const c = cassePieceForDay(date, fs, especes.get(`${journal}__${date}`));
     if (!c) continue;
+    // CAI = VT J.C (541100 CAISSE J.C), CAI 2 = VT C (541000 CAISSE J.M).
+    const jcode = journal === 'VT C' ? 'CAI 2' : 'CAI';
     for (const l of c.lines) {
       await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(genId(), did, societeId, 'CAI', c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
+        .bind(genId(), did, societeId, jcode, c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
     }
     n++;
   }
@@ -1721,7 +1723,7 @@ export default {
         if (!facturesR.results.length) return json({ error: 'Aucune facture' }, 400);
 
         // Remplace un éventuel précédent (idempotent).
-        await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = 'CAI'").bind(did).run();
+        await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code IN ('CAI', 'CAI 2')").bind(did).run();
 
         const especes = await loadEspecesByDay(env, did);
         // Grouper par (jour, journal) → une pièce par groupe.
@@ -1734,13 +1736,16 @@ export default {
         const entries: any[] = [];
         let sansRapport = 0;
         for (const [key, fs] of groups) {
-          const c = cassePieceForDay(fs[0].date_facture, fs, especes.get(`${(fs[0].journal || 'VT J.C')}__${fs[0].date_facture}`));
+          const journal = fs[0].journal || 'VT J.C';
+          const c = cassePieceForDay(fs[0].date_facture, fs, especes.get(`${journal}__${fs[0].date_facture}`));
           if (!c) { sansRapport++; continue; }
+          // CAI = VT J.C (541100 CAISSE J.C), CAI 2 = VT C (541000 CAISSE J.M).
+          const jcode = journal === 'VT C' ? 'CAI 2' : 'CAI';
           for (const l of c.lines) {
             await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-              .bind(genId(), did, d.societe_id, 'CAI', c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
+              .bind(genId(), did, d.societe_id, jcode, c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
           }
-          entries.push({ date: c.date, numPiece: c.numPiece, libelle: c.libelle, montant: c.montant, caisse: c.lines[0].compte, factures: fs.length });
+          entries.push({ date: c.date, numPiece: c.numPiece, libelle: c.libelle, montant: c.montant, caisse: c.lines[0].compte, factures: fs.length, journal });
         }
 
         return json({ factures: entries.length, sansRapport, entries });

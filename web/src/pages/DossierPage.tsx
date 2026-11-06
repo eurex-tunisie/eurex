@@ -218,7 +218,7 @@ export default function DossierPage() {
 
   useEffect(() => { reload(true); }, [id]);
 
-  const ecrituresFiltered = journal ? ecritures.filter(e => e.journal_code === (journal === 'CASSE' ? 'CAI' : journal)) : ecritures;
+  const ecrituresFiltered = journal ? ecritures.filter(e => journal === 'CASSE' ? (e.journal_code === 'CAI' || e.journal_code === 'CAI 2') : e.journal_code === journal) : ecritures;
   // Un dossier peut contenir les 2 depots : chaque facture / ligne de rapport est
   // rattachee a son journal (VT C = depot 6, VT J.C = depot 7).
   const jrCourant: 'VT J.C' | 'VT C' = journal === 'VT C' ? 'VT C' : 'VT J.C';
@@ -463,7 +463,7 @@ export default function DossierPage() {
   const ecrituresVTJC = ecritures.filter(e => e.journal_code === 'VT J.C');
   const ecrituresVTC = ecritures.filter(e => e.journal_code === 'VT C');
   const ecrituresFISC = ecritures.filter(e => e.journal_code === 'FISC');
-  const ecrituresCAI = ecritures.filter(e => e.journal_code === 'CAI');
+  const ecrituresCAI = ecritures.filter(e => e.journal_code === 'CAI' || e.journal_code === 'CAI 2');
 
   if (!journal) {
     return (
