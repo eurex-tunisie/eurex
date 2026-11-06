@@ -1674,7 +1674,10 @@ export default {
           const encaisseHorsCredit = (modes.especes || 0) + (modes.tpe || 0) + (modes.cheques || 0) + (modes.bonsAchat || 0) + (modes.avoir || 0);
           if (!dayFactures.length && !encaisseHorsCredit) continue;
 
-          const nums = dayFactures.map((f: any) => f.numero_facture.replace(/[^0-9]/g, '')).sort((a: string, b: string) => a.localeCompare(b));
+          const nums = dayFactures.map((f: any) => {
+            const raw = String(f.numero_facture || '').trim();
+            return (raw.match(/(\d+)\s*$/) || [])[1] || raw.replace(/[^0-9]/g, '');
+          }).sort((a: string, b: string) => a.localeCompare(b));
           const numPiece = !nums.length
             ? 'CAISSE ' + date
             : (nums.length === 1 ? 'FAC N°' + nums[0] : 'FAC N°' + nums.join(','));
