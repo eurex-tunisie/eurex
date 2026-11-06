@@ -216,7 +216,7 @@ export default function DossierPage() {
     setLoading(false);
   };
 
-  useEffect(() => { reload(); }, [id]);
+  useEffect(() => { reload(true); }, [id]);
 
   const ecrituresFiltered = journal ? ecritures.filter(e => e.journal_code === (journal === 'CASSE' ? 'CAI' : journal)) : ecritures;
   // Un dossier peut contenir les 2 depots : chaque facture / ligne de rapport est
