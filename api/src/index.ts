@@ -1246,6 +1246,44 @@ export function buildDayEcritures(date: string, dayFactures: any[], modes: any, 
   return { lines, ecart, excluded: false, anomaly, totalHT0, totalHT19, tva19, timbres };
 }
 
+// Journal CAI : une pièce PAR FACTURE — Débit caisse / Crédit 411004 CLIENTS
+// PASSAGERS ESPECES, même montant (TTC), libellé « FAC N°XX-26 CLT PASSAGERS ».
+// La caisse dépend du dépôt source : VT J.C → 541100 CAISSE J.C,
+// VT C → 541000 CAISSE J.M (même logique que J.M = J.C côté espèces).
+export function casseLinesForFacture(f: any): { numPiece: string; libelle: string; date: string; montant: number; lines: { compte: string; sens: 'D' | 'C' }[] } | null {
+  const ttc = Math.round((Number(f.total_ttc) || 0) * 1000) / 1000;
+  if (!ttc) return null;
+  const raw = String(f.numero_facture || '').trim();
+  const num = (raw.match(/(\d+)\s*$/) || [])[1] || raw;
+  const numPiece = `FAC N°${num}`;
+  const libelle = `${numPiece}-26 CLT PASSAGERS`;
+  const caisse = (f.journal || 'VT J.C') === 'VT C' ? '541000' : '541100';
+  return {
+    numPiece, libelle, montant: ttc, date: f.date_facture,
+    lines: [
+      { compte: caisse, sens: 'D' },   // CAISSE J.M (VT C) ou CAISSE J.C (VT J.C)
+      { compte: '411004', sens: 'C' }, // CLIENTS PASSAGERS ESPECES
+    ],
+  };
+}
+
+// Regénère tout le journal CAI du dossier depuis ses factures (idempotent).
+async function regenCasse(env: any, did: string, societeId: string) {
+  const r = await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture").bind(did).all();
+  await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = 'CAI'").bind(did).run();
+  let n = 0;
+  for (const f of r.results as any[]) {
+    const c = casseLinesForFacture(f);
+    if (!c) continue;
+    for (const l of c.lines) {
+      await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(genId(), did, societeId, 'CAI', c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
+    }
+    n++;
+  }
+  return n;
+}
+
 function parseVTCLines(text: string) {
   const DEBIT_ACCOUNTS = new Set(['411004', '411003', '411005', '709500']);
   const CREDIT_ACCOUNTS = new Set(['707100', '707119', '436710', '437500']);
@@ -1451,6 +1489,16 @@ export default {
             await env.DB.prepare('UPDATE factures SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
           }
         }
+        // Vente directe : la piece de caisse suit la facture automatiquement
+        // (meme regle que generate-casse, 2 lignes).
+        const fFinal = await env.DB.prepare('SELECT * FROM factures WHERE id = ?').bind(id).first() as any;
+        const cc = fFinal ? casseLinesForFacture(fFinal) : null;
+        if (cc) {
+          for (const l of cc.lines) {
+            await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+              .bind(genId(), did, d.societe_id, 'CAI', cc.date, cc.date, cc.numPiece, cc.libelle, l.compte, l.sens, cc.montant, null).run();
+          }
+        }
         return json({ id, ...b, journal: jr, hors_caisse: corr ? (corr.hors_caisse ? 1 : 0) : hors });
       }
       // Bascule "hors caisse" (vente client) et correction de date/n° : ces
@@ -1470,20 +1518,26 @@ export default {
         vals.push(patchFactMatch[1]);
         await env.DB.prepare('UPDATE factures SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals).run();
         // Rendre la correction durable : elle survit a un re-upload.
-        const f = await env.DB.prepare('SELECT dossier_id, numero_facture, date_facture, hors_caisse FROM factures WHERE id = ?').bind(patchFactMatch[1]).first() as any;
+        const f = await env.DB.prepare('SELECT dossier_id, societe_id, numero_facture, date_facture, hors_caisse FROM factures WHERE id = ?').bind(patchFactMatch[1]).first() as any;
         if (f) {
           await env.DB.prepare("INSERT INTO facture_corrections (dossier_id, numero_facture, date_facture, hors_caisse, updated_at) VALUES (?, ?, ?, ?, datetime('now')) ON CONFLICT (dossier_id, numero_facture) DO UPDATE SET date_facture = excluded.date_facture, hors_caisse = excluded.hors_caisse, updated_at = excluded.updated_at").bind(f.dossier_id, f.numero_facture, f.date_facture, f.hors_caisse ? 1 : 0).run();
+          // La piece de caisse suit la facture (date / n° / bascule hors caisse).
+          await regenCasse(env, f.dossier_id, f.societe_id);
         }
         return json({ ok: true });
       }
       const delFactMatch = path.match(/^\/api\/factures\/([^/]+)$/);
       if (delFactMatch && method === 'DELETE') {
+        const f = await env.DB.prepare('SELECT dossier_id, societe_id FROM factures WHERE id = ?').bind(delFactMatch[1]).first() as any;
         await env.DB.prepare('DELETE FROM factures WHERE id = ?').bind(delFactMatch[1]).run();
+        // La piece de caisse de la facture supprimee part avec elle.
+        if (f) await regenCasse(env, f.dossier_id, f.societe_id);
         return json({ ok: true });
       }
       const delAllFactMatch = path.match(/^\/api\/dossiers\/([^/]+)\/factures$/);
       if (delAllFactMatch && method === 'DELETE') {
         const j = url.searchParams.get('journal');
+        const dInfo = await env.DB.prepare('SELECT societe_id FROM dossiers WHERE id = ?').bind(delAllFactMatch[1]).first() as any;
         if (j) {
           await env.DB.prepare("DELETE FROM factures WHERE dossier_id = ? AND COALESCE(journal, 'VT J.C') = ?").bind(delAllFactMatch[1], j).run();
           await env.DB.prepare('DELETE FROM ecritures WHERE dossier_id = ? AND journal_code = ?').bind(delAllFactMatch[1], j).run();
@@ -1491,6 +1545,8 @@ export default {
           await env.DB.prepare('DELETE FROM factures WHERE dossier_id = ?').bind(delAllFactMatch[1]).run();
           await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code IN ('VT J.C','VT C')").bind(delAllFactMatch[1]).run();
         }
+        // Recalcule la caisse sur les factures restantes (0 si toutes parties).
+        if (dInfo) await regenCasse(env, delAllFactMatch[1], dInfo.societe_id);
         return json({ ok: true });
       }
 
@@ -1621,16 +1677,16 @@ export default {
       }
 
       // --- GENERATE CASSE (journal caisse / espèces) ---
-      // Une pièce PAR FACTURE : Débit 541100 CAISSE J.C / Crédit 411004 CLIENTS
-      // PASSAGERS ESPECES, même montant (TTC), libellé « FAC N°XX-26 CLT PASSAGERS ».
+      // Une pièce PAR FACTURE : Débit caisse (541100 J.C / 541000 J.M selon le
+      // dépôt) / Crédit 411004 CLIENTS PASSAGERS ESPECES, montant TTC,
+      // libellé « FAC N°XX-26 CLT PASSAGERS ». Lit VT J.C et VT C.
       const casseMatch = path.match(/^\/api\/dossiers\/([^/]+)\/generate-casse$/);
       if (casseMatch && method === 'POST') {
         const did = casseMatch[1];
         const d = await env.DB.prepare('SELECT * FROM dossiers WHERE id = ?').bind(did).first() as any;
         if (!d) return json({ error: 'Dossier non trouve' }, 404);
 
-        // Factures comptant (VT J.C par défaut) : mêmes ventes que lit VT J.C.
-        const facturesR = await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? AND COALESCE(journal, 'VT J.C') = 'VT J.C' ORDER BY date_facture, numero_facture").bind(did).all();
+        const facturesR = await env.DB.prepare('SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture').bind(did).all();
         if (!facturesR.results.length) return json({ error: 'Aucune facture' }, 400);
 
         // Remplace un éventuel précédent (idempotent).
@@ -1638,22 +1694,13 @@ export default {
 
         const entries: any[] = [];
         for (const f of facturesR.results as any[]) {
-          const ttc = Math.round((Number(f.total_ttc) || 0) * 1000) / 1000;
-          if (!ttc) continue;
-          const raw = String(f.numero_facture || '').trim();
-          const num = (raw.match(/(\d+)\s*$/) || [])[1] || raw;
-          const numPiece = `FAC N°${num}`;
-          const libelle = `${numPiece}-26 CLT PASSAGERS`;
-          const date = f.date_facture;
-          // Débit caisse / Crédit client espèces.
-          for (const l of [
-            { compte: '541100', sens: 'D' },   // CAISSE J.C
-            { compte: '411004', sens: 'C' },   // CLIENTS PASSAGERS ESPECES
-          ]) {
+          const c = casseLinesForFacture(f);
+          if (!c) continue;
+          for (const l of c.lines) {
             await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-              .bind(genId(), did, d.societe_id, 'CAI', date, date, numPiece, libelle, l.compte, l.sens, ttc, null).run();
+              .bind(genId(), did, d.societe_id, 'CAI', c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
           }
-          entries.push({ date, numPiece, libelle, montant: ttc });
+          entries.push({ date: c.date, numPiece: c.numPiece, libelle: c.libelle, montant: c.montant, caisse: c.lines[0].compte });
         }
 
         return json({ factures: entries.length, entries });
