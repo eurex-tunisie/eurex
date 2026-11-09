@@ -292,8 +292,9 @@ export default function OrgDossierPage() {
     const params = new URLSearchParams(location.search);
     const tid = params.get('task');
     if (tid && dossier?.tasks?.some(t => t.id === tid)) {
+      const t = dossier.tasks.find(x => x.id === tid);
+      if (t?.month != null) setMonthFilter(t.month); else setMonthFilter('tous');
       setExpandedTask(tid);
-      setMonthFilter('tous');
       const go = () => document.getElementById('task-' + tid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(go, 100);
       setTimeout(go, 300);
@@ -2345,7 +2346,13 @@ export default function OrgDossierPage() {
             <span className="text-xs font-semibold">⏱ {task.label}</span>
             <span className="text-xs font-mono font-bold">{formatTime(getLiveElapsed(myRunning.started_at))}</span>
             <button
-              onClick={() => { setMonthFilter('tous'); setExpandedTask(task.id); const go = () => { const el = document.getElementById('task-' + task.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; setTimeout(go, 50); setTimeout(go, 250); }}
+              onClick={() => {
+                if (task.month != null) setMonthFilter(task.month); else setMonthFilter('tous');
+                setExpandedTask(task.id);
+                const go = () => { const el = document.getElementById('task-' + task.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+                setTimeout(go, 50);
+                setTimeout(go, 250);
+              }}
               className="text-xs font-semibold bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-full"
               data-testid="floating-timer-goto"
             >
