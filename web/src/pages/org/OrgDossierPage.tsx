@@ -1355,6 +1355,32 @@ export default function OrgDossierPage() {
                        </span>
                      );
                    })()}
+                   {(() => {
+                     const myRunning = (dossier?.running_timers || []).find(r => r.task_id === task.id && r.user_id === state.user?.id);
+                     if (task.status === 'fait') return null;
+                     if (myRunning) {
+                       return (
+                         <button
+                           data-testid="timer-stop-inline"
+                           onClick={(e) => { e.stopPropagation(); stopTimer(task.id); }}
+                           className="text-[10px] font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap hover:bg-red-100"
+                           title="Arrêter votre chrono sur cette tâche"
+                         >
+                           ⏹ Arrêter {formatTime(getLiveElapsed(myRunning.started_at))}
+                         </button>
+                       );
+                     }
+                     return (
+                       <button
+                         data-testid="timer-start-inline"
+                         onClick={(e) => { e.stopPropagation(); startTimer(task.id); }}
+                         className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap hover:bg-emerald-100"
+                         title="Démarrer le chrono sur cette tâche"
+                       >
+                         ▶ Commencer
+                       </button>
+                     );
+                   })()}
                    {task.status === 'a_verifier' && task.verify_due_at && editingTaskId !== task.id && (
                     <span
                       title="Délai de validation (fixé par l'expert/manager)"
