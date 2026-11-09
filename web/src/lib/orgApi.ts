@@ -485,6 +485,9 @@ export const orgApi = {
     const qs = p.toString();
     return req<{ tasks: OrgMyTask[] }>(`/org/me/tasks${qs ? `?${qs}` : ''}`);
   },
+  // Mes chronos actifs (comptable) : taches en cours de chronometrage
+  getMyTimers: () =>
+    req<{ timers: { task_id: string; started_at: string; task_label: string; dossier_id: string; client_name: string; exercice: number }[] }>('/org/me/timers'),
   // Taches en attente de verification (expert/manager) + validation en un clic
   getTasksToVerify: (exercice?: number | null) =>
     req<{ tasks: OrgVerifyTask[] }>(`/org/tasks/verify${exercice ? `?exercice=${exercice}` : ''}`),

@@ -30,6 +30,7 @@ export default function OrgDashboardComptable() {
   const [exercices, setExercices] = useState<number[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [myTimers, setMyTimers] = useState<{ task_id: string; started_at: string; task_label: string; dossier_id: string; client_name: string; exercice: number }[]>([]);
   const [sort, setSort] = useState<SortKey>(
     (['name', 'progress', 'blocked'] as SortKey[]).includes(searchParams.get('sort') as SortKey) ? (searchParams.get('sort') as SortKey) : 'blocked'
   );
@@ -52,8 +53,8 @@ export default function OrgDashboardComptable() {
     // Même raison que sur le tableau de bord expert : une route en échec ne
     // doit pas effacer celles qui ont répondu. On n'affiche l'erreur que si
     // la liste des clients — le contenu principal — n'est pas venue.
-    Promise.allSettled([orgApi.getClients(exercice), orgApi.getMyGrants(), orgApi.getExercices()])
-      .then(([rc, rg, rex]) => {
+    Promise.allSettled([orgApi.getClients(exercice), orgApi.getMyGrants(), orgApi.getExercices(), orgApi.getMyTimers()])
+      .then(([rc, rg, rex, rt]) => {
         if (rc.status === 'fulfilled') setClients(rc.value);
         if (rg.status === 'fulfilled') setMyGrants(rg.value);
         if (rex.status === 'fulfilled') {
@@ -62,6 +63,7 @@ export default function OrgDashboardComptable() {
           // Exercice choisi disparu (client supprime) : on retombe sur le plus recent
           if (list.length && !list.includes(exercice)) setExercice(list[0]);
         }
+        if (rt.status === 'fulfilled') setMyTimers(rt.value.timers || []);
         [rc, rg, rex].forEach(r => { if (r.status === 'rejected') console.error(r.reason); });
         setLoadError(rc.status !== 'fulfilled');
       })
@@ -154,6 +156,22 @@ export default function OrgDashboardComptable() {
           <OrgAccountButton />
         </div>
       </div>
+
+      {/* Chronos actifs du comptable : retour rapide a la tache chronometree */}
+      {myTimers.length > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3 text-sm text-emerald-800" data-testid="dashboard-timers">
+          <span className="font-semibold">⏱ Chrono actif :</span>
+          {myTimers.map(tmr => (
+            <Link
+              key={tmr.task_id}
+              to={`/org/dossiers/${tmr.dossier_id}?task=${tmr.task_id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-xs font-semibold"
+            >
+              {tmr.task_label} — {tmr.client_name} → Voir la tâche
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* API indisponible : ne PAS afficher une liste vide qui ressemble a des clients/dossiers perdus */}
       {loadError && (

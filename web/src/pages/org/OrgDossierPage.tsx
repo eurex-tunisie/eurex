@@ -287,6 +287,19 @@ export default function OrgDossierPage() {
     if (tab === 'audit' && id) loadAudit();
   }, [tab, id]);
 
+  // Deep-link : ?task=<id> -> etendre + scroller jusqu'a la tache (depuis le dashboard)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tid = params.get('task');
+    if (tid && dossier?.tasks?.some(t => t.id === tid)) {
+      setExpandedTask(tid);
+      setMonthFilter('tous');
+      const go = () => document.getElementById('task-' + tid)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(go, 100);
+      setTimeout(go, 300);
+    }
+  }, [dossier?.id, location.search]);
+
   const [vdH, setVdH] = useState<Record<string, string>>({});
 
   // Validation expert : note facultative + temps passe (modal), et annulation possible
@@ -2332,7 +2345,7 @@ export default function OrgDossierPage() {
             <span className="text-xs font-semibold">⏱ {task.label}</span>
             <span className="text-xs font-mono font-bold">{formatTime(getLiveElapsed(myRunning.started_at))}</span>
             <button
-              onClick={() => { setExpandedTask(task.id); document.getElementById('task-' + task.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
+              onClick={() => { setMonthFilter('tous'); setExpandedTask(task.id); const go = () => { const el = document.getElementById('task-' + task.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }; setTimeout(go, 50); setTimeout(go, 250); }}
               className="text-xs font-semibold bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-full"
               data-testid="floating-timer-goto"
             >

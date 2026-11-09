@@ -4065,6 +4065,14 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         return json({ tasks });
       }
 
+      // --- ORG: MES CHRONOS ACTIFS (comptable) ---
+      if (path === '/api/org/me/timers' && method === 'GET') {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        const { results } = await env.DB.prepare(`SELECT te.task_id, te.started_at, t.label as task_label, d.id as dossier_id, c.name as client_name, d.exercice FROM org_time_entries te JOIN org_tasks t ON t.id = te.task_id JOIN org_dossiers d ON d.id = te.dossier_id JOIN org_clients c ON c.id = d.client_id WHERE te.user_id = ? AND te.stopped_at IS NULL ORDER BY te.started_at DESC`).bind(user.id).all();
+        return json({ timers: results || [] });
+      }
+
       // --- ORG: TACHES EN ATTENTE DE VERIFICATION (expert/manager) ---
       if (path === '/api/org/tasks/verify' && method === 'GET') {
         const user = await verifyOrgToken(request);
