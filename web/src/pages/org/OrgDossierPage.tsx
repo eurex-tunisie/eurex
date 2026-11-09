@@ -1232,6 +1232,11 @@ export default function OrgDossierPage() {
                             {task.status === 'bloque_client' && (
                               <button onClick={() => updateTaskStatus(task.id, 'en_cours')} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100">▶ Débloquer</button>
                             )}
+                             {task.status !== 'fait' && (dossier?.running_timers || []).some(r => r.task_id === task.id && r.user_id === state.user?.id) ? (
+                               <button onClick={(e) => { e.stopPropagation(); stopTimer(task.id); }} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-600 hover:bg-red-100">⏹</button>
+                             ) : task.status !== 'fait' ? (
+                               <button onClick={(e) => { e.stopPropagation(); startTimer(task.id); }} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">▶</button>
+                             ) : null}
                           </div>
                         </div>
                       ))}
@@ -2315,6 +2320,34 @@ export default function OrgDossierPage() {
           </div>
         </div>
       )}
+
+      {/* Chrono actif : barre flottante pour revenir a la tache chronometree */}
+      {(() => {
+        const myRunning = (dossier?.running_timers || []).find(r => r.user_id === state.user?.id);
+        if (!myRunning) return null;
+        const task = dossier?.tasks?.find(t => t.id === myRunning.task_id);
+        if (!task) return null;
+        return (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-emerald-600 text-white rounded-full shadow-lg" data-testid="floating-timer">
+            <span className="text-xs font-semibold">⏱ {task.label}</span>
+            <span className="text-xs font-mono font-bold">{formatTime(getLiveElapsed(myRunning.started_at))}</span>
+            <button
+              onClick={() => { setExpandedTask(task.id); document.getElementById('task-' + task.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
+              className="text-xs font-semibold bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-full"
+              data-testid="floating-timer-goto"
+            >
+              → Voir la tâche
+            </button>
+            <button
+              onClick={() => stopTimer(task.id)}
+              className="text-xs font-semibold bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-full"
+              data-testid="floating-timer-stop"
+            >
+              ⏹ Arrêter
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Close Modal */}
       {showCloseModal && (
