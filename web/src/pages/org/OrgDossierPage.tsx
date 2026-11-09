@@ -1201,6 +1201,9 @@ export default function OrgDossierPage() {
                       {list.map(task => (
                         <div key={task.id} className="bg-gray-50 border border-gray-100 rounded-lg p-2" data-testid="kanban-card">
                           <p className="text-xs font-medium text-gray-700 leading-snug">{task.label}</p>
+                           {(task.effective_norm_seconds ?? task.norm_seconds) != null && (
+                             <p className="text-[10px] text-indigo-600 mt-0.5">⏱ Norme {formatTime(task.effective_norm_seconds ?? task.norm_seconds ?? 0)}</p>
+                           )}
                           {task.month && (
                             <p className="text-[10px] text-gray-400 mt-0.5">{monthLabel(task.month)}</p>
                           )}
@@ -1339,7 +1342,20 @@ export default function OrgDossierPage() {
                       📅 {formatDueDate(task.due_date)}
                     </span>
                   )}
-                  {task.status === 'a_verifier' && task.verify_due_at && editingTaskId !== task.id && (
+                  {(() => {
+                     const norm = task.effective_norm_seconds ?? task.norm_seconds ?? null;
+                     if (norm == null) return null;
+                     return (
+                       <span
+                         className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                         title={`Norme de temps pour cette tâche${task.dossier_norm_seconds != null ? ' (norme entreprise)' : ''}`}
+                         data-testid="task-norm"
+                       >
+                         ⏱ Norme {formatTime(norm)}
+                       </span>
+                     );
+                   })()}
+                   {task.status === 'a_verifier' && task.verify_due_at && editingTaskId !== task.id && (
                     <span
                       title="Délai de validation (fixé par l'expert/manager)"
                       className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
