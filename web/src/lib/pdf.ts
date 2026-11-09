@@ -1,6 +1,9 @@
 import * as pdfjsLib from 'pdfjs-dist';
+// Worker embarque dans le bundle (Vite) : aucun appel a unpkg.com au runtime
+// (CDN externe = 1er chargement tres lent / bloque selon le reseau).
+import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 export async function extractTextFromPDF(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();

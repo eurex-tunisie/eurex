@@ -28,6 +28,7 @@ const DEFAULT_PK: PkMap = {
   rapport_modes: ['id'],
   rubriques_paie: ['id'],
   org_alert_dones: ['alert_id', 'due_date'],
+  ecritures: ['id'],
 };
 
 const STRFTIME_FMT: Record<string, string> = {

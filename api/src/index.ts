@@ -1289,7 +1289,6 @@ export const casseLinesForFacture = (f: any, especes: number | null | undefined)
 async function regenCasse(env: any, did: string, societeId: string) {
   const r = await env.DB.prepare("SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture").bind(did).all();
   const especes = await loadEspecesByDay(env, did);
-  await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code IN ('CAI', 'CAI 2')").bind(did).run();
   // Grouper les factures par (jour, journal) pour ne créer qu'une pièce par groupe.
   const groups = new Map<string, any[]>();
   for (const f of r.results as any[]) {
@@ -1297,6 +1296,14 @@ async function regenCasse(env: any, did: string, societeId: string) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(f);
   }
+  // Tout dans UN batch D1 (DELETE + inserts) : 1 aller au lieu de ~60 requêtes
+  // séquentielles — c'était le vrai coût de chaque ajout de facture.
+  // IDs déterministes + INSERT OR REPLACE : même si deux régénérations tournent
+  // en parallèle (upload + clic "Générer"), une ligne = une (jour, caisse) →
+  // jamais de doublon.
+  const stmts: any[] = [
+    env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code IN ('CAI', 'CAI 2')").bind(did),
+  ];
   let n = 0;
   for (const [key, fs] of groups) {
     const date = fs[0].date_facture;
@@ -1306,11 +1313,12 @@ async function regenCasse(env: any, did: string, societeId: string) {
     // CAI = VT J.C (541100 CAISSE J.C), CAI 2 = VT C (541000 CAISSE J.M).
     const jcode = journal === 'VT C' ? 'CAI 2' : 'CAI';
     for (const l of c.lines) {
-      await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(genId(), did, societeId, jcode, c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
+      stmts.push(env.DB.prepare('INSERT OR REPLACE INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(`casse:${did}:${c.date}:${jcode}:${l.compte}`, did, societeId, jcode, c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null));
     }
     n++;
   }
+  for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
   return n;
 }
 
@@ -1521,7 +1529,9 @@ export default {
         }
         // Vente directe : la piece de caisse suit la facture automatiquement
         // (regenere le journal CAI, une piece par jour).
-        const fFinal = await env.DB.prepare('SELECT * FROM factures WHERE id = ?').bind(id).first() as any;
+        // b.batch = import groupé (upload PDF) : on saute la regen par facture,
+        // le front en appelle une seule generate-casse a la fin (36x -> 1x).
+        const fFinal = b.batch ? null : await env.DB.prepare('SELECT * FROM factures WHERE id = ?').bind(id).first() as any;
         if (fFinal) await regenCasse(env, did, d.societe_id);
         return json({ id, ...b, journal: jr, hors_caisse: corr ? (corr.hors_caisse ? 1 : 0) : hors });
       }
@@ -1722,8 +1732,10 @@ export default {
         const facturesR = await env.DB.prepare('SELECT * FROM factures WHERE dossier_id = ? ORDER BY date_facture, numero_facture').bind(did).all();
         if (!facturesR.results.length) return json({ error: 'Aucune facture' }, 400);
 
-        // Remplace un éventuel précédent (idempotent).
-        await env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code IN ('CAI', 'CAI 2')").bind(did).run();
+        // Remplace un éventuel précédent (idempotent) — DELETE + inserts en un batch.
+        const stmts: any[] = [
+          env.DB.prepare("DELETE FROM ecritures WHERE dossier_id = ? AND journal_code IN ('CAI', 'CAI 2')").bind(did),
+        ];
 
         const especes = await loadEspecesByDay(env, did);
         // Grouper par (jour, journal) → une pièce par groupe.
@@ -1742,11 +1754,12 @@ export default {
           // CAI = VT J.C (541100 CAISSE J.C), CAI 2 = VT C (541000 CAISSE J.M).
           const jcode = journal === 'VT C' ? 'CAI 2' : 'CAI';
           for (const l of c.lines) {
-            await env.DB.prepare('INSERT INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-              .bind(genId(), did, d.societe_id, jcode, c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null).run();
+            stmts.push(env.DB.prepare('INSERT OR REPLACE INTO ecritures (id, dossier_id, societe_id, journal_code, date_operation, date_piece, numero_doc, libelle, compte, sens, montant, tresorerie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+              .bind(`casse:${did}:${c.date}:${jcode}:${l.compte}`, did, d.societe_id, jcode, c.date, c.date, c.numPiece, c.libelle, l.compte, l.sens, c.montant, null));
           }
           entries.push({ date: c.date, numPiece: c.numPiece, libelle: c.libelle, montant: c.montant, caisse: c.lines[0].compte, factures: fs.length, journal });
         }
+        for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
 
         return json({ factures: entries.length, sansRapport, entries });
       }

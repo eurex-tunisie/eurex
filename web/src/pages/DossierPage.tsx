@@ -244,11 +244,12 @@ export default function DossierPage() {
           if (!inv.date) { ignored++; continue; }
           if (seenNums.has(inv.numero)) { skipped++; continue; }
           seenNums.add(inv.numero);
-          await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc, journal: 'VT J.C' });
+          await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc, journal: 'VT J.C', batch: true });
           ok++;
         }
         setOcrProgress(ok + ' facture(s) extraite(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + (ignored ? ' (' + ignored + ' fichier(s) ignore(s): pas une facture)' : '') + '. Generation VT J.C...');
         await api.generateVTJC(id);
+        await api.generateCasse(id);
         setOcrProgress('Termine! ' + ok + ' facture(s) + ecritures generees');
       } else if (journal === 'VT C') {
         // Client-side: parse each invoice like VT J.C, then generate VT C entries
@@ -261,11 +262,12 @@ export default function DossierPage() {
           if (!inv.date) { ignored++; continue; }
           if (seenNums2.has(inv.numero)) { skipped++; continue; }
           seenNums2.add(inv.numero);
-          await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc, journal: 'VT C' });
+          await api.addFacture(id, { date_facture: inv.date, numero_facture: inv.numero, client: inv.client, total_ht_0: inv.ht0, total_ht_19: inv.ht19, tva_19: inv.tva19, timbre: inv.timbre, total_ttc: inv.ttc, journal: 'VT C', batch: true });
           ok++;
         }
         setOcrProgress(ok + ' facture(s) extraitee(s)' + (skipped ? ' (' + skipped + ' doublon(s) ignores)' : '') + (ignored ? ' (' + ignored + ' fichier(s) ignore(s): pas une facture)' : '') + '. Generation VT C...');
         const r = await api.generateVTJC(id, 'VT C');
+        await api.generateCasse(id);
         setOcrProgress('Termine! ' + ok + ' facture(s), ' + (r.days || 0) + ' jour(s)');
       } else if (journal === 'FISC') {
         // Client-side: extract items, parse DMI, validate, send to Worker

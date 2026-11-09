@@ -185,7 +185,9 @@ export async function splitPdfFile(file: File, onProgress: (msg: string) => void
   ]);
   const Tesseract = TesseractMod.default;
   if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+    // Fallback : worker embarque dans le bundle, pas de CDN externe.
+    const w: any = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = w.default;
   }
 
   onProgress('Lecture du PDF...');
