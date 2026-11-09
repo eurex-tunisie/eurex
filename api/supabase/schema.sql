@@ -361,7 +361,8 @@ CREATE TABLE IF NOT EXISTS org_tasks (
   done_by TEXT,
   hidden BIGINT NOT NULL DEFAULT 0,
   norm_seconds BIGINT,
-  part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable'
+  part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable',
+  late_reason TEXT
 );
 
 CREATE TABLE IF NOT EXISTS org_expected_documents (

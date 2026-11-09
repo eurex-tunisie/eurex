@@ -12,6 +12,8 @@ import { alertState, formatDueDate, EXPORT_LABELS } from '../../lib/orgAlerts';
 import OrgAlerts from '../../components/OrgAlerts';
 import ProgressDonut, { DonutLegend } from '../../components/ProgressDonut';
 import Timeline from '../../components/Timeline';
+import E7tifel from '../../components/E7tifel';
+import { e7tifelDecision } from '../../lib/e7tifel';
 import { SkeletonDossier } from '../../components/Skeleton';
 import {
   ArrowLeft, CheckCircle2, Circle, AlertTriangle, Lock, Unlock,
@@ -293,6 +295,12 @@ export default function OrgDossierPage() {
   const [verifyMins, setVerifyMins] = useState('5');
   const [verifyBusy, setVerifyBusy] = useState(false);
 
+  // Module Cabinet e7tifel : vidéo (fini dans les temps) / motif (après la norme)
+  const [e7tifelOpen, setE7tifelOpen] = useState(false);
+  const [lateTarget, setLateTarget] = useState<OrgTask | null>(null);
+  const [lateReason, setLateReason] = useState('');
+  const [lateBusy, setLateBusy] = useState(false);
+
   const submitVerify = async () => {
     if (!dossier || !verifyTaskTarget) return;
     const mins = Number(verifyMins);
@@ -322,13 +330,63 @@ export default function OrgDossierPage() {
     }
   };
 
+  // Temps passé d'une tâche : total enregistré + chronos encore ouverts (vivants)
+  const liveTaskSeconds = (task: OrgTask) => {
+    let secs = task.total_time_seconds || 0;
+    for (const r of dossier?.running_timers || []) {
+      if (r.task_id === task.id) secs += getLiveElapsed(r.started_at);
+    }
+    return secs;
+  };
+
   const updateTaskStatus = async (taskId: string, newStatus: string, reason?: string) => {
     if (!dossier) return;
+    // Module Cabinet e7tifel : une tâche passée en « fait » est comparée à la
+    // norme — dans les temps : vidéo de célébration au hasard ; après la norme :
+    // boîte obligatoire « motif du retard » AVANT d'envoyer la validation.
+    if (newStatus === 'fait') {
+      const task = dossier.tasks?.find(t => t.id === taskId);
+      const decision = task
+        ? e7tifelDecision(task.effective_norm_seconds ?? task.norm_seconds ?? null, liveTaskSeconds(task))
+        : null;
+      if (decision === 'motif' && task) {
+        setLateTarget(task);
+        setLateReason('');
+        return;
+      }
+      try {
+        await orgApi.updateTask(dossier.id, taskId, newStatus, reason);
+        if (decision === 'video') setE7tifelOpen(true);
+        load();
+      } catch (err: any) {
+        alert(err.message);
+      }
+      return;
+    }
     try {
       await orgApi.updateTask(dossier.id, taskId, newStatus, reason);
       load();
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  // Confirmation de la boîte « motif du retard » : la tâche part en vérification
+  // (ou en « fait » pour l'expert) avec le motif enregistré dedans.
+  const confirmLate = async () => {
+    if (!dossier || !lateTarget) return;
+    const reason = lateReason.trim();
+    if (!reason) return;
+    setLateBusy(true);
+    try {
+      await orgApi.updateTask(dossier.id, lateTarget.id, 'fait', undefined, reason);
+      setLateTarget(null);
+      setLateReason('');
+      load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLateBusy(false);
     }
   };
 
@@ -1326,6 +1384,15 @@ export default function OrgDossierPage() {
                       ✓ Vérifié par {task.verified_by_name} ({task.verified_by_role || 'expert'})
                     </span>
                   )}
+                  {task.late_reason && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded-full font-medium"
+                      title="Motif de retard : tâche terminée après la norme"
+                      data-testid="tag-late-reason"
+                    >
+                      🕐 Terminé après la norme — {task.late_reason}
+                    </span>
+                  )}
                   {isBlocked && (
                     <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full font-medium">
                       {task.blocked_reason || t('status.bloque_client')}
@@ -2156,6 +2223,51 @@ export default function OrgDossierPage() {
                 data-testid="task-verify-submit"
               >
                 {verifyBusy ? 'Validation…' : 'Valider'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* e7tifel : vidéo de célébration — tâche terminée dans les temps */}
+      {e7tifelOpen && <E7tifel onClose={() => setE7tifelOpen(false)} />}
+
+      {/* Motif du retard : tâche terminée APRÈS la norme (obligatoire) */}
+      {lateTarget && (
+        <div className="modal-overlay" data-testid="task-late-modal">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-md">
+            <h3 className="font-bold text-gray-800 mb-1">🕐 Terminé après la norme</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              « {lateTarget.label} » — temps normé
+              {lateTarget.effective_norm_seconds ? ` : ${formatTime(lateTarget.effective_norm_seconds)}` : ''}
+              , temps passé : {formatTime(liveTaskSeconds(lateTarget))}.
+              <br />
+              Indiquez le <strong>motif du retard</strong> avant de terminer.
+            </p>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Motif du retard <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={lateReason}
+              onChange={e => setLateReason(e.target.value)}
+              rows={3}
+              autoFocus
+              maxLength={500}
+              placeholder="Ex. : pièces reçues en retard du client, interruption, cas exceptionnel…"
+              className="input-field w-full p-2.5 text-sm"
+              data-testid="task-late-reason"
+            />
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => { setLateTarget(null); setLateReason(''); }} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">
+                Annuler
+              </button>
+              <button
+                onClick={confirmLate}
+                disabled={lateBusy || !lateReason.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                data-testid="task-late-submit"
+              >
+                {lateBusy ? 'Envoi…' : 'Terminer'}
               </button>
             </div>
           </div>

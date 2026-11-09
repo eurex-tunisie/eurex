@@ -171,6 +171,8 @@ export interface OrgTask {
   norm_seconds?: number | null;
   dossier_norm_seconds?: number | null;
   effective_norm_seconds?: number | null;
+  // Motif de retard : tâche terminée APRÈS la norme (module Cabinet)
+  late_reason?: string | null;
   part?: 'entreprise' | 'comptable' | null;
   time_cost_cents?: number | null;
   timer_started_at: string | null;
@@ -509,8 +511,8 @@ export const orgApi = {
     req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ status: 'a_verifier' }) }),
 
   // Tasks
-  updateTask: (dossierId: string, taskId: string, status: string, blocked_reason?: string) =>
-    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ status, blocked_reason }) }),
+  updateTask: (dossierId: string, taskId: string, status: string, blocked_reason?: string, late_reason?: string) =>
+    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ status, blocked_reason, late_reason }) }),
   assignTask: (dossierId: string, taskId: string, assignedComptableId: string | null) =>
     req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ assigned_comptable_id: assignedComptableId }) }),
   renameTask: (dossierId: string, taskId: string, label: string) =>
