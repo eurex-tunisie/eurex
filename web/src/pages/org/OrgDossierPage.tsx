@@ -62,6 +62,11 @@ function auditDetailsSummary(details: string | null): string {
     for (const k of ['reason', 'blocked_reason', 'justification', 'label', 'old_status', 'new_status', 'preview', 'message']) {
       if (d[k] !== undefined && d[k] !== null && d[k] !== '') parts.push(`${k}: ${d[k]}`);
     }
+    // Validation : qui etait present (comptables taguees) + note de l'expert
+    if (Array.isArray(d.verify_comptables) && d.verify_comptables.length) {
+      parts.push(`avec: ${d.verify_comptables.map((c: any) => c.full_name || c.id).join(', ')}`);
+    }
+    if (d.verify_note) parts.push(`note: ${d.verify_note}`);
     if (parts.length === 0) {
       const kv = Object.entries(d).filter(([, v]) => v !== undefined && v !== null && v !== '').slice(0, 3);
       for (const [k, v] of kv) parts.push(`${k}: ${v}`);
@@ -307,7 +312,17 @@ export default function OrgDossierPage() {
   const [verifyTaskTarget, setVerifyTaskTarget] = useState<OrgTask | null>(null);
   const [verifyNote, setVerifyNote] = useState('');
   const [verifyMins, setVerifyMins] = useState('5');
+  const [verifyComptables, setVerifyComptables] = useState<string[]>([]);
   const [verifyBusy, setVerifyBusy] = useState(false);
+
+  // Ouverture de la modale de validation : le comptable de la tache est coche par
+  // defaut (la verification se fait avec lui — son temps sera pointe aussi)
+  const openVerifyModal = (task: OrgTask) => {
+    setVerifyTaskTarget(task);
+    setVerifyNote('');
+    setVerifyMins('5');
+    setVerifyComptables([task.done_by || task.assigned_comptable_id || ''].filter(Boolean));
+  };
 
   // Module Cabinet e7tifel : vidéo (fini dans les temps) / motif (après la norme)
   const [e7tifelOpen, setE7tifelOpen] = useState(false);
@@ -321,7 +336,7 @@ export default function OrgDossierPage() {
     if (!Number.isFinite(mins) || mins < 0 || mins > 120) { alert('Temps invalide (0 à 120 minutes)'); return; }
     setVerifyBusy(true);
     try {
-      await orgApi.verifyTask(dossier.id, verifyTaskTarget.id, { note: verifyNote, minutes: mins });
+      await orgApi.verifyTask(dossier.id, verifyTaskTarget.id, { note: verifyNote, minutes: mins, comptables: verifyComptables });
       setVerifyTaskTarget(null);
       setVerifyNote('');
       setVerifyMins('5');
@@ -1236,7 +1251,7 @@ export default function OrgDossierPage() {
                             )}
                             {task.status === 'a_verifier' && (
                               <>
-                                <button onClick={() => updateTaskStatus(task.id, 'fait')} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">✓ Valider</button>
+                                <button onClick={() => { if (isExpert) openVerifyModal(task); else updateTaskStatus(task.id, 'fait'); }} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">✓ Valider</button>
                                 <button onClick={() => updateTaskStatus(task.id, 'en_cours')} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100">↩</button>
                               </>
                             )}
@@ -1786,7 +1801,7 @@ export default function OrgDossierPage() {
                         </button>
                       )}
                       {task.status === 'a_verifier' && isExpert && (
-                        <button onClick={() => { setVerifyTaskTarget(task); setVerifyNote(''); setVerifyMins('5'); }} className="px-3 py-1.5 rounded-lg text-xs bg-amber-100 text-amber-800 hover:bg-amber-200 font-semibold" data-testid="task-verify-btn">
+                        <button onClick={() => openVerifyModal(task)} className="px-3 py-1.5 rounded-lg text-xs bg-amber-100 text-amber-800 hover:bg-amber-200 font-semibold" data-testid="task-verify-btn">
                           ✅ {t('status.a_verifier_ok')}
                         </button>
                       )}
@@ -2273,6 +2288,23 @@ export default function OrgDossierPage() {
               className="input-field w-full p-2.5 text-sm"
               data-testid="task-verify-mins"
             />
+            <label className="block text-xs font-medium text-gray-600 mb-1 mt-3">
+              Comptable(s) présent(s) à la vérification <span className="text-gray-400 font-normal">(facultatif)</span>
+            </label>
+            <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1" data-testid="task-verify-comptables">
+              {comptables.filter(c => c.is_active).map(c => (
+                <label key={c.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1">
+                  <input
+                    type="checkbox"
+                    checked={verifyComptables.includes(c.id)}
+                    onChange={e => setVerifyComptables(prev => e.target.checked ? [...prev, c.id] : prev.filter(x => x !== c.id))}
+                  />
+                  {c.full_name}
+                </label>
+              ))}
+              {comptables.filter(c => c.is_active).length === 0 && <span className="text-xs text-gray-400">Aucun comptable actif</span>}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">Le temps saisi sera pointé pour l'expert <strong>et</strong> pour chaque comptable coché (vérification faite ensemble).</p>
             <div className="flex gap-2 justify-end mt-4">
               <button onClick={() => setVerifyTaskTarget(null)} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">
                 Annuler

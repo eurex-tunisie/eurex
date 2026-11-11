@@ -61,3 +61,16 @@ test('la file de validation reste celle de /api/org/tasks/verify (a_verifier, no
   const upd = SRC.match(/status = 'a_verifier'/g) || [];
   assert.ok(upd.length >= 1, 'le passage en a_verifier doit rester en place');
 });
+
+test('validation avec comptables taguees : temps pointe pour les deux + annulation complete', () => {
+  assert.ok(SRC.includes('verify_comptables'),
+    'la modale de validation doit envoyer les comptables presents a la seance');
+  assert.ok(SRC.includes("role = 'comptable' AND is_active = 1 AND id IN"),
+    'seuls les comptables actifs du cabinet sont acceptes');
+  assert.ok(SRC.includes('Validation (avec ${user.full_name})'),
+    'le comptable tague recoit son pointage avec la note de seance commune');
+  assert.ok(SRC.includes('time_entry_ids: entryIds'),
+    'l audit task_verified doit lister tous les pointages crees (expert + comptables)');
+  assert.ok(SRC.includes('oldDetails?.time_entry_ids'),
+    'l annulation doit retirer le pointage de l expert ET ceux des comptables');
+});

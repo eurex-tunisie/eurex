@@ -4264,7 +4264,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!await orgCanAccessDossier(user, orgTaskMatch[1])) return json({ error: 'Accès refusé' }, 403);
         const body = await request.json() as any;
-        const { status, blocked_reason, label, assigned_comptable_id, due_date, export_scope, verify_due_hours, verify_seconds, verify_note, norm_seconds, late_reason } = body;
+        const { status, blocked_reason, label, assigned_comptable_id, due_date, export_scope, verify_due_hours, verify_seconds, verify_note, verify_comptables, norm_seconds, late_reason } = body;
         const task = await env.DB.prepare('SELECT * FROM org_tasks WHERE id = ? AND dossier_id = ?').bind(orgTaskMatch[2], orgTaskMatch[1]).first() as any;
         if (!task) return json({ error: 'Tâche non trouvée' }, 404);
         const updates: string[] = [];
@@ -4344,9 +4344,26 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
               return Number.isFinite(n) && n >= 0 ? Math.min(Math.round(n), 7200) : 300;
             })();
             const vNote = String(verify_note || '').trim().slice(0, 1000);
-            const entryId = vSecs > 0 ? genId() : null;
-            if (entryId) {
-              await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at, stopped_at, duration_seconds, note) VALUES (?, ?, ?, ?, datetime('now', ?), datetime('now'), ?, ?)").bind(entryId, orgTaskMatch[1], orgTaskMatch[2], user.id, `-${vSecs} seconds`, vSecs, vNote ? `Validation : ${vNote}` : null).run();
+            // Comptables taguees presents a la verification (choix libre dans la modale) :
+            // la seance se fait AVEC le comptable -> le temps est pointe aussi pour lui
+            let tagged: { id: string; full_name: string }[] = [];
+            if (Array.isArray(verify_comptables) && verify_comptables.length) {
+              const ids = [...new Set(verify_comptables.map((x: any) => String(x)))].slice(0, 20);
+              const q = ids.map(() => '?').join(',');
+              const { results: comps } = await env.DB.prepare(`SELECT id, full_name FROM org_users WHERE organization_id = ? AND role = 'comptable' AND is_active = 1 AND id IN (${q})`).bind(user.organization_id, ...ids).all();
+              tagged = comps as any[];
+            }
+            const entryIds: string[] = [];
+            if (vSecs > 0) {
+              const expertEntry = genId();
+              await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at, stopped_at, duration_seconds, note) VALUES (?, ?, ?, ?, datetime('now', ?), datetime('now'), ?, ?)").bind(expertEntry, orgTaskMatch[1], orgTaskMatch[2], user.id, `-${vSecs} seconds`, vSecs, vNote ? `Validation : ${vNote}` : null).run();
+              entryIds.push(expertEntry);
+              for (const c of tagged) {
+                if (c.id === user.id) continue;
+                const compEntry = genId();
+                await env.DB.prepare("INSERT INTO org_time_entries (id, dossier_id, task_id, user_id, started_at, stopped_at, duration_seconds, note) VALUES (?, ?, ?, ?, datetime('now', ?), datetime('now'), ?, ?)").bind(compEntry, orgTaskMatch[1], orgTaskMatch[2], c.id, `-${vSecs} seconds`, vSecs, `Validation (avec ${user.full_name})${vNote ? ' : ' + vNote : ''}`).run();
+                entryIds.push(compEntry);
+              }
             }
             // La note de validation devient une note du dossier (visible dans Notes + recherche globale)
             let noteId: string | null = null;
@@ -4354,8 +4371,8 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
               noteId = genId();
               await env.DB.prepare('INSERT INTO org_notes (id, dossier_id, user_id, user_name, content) VALUES (?, ?, ?, ?, ?)').bind(noteId, orgTaskMatch[1], user.id, user.full_name, vNote).run();
             }
-            // time_entry_id / note_id dans l'audit : l'annulation de validation pourra tout retirer
-            await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'task_verified\', \'task\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, orgTaskMatch[2], JSON.stringify({ label: task.label, verify_seconds: vSecs, verify_due_at: task.verify_due_at || null, verify_note: vNote || null, time_entry_id: entryId, note_id: noteId })).run();
+            // time_entry_ids / note_id dans l'audit : l'annulation de validation pourra tout retirer
+            await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'task_verified\', \'task\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, orgTaskMatch[2], JSON.stringify({ label: task.label, verify_seconds: vSecs, verify_due_at: task.verify_due_at || null, verify_note: vNote || null, verify_comptables: tagged.map(t => ({ id: t.id, full_name: t.full_name })), time_entry_ids: entryIds, time_entry_id: entryIds[0] || null, note_id: noteId })).run();
           }
           // Annulation d'une validation (fait -> a_verifier) : le pointage et la note crees a la
           // validation sont retires (l'audit task_unvalidated garde la trace).
@@ -4364,7 +4381,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             let oldDetails: any = null;
             if (lastVa) {
               try { oldDetails = JSON.parse(lastVa.details || '{}'); } catch { oldDetails = null; }
-              if (oldDetails?.time_entry_id) await env.DB.prepare('DELETE FROM org_time_entries WHERE id = ?').bind(oldDetails.time_entry_id).run();
+              // Tous les pointages de la validation (expert + comptables taguees) sont retires
+              const undoneEntries: string[] = Array.isArray(oldDetails?.time_entry_ids) && oldDetails.time_entry_ids.length
+                ? oldDetails.time_entry_ids
+                : (oldDetails?.time_entry_id ? [oldDetails.time_entry_id] : []);
+              for (const tid of undoneEntries) await env.DB.prepare('DELETE FROM org_time_entries WHERE id = ?').bind(tid).run();
               if (oldDetails?.note_id) await env.DB.prepare('DELETE FROM org_notes WHERE id = ?').bind(oldDetails.note_id).run();
               await env.DB.prepare('DELETE FROM org_audit_log WHERE id = ?').bind(lastVa.id).run();
             }

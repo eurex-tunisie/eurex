@@ -500,13 +500,15 @@ export const orgApi = {
   rolloverExercices: (body: { year?: number; client_id?: string } = {}) =>
     req<{ year: number; created: any[]; closed: any[] }>('/org/exercices/rollover', { method: 'POST', body: JSON.stringify(body) }),
   // Validation d'une tache (expert/manager) : note facultative + temps passe en minutes
-  verifyTask: (dossierId: string, taskId: string, opts: { note?: string; minutes?: number } = {}) =>
+  // + comptables taguees presents a la verification (le temps est pointe pour eux aussi)
+  verifyTask: (dossierId: string, taskId: string, opts: { note?: string; minutes?: number; comptables?: string[] } = {}) =>
     req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, {
       method: 'PATCH',
       body: JSON.stringify({
         status: 'fait',
         verify_note: opts.note?.trim() || '',
         verify_seconds: Math.round((opts.minutes ?? 5) * 60),
+        verify_comptables: opts.comptables || [],
       }),
     }),
   // Annulation d'une validation : la tache repasse en verification (pointage et note retires)

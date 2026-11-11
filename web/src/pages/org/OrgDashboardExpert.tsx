@@ -118,6 +118,7 @@ export default function OrgDashboardExpert() {
   // Validation avec note + temps passe : le modal remplace l'ancien confirm()
   const [verifyTarget, setVerifyTarget] = useState<OrgVerifyTask | null>(null);
   const [verifyNote, setVerifyNote] = useState('');
+  const [verifyComptables, setVerifyComptables] = useState<string[]>([]);
   const [verifyMins, setVerifyMins] = useState('5');
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   // New dossier modal
@@ -355,16 +356,18 @@ export default function OrgDashboardExpert() {
     setVerifyTarget(vt);
     setVerifyNote('');
     setVerifyMins('5');
+    // Par defaut : le comptable qui a travaille la tache (la verification se fait avec lui)
+    setVerifyComptables(vt.done_by ? [vt.done_by] : []);
   };
 
-  // Envoi de la validation (note facultative + temps en minutes)
+  // Envoi de la validation (note facultative + temps en minutes + comptables taguees)
   const submitVerify = async () => {
     if (!verifyTarget) return;
     const mins = Number(verifyMins);
     if (!Number.isFinite(mins) || mins < 0 || mins > 120) { alert('Temps invalide (0 à 120 minutes)'); return; }
     setVerifyingId(verifyTarget.id);
     try {
-      await orgApi.verifyTask(verifyTarget.dossier_id, verifyTarget.id, { note: verifyNote, minutes: mins });
+      await orgApi.verifyTask(verifyTarget.dossier_id, verifyTarget.id, { note: verifyNote, minutes: mins, comptables: verifyComptables });
       setVerifyTasks(prev => prev.filter(x => x.id !== verifyTarget.id));
       setVerifyTarget(null);
     } catch (e: any) {
@@ -852,6 +855,23 @@ export default function OrgDashboardExpert() {
               className="input-field w-full p-2.5 text-sm"
               data-testid="verify-mins"
             />
+            <label className="block text-xs font-medium text-gray-600 mb-1 mt-3">
+              Comptable(s) présent(s) à la vérification <span className="text-gray-400 font-normal">(facultatif)</span>
+            </label>
+            <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1" data-testid="verify-comptables">
+              {comptables.filter(c => c.role === 'comptable' && c.is_active !== 0).map(c => (
+                <label key={c.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1">
+                  <input
+                    type="checkbox"
+                    checked={verifyComptables.includes(c.id)}
+                    onChange={e => setVerifyComptables(prev => e.target.checked ? [...prev, c.id] : prev.filter(x => x !== c.id))}
+                  />
+                  {c.full_name}
+                </label>
+              ))}
+              {comptables.filter(c => c.role === 'comptable' && c.is_active !== 0).length === 0 && <span className="text-xs text-gray-400">Aucun comptable actif</span>}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">Le temps saisi sera pointé pour l'expert <strong>et</strong> pour chaque comptable coché (vérification faite ensemble).</p>
             <div className="flex gap-2 justify-end mt-4">
               <button
                 onClick={() => setVerifyTarget(null)}
