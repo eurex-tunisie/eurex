@@ -449,6 +449,18 @@ export default function ScanDossierPage() {
     if (!files || files.length === 0) return;
     const pdfs = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
     if (pdfs.length === 0) { alert('Aucun PDF dans ce dossier.'); return; }
+    // Garde-fou : un dossier sans prefixe "VTE" (ex. copies "FAC2609-....pdf")
+    // donne un ZIP aux noms "FAC....pdf" — demander confirmation avant.
+    const sansVte = pdfs.filter(f => !/^vte/i.test(f.name)).length;
+    if (sansVte === pdfs.length) {
+      const ok = confirm(
+        `⚠ Aucun PDF "VTE…" dans ce dossier (${pdfs.length} fichiers).\n` +
+        `Exemple : ${pdfs[0].name}\n\n` +
+        `Le ZIP gardera ces noms-là. Continuer ?\n` +
+        `(Sinon choisir Z:\\SCANFLASH\\EXERCICE\\2026\\DOCS COMPTABLES\\09-2026\\Facture)`
+      );
+      if (!ok) { setZipMsg('Annulé — mauvais dossier choisi.'); return; }
+    }
     setZipping(true);
     setZipMsg('');
     try {
