@@ -51,6 +51,8 @@ export default function ScanDossierPage() {
   const [linkResult, setLinkResult] = useState('');
   // Dossier source des PDF (Z:\SCANFLASH\...\Facture), memorise d'un mois sur l'autre
   const [pdfBase, setPdfBase] = useState(() => localStorage.getItem('scan_pdf_base') || '');
+  const [zipping, setZipping] = useState(false);
+  const [zipMsg, setZipMsg] = useState('');
 
   // Client-side memory (no DB)
   const [localFactures, setLocalFactures] = useState<any[]>([]);
@@ -439,6 +441,45 @@ export default function ScanDossierPage() {
     await handleLinkPdfs(paths);
   };
 
+  // Telechargement de TOUS les PDF d'un dossier en un seul ZIP (lecture locale
+  // cote navigateur : le Worker n'a pas acces a Z:\)
+  const handleZipFolder = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const pdfs = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+    if (pdfs.length === 0) { alert('Aucun PDF dans ce dossier.'); return; }
+    setZipping(true);
+    setZipMsg('');
+    try {
+      const JSZipMod = await import('jszip');
+      const JSZip = (JSZipMod as any).default || JSZipMod;
+      const zip = new JSZip();
+      for (const f of pdfs) {
+        const rel = ((f as any).webkitRelativePath || f.name).replace(/^[^/]+\//, '');
+        zip.file(rel, await f.arrayBuffer());
+      }
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const name = zipName();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a);
+      a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setZipMsg(`${pdfs.length} PDF compressés → ${name}`);
+    } catch (e: any) {
+      setZipMsg('Erreur : ' + (e?.message || e));
+    }
+    setZipping(false);
+  };
+
+  // Nom du ZIP : dossier source (ex. 09-2026) si connu, sinon nom du dossier
+  const zipName = () => {
+    const segs = pdfBase.trim().split(/[\\/]+/).filter(Boolean);
+    const folder = segs.length >= 2 && /facture/i.test(segs[segs.length - 1]) ? segs[segs.length - 2] : segs[segs.length - 1];
+    const base = folder || dossier?.nom || 'scanflash';
+    return `PDF_${base.replace(/[^\w.-]+/g, '_')}.zip`;
+  };
+
   // Chemin PDF d'une piece (facture en base, puis facture de la session)
   const pdfOf = (numero?: string) =>
     (numero && (factures.find(f => f.numero === numero)?.pdf_path
@@ -711,6 +752,29 @@ export default function ScanDossierPage() {
                 {linking ? 'Liaison...' : 'Lier les PDF'}
               </button>
               {linkResult && <span className="text-xs text-gray-600" data-testid="link-result">{linkResult}</span>}
+            </div>
+          </div>
+
+          {/* Telechargement de tous les PDF du dossier en ZIP */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+              <h3 className="font-semibold text-gray-700 text-sm">Télécharger tous les PDF</h3>
+              <span className="text-xs text-gray-400">Choisis le dossier → un seul fichier ZIP (lecture locale, rien n'est envoyé)</span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <label className="btn btn-blue px-4 py-2 rounded text-sm hover:bg-blue-700 cursor-pointer">
+                <Download size={15} className="inline mr-1" />
+                {zipping ? 'Compression...' : 'Choisir le dossier → ZIP'}
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  {...({ webkitdirectory: '', directory: '' } as any)}
+                  data-testid="zip-folder"
+                  onChange={e => { handleZipFolder(e.target.files); e.target.value = ''; }}
+                />
+              </label>
+              {zipMsg && <span className="text-xs text-gray-600" data-testid="zip-msg">{zipMsg}</span>}
             </div>
           </div>
 
