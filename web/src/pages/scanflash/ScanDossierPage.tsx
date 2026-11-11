@@ -53,6 +53,8 @@ export default function ScanDossierPage() {
   const [pdfBase, setPdfBase] = useState(() => localStorage.getItem('scan_pdf_base') || '');
   const [zipping, setZipping] = useState(false);
   const [zipMsg, setZipMsg] = useState('');
+  const [renaming, setRenaming] = useState(false);
+  const [renameMsg, setRenameMsg] = useState('');
 
   // Client-side memory (no DB)
   const [localFactures, setLocalFactures] = useState<any[]>([]);
@@ -494,6 +496,122 @@ export default function ScanDossierPage() {
     return `PDF_${base.replace(/[^\w.-]+/g, '_')}.zip`;
   };
 
+  // Renomme les PDF du dossier choisi en "VTE N°<ordre>-<mm>-<yy> <FAC/AVR>.pdf".
+  // Ordre = rang de la piece parmi les ecritures du mois (tri par date, puis numero),
+  // lu dans le scan_ecritures.xlsx du dossier (sinon factures en base).
+  // Chrome/Edge : File System Access API — acces en ecriture apres choix du dossier.
+  const handleRenamePdfs = async () => {
+    const win = window as any;
+    if (typeof win.showDirectoryPicker !== 'function') {
+      alert("Renommage possible uniquement sous Chrome/Edge.\n(Firefox ne donne pas acces en ecriture aux dossiers.)");
+      return;
+    }
+    let dir: any;
+    try {
+      dir = await win.showDirectoryPicker({ mode: 'readwrite' });
+    } catch { return; } // choix annule par l'utilisateur
+    setRenaming(true);
+    setRenameMsg('');
+    try {
+      const entries: any[] = [];
+      for await (const e of (dir as any).values()) entries.push(e);
+
+      // Pieces du mois : xlsx du dossier, sinon factures en base
+      const xlsx = entries.find(e => e.kind === 'file' && /\.xlsx?$/i.test(e.name) && !e.name.startsWith('~$') && /scan/i.test(e.name))
+        || entries.find(e => e.kind === 'file' && /\.xlsx?$/i.test(e.name) && !e.name.startsWith('~$'));
+      let pieces: { numero: string; date: string }[] = [];
+      let source = '';
+      if (xlsx) {
+        const XLSXMod = await import('xlsx');
+        const XLSX: any = (XLSXMod as any).default || XLSXMod;
+        const wb = XLSX.read(await (await xlsx.getFile()).arrayBuffer(), { type: 'array' });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false, defval: null }) as any[][];
+        const header = (rows[0] || []).map((h: any) => String(h ?? ''));
+        const iN = header.findIndex((h: string) => /n[°ºo]?\s*pi[eè]ce\s*comptable/i.test(h));
+        const iD = header.findIndex((h: string) => /date\s*pi[eè]ce\s*comptable/i.test(h));
+        if (iN >= 0 && iD >= 0) {
+          for (const r of rows.slice(1)) {
+            const n = r[iN] == null ? '' : String(r[iN]).trim();
+            if (!n) continue;
+            let d = r[iD];
+            if (d instanceof Date) d = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+            pieces.push({ numero: n.replace(/\s+/g, '').toUpperCase(), date: d == null ? '' : String(d).trim() });
+          }
+          source = `xlsx ${xlsx.name}`;
+        }
+      }
+      if (pieces.length === 0) {
+        pieces = factures.filter(f => f.numero).map(f => ({ numero: String(f.numero).toUpperCase(), date: String(f.date_facture || '') }));
+        source = `${pieces.length} factures en base`;
+      }
+      if (pieces.length === 0) {
+        setRenameMsg('Aucune piece trouvee : mettre le scan_ecritures.xlsx dans ce dossier.');
+        return;
+      }
+
+      // Rang : tri (date jj/mm/aaaa, numero)
+      const pd = (s: string) => {
+        const m = String(s).match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+        return m ? { k: m[3] + m[2].padStart(2, '0') + m[1].padStart(2, '0'), mm: m[2].padStart(2, '0'), yy: m[3].slice(2) } : null;
+      };
+      const seen = new Set<string>();
+      const uniq: { numero: string; date: string }[] = [];
+      for (const p of pieces) if (!seen.has(p.numero)) { seen.add(p.numero); uniq.push(p); }
+      uniq.sort((a, b) => {
+        const ka = pd(a.date)?.k || '99999999';
+        const kb = pd(b.date)?.k || '99999999';
+        return ka < kb ? -1 : ka > kb ? 1 : a.numero < b.numero ? -1 : a.numero > b.numero ? 1 : 0;
+      });
+      const rank = new Map(uniq.map((p, i) => [p.numero, { r: i + 1, d: pd(p.date) }]));
+
+      // Plan : "FAC2609-00002338.pdf" (ou VTE deja present) -> nom canonique
+      const plain = (n: string) => /^(FAC|AVR)\d{4}-\d+\.pdf$/i.test(n);
+      const vte = (n: string) => /^VTE\s*N?\s*°?\s*\d+-\d{2}-\d{2}\s+(FAC|AVR)\d{4}-\d+\.pdf$/i.test(n);
+      const plan: { from: string; to: string }[] = [];
+      const taken = new Set<string>();
+      let deja = 0, skip = 0;
+      for (const e of entries) {
+        if (e.kind !== 'file' || !/\.pdf$/i.test(e.name)) continue;
+        if (!plain(e.name) && !vte(e.name)) { skip++; continue; } // ex. "CHQ FAC...-Asso.pdf"
+        const m = e.name.match(/(FAC|AVR)\d{4}-\d+/i);
+        const num = m ? m[0].toUpperCase() : '';
+        const info = num ? rank.get(num) : undefined;
+        if (!info?.d) { skip++; continue; }
+        const target = `VTE N°${info.r}-${info.d.mm}-${info.d.yy} ${num}.pdf`;
+        if (target === e.name) { deja++; continue; }
+        if (taken.has(target) || entries.some(x => x.kind === 'file' && x.name === target)) { skip++; continue; }
+        taken.add(target);
+        plan.push({ from: e.name, to: target });
+      }
+
+      if (plan.length === 0) {
+        setRenameMsg(`Rien a renommer : ${deja} deja conforme(s), ${skip} ignore(s) (${source}).`);
+        return;
+      }
+      const preview = plan.slice(0, 5).map(p => `  ${p.from}\n     -> ${p.to}`).join('\n');
+      const go = confirm(`Renommer ${plan.length} PDF dans « ${dir.name} » ?\n\n${preview}${plan.length > 5 ? `\n  ... et ${plan.length - 5} autres` : ''}\n\nSource : ${source}`);
+      if (!go) { setRenameMsg('Annulé.'); return; }
+
+      let ok = 0, err = 0;
+      for (const p of plan) {
+        try {
+          const fh = await dir.getFileHandle(p.from);
+          const buf = await (await fh.getFile()).arrayBuffer();
+          const wh = await dir.getFileHandle(p.to, { create: true });
+          const wtr = await wh.createWritable();
+          await wtr.write(buf);
+          await wtr.close();
+          await dir.removeEntry(p.from);
+          ok++;
+        } catch { err++; }
+      }
+      setRenameMsg(`${ok} renommé(s)${err ? `, ${err} erreur(s)` : ''} · ${deja} déjà conforme(s) · ${skip} ignoré(s) (${source})`);
+    } catch (e: any) {
+      setRenameMsg('Erreur : ' + (e?.message || e));
+    }
+    setRenaming(false);
+  };
+
   // Chemin PDF d'une piece (facture en base, puis facture de la session)
   const pdfOf = (numero?: string) =>
     (numero && (factures.find(f => f.numero === numero)?.pdf_path
@@ -789,6 +907,28 @@ export default function ScanDossierPage() {
                 />
               </label>
               {zipMsg && <span className="text-xs text-gray-600" data-testid="zip-msg">{zipMsg}</span>}
+            </div>
+          </div>
+
+          {/* Renommage des PDF avec le n° d'ordre des ecritures */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+              <h3 className="font-semibold text-gray-700 text-sm">Renommer les PDF (n° d'ordre)</h3>
+              <span className="text-xs text-gray-400">
+                {'"VTE N°<ordre>-<mm>-<yy> FAC….pdf"'} — ordre = rang de la pièce dans les écritures du mois (xlsx du dossier)
+              </span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={handleRenamePdfs}
+                disabled={renaming}
+                className="btn btn-blue px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                data-testid="rename-pdfs-btn"
+              >
+                <Wrench size={15} className="inline mr-1" />
+                {renaming ? 'Renommage...' : 'Choisir le dossier → renommer'}
+              </button>
+              {renameMsg && <span className="text-xs text-gray-600" data-testid="rename-msg">{renameMsg}</span>}
             </div>
           </div>
 
