@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Table2, Trash2, Download, Zap, Upload, CheckCircle, ShieldCheck, Wrench, Database } from 'lucide-react';
+import { ArrowLeft, FileText, Table2, Trash2, Download, Zap, Upload, CheckCircle, ShieldCheck, Wrench, Database, FolderOpen } from 'lucide-react';
 import { api } from '../../lib/api';
 import { extractTextFromPDF } from '../../lib/pdf';
 import { buildLibelle, formatNumero } from '../../lib/scanEcritures';
@@ -49,6 +49,8 @@ export default function ScanDossierPage() {
   const [linkPaths, setLinkPaths] = useState('');
   const [linking, setLinking] = useState(false);
   const [linkResult, setLinkResult] = useState('');
+  // Dossier source des PDF (Z:\SCANFLASH\...\Facture), memorise d'un mois sur l'autre
+  const [pdfBase, setPdfBase] = useState(() => localStorage.getItem('scan_pdf_base') || '');
 
   // Client-side memory (no DB)
   const [localFactures, setLocalFactures] = useState<any[]>([]);
@@ -64,6 +66,12 @@ export default function ScanDossierPage() {
     setDossier(d);
     const f = await api.scan.getFactures(id);
     setFactures(f);
+    // Base Z:\ proposee automatiquement si un PDF est deja rattache a ce dossier
+    const withPdf = Array.isArray(f) ? f.find((x: any) => x.pdf_path) : null;
+    if (withPdf) {
+      const dir = String(withPdf.pdf_path).replace(/[\\/]+$/, '').replace(/[\\/][^\\/]+$/, '');
+      setPdfBase(prev => prev || dir);
+    }
     if (withEcritures) {
       const e = await api.scan.getEcritures(id);
       setEcritures(e);
@@ -388,9 +396,12 @@ export default function ScanDossierPage() {
   };
 
   // Colle des chemins Z:\ -> le n° FAC/AVR du nom de fichier lie la facture
-  const handleLinkPdfs = async () => {
+  const handleLinkPdfs = async (pathsOverride?: string[]) => {
     if (!id) return;
-    const paths = linkPaths.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const paths = (Array.isArray(pathsOverride)
+      ? pathsOverride
+      : linkPaths.split(/\r?\n/).map(s => s.trim())
+    ).map(s => s.trim()).filter(Boolean);
     if (paths.length === 0) return;
     setLinking(true);
     setLinkResult('');
@@ -406,6 +417,22 @@ export default function ScanDossierPage() {
       setLinkResult('Erreur : ' + (e?.message || e));
     }
     setLinking(false);
+  };
+
+  // Choix du dossier des PDF (un clic) : base Z:\ + noms de fichiers -> liaison directe
+  const handlePickFolder = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const base = pdfBase.trim();
+    if (!base) {
+      alert("Indiquer d'abord le dossier de base, ex.\nZ:\\SCANFLASH\\EXERCICE\\2026\\DOCS COMPTABLES\\09-2026\\Facture");
+      return;
+    }
+    const names = Array.from(files).map(f => f.name).filter(n => n.toLowerCase().endsWith('.pdf'));
+    if (names.length === 0) { alert('Aucun PDF dans ce dossier.'); return; }
+    const paths = names.map(n => base.replace(/[\\/]+$/, '') + '\\' + n);
+    setLinkPaths(paths.join('\n'));
+    localStorage.setItem('scan_pdf_base', base);
+    await handleLinkPdfs(paths);
   };
 
   // Chemin PDF d'une piece (facture en base, puis facture de la session)
@@ -639,16 +666,39 @@ export default function ScanDossierPage() {
                 Le n° FAC/AVR du nom de fichier fait la liaison · ex. <code>VTE N°1-09-26 FAC2609-00002338.pdf</code>
               </span>
             </div>
+            {/* 1 clic : choisir le dossier -> tous les PDF du dossier lies d'un coup */}
+            <div className="flex gap-2 items-center mb-2 flex-wrap">
+              <input
+                value={pdfBase}
+                onChange={e => setPdfBase(e.target.value)}
+                placeholder="Dossier de base : Z:\SCANFLASH\EXERCICE\2026\DOCS COMPTABLES\09-2026\Facture"
+                className="flex-1 min-w-[280px] input-sm font-mono text-xs"
+                data-testid="pdf-base"
+              />
+              <label className="btn btn-emerald px-4 py-2 rounded text-sm hover:bg-emerald-700 cursor-pointer">
+                <FolderOpen size={15} className="inline mr-1" />
+                Choisir le dossier des PDF
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  {...({ webkitdirectory: '', directory: '' } as any)}
+                  data-testid="pdf-folder"
+                  onChange={e => { handlePickFolder(e.target.files); e.target.value = ''; }}
+                />
+              </label>
+            </div>
+
             <textarea
               value={linkPaths}
               onChange={e => setLinkPaths(e.target.value)}
-              placeholder={'Z:\\SCANFLASH\\EXERCICE\\2026\\DOCS COMPTABLES\\09-2026\\Facture\\VTE N°1-09-26 FAC2609-00002338.pdf\n(un chemin par ligne)'}
+              placeholder={'Z:\\SCANFLASH\\EXERCICE\\2026\\DOCS COMPTABLES\\09-2026\\Facture\\VTE N°1-09-26 FAC2609-00002338.pdf\n(un chemin par ligne — ou utilise le choix de dossier ci-dessus)'}
               className="w-full h-24 input-sm font-mono text-xs"
               data-testid="link-paths"
             />
             <div className="flex items-center gap-3 mt-2">
               <button
-                onClick={handleLinkPdfs}
+                onClick={() => handleLinkPdfs()}
                 disabled={linking || !linkPaths.trim()}
                 className="btn btn-emerald px-4 py-2 rounded text-sm hover:bg-emerald-700 disabled:opacity-50"
                 data-testid="link-pdfs-btn"
