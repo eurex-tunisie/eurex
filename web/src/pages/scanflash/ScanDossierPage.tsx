@@ -9,6 +9,29 @@ import defaultPlanJson from '../../lib/scanPlanDefault.json';
 
 type Tab = 'factures' | 'ecritures' | 'export';
 
+// --- PDF source : nom affiche ("VTE N°1-09-26") + acces au fichier local ---
+const pdfLabel = (p?: string | null) => {
+  if (!p) return '';
+  const base = String(p).split(/[\\/]/).pop() || String(p);
+  return base.replace(/\.pdf$/i, '')
+    .replace(/(FAC|AVR)\s*\d{4}-\d+/gi, '')
+    .replace(/\s*N\s*°\s*/g, 'N°')   // "VTE N °17" / "VTE N° 7" -> "VTE N°17" / "VTE N°7"
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+const pdfFileUrl = (p: string) => {
+  const norm = p.replace(/\\/g, '/');
+  return 'file://' + encodeURI(norm.startsWith('/') ? norm : '/' + norm).replace(/#/g, '%23');
+};
+const openPdf = (p: string) => {
+  const w = window.open(pdfFileUrl(p), '_blank');
+  if (!w) {
+    // Chrome/Edge bloquent file:// depuis un site https : on copie le chemin
+    navigator.clipboard?.writeText(p).catch(() => {});
+    alert("Le navigateur bloque l'ouverture des fichiers locaux.\nChemin copie dans le presse-papiers :\n" + p);
+  }
+};
+
 export default function ScanDossierPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -21,6 +44,11 @@ export default function ScanDossierPage() {
   const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<any>(null);
+
+  // Rattachement des PDF (colle des chemins Z:\...\VTE N°1-09-26 FAC2609-00002338.pdf)
+  const [linkPaths, setLinkPaths] = useState('');
+  const [linking, setLinking] = useState(false);
+  const [linkResult, setLinkResult] = useState('');
 
   // Client-side memory (no DB)
   const [localFactures, setLocalFactures] = useState<any[]>([]);
@@ -54,7 +82,9 @@ export default function ScanDossierPage() {
         const text = await extractTextFromPDF(file);
         const parsed = parseScanInvoice(text);
         if (parsed) {
-          newFactures.push({ ...parsed, id: crypto.randomUUID() });
+          // Nom du fichier = seule reference PDF connue a l'import (le chemin
+          // complet Z:\ est pose plus tard par "Rattacher les PDF")
+          newFactures.push({ ...parsed, id: crypto.randomUUID(), pdf_path: file.name });
         }
       }
       setLocalFactures(prev => [...prev, ...newFactures]);
@@ -347,7 +377,7 @@ export default function ScanDossierPage() {
           numero: f.numero, date_facture: f.date_facture, client: f.client,
           code_client: f.code_client, compte_client: f.compte_client, is_avoir: f.is_avoir,
           total_ht_0: f.total_ht_0, total_ht_19: f.total_ht_19, tva_19: f.tva_19,
-          fodec: f.fodec, timbre: f.timbre, total_ttc: f.total_ttc,
+          fodec: f.fodec, timbre: f.timbre, total_ttc: f.total_ttc, pdf_path: f.pdf_path,
         });
         if ((res as any)?.updated) updated++; else saved++;
       } catch { /* skip errors */ }
@@ -356,6 +386,32 @@ export default function ScanDossierPage() {
     setLocalFactures([]);
     await load();
   };
+
+  // Colle des chemins Z:\ -> le n° FAC/AVR du nom de fichier lie la facture
+  const handleLinkPdfs = async () => {
+    if (!id) return;
+    const paths = linkPaths.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    if (paths.length === 0) return;
+    setLinking(true);
+    setLinkResult('');
+    try {
+      const res = await api.scan.linkPdfs(id, paths);
+      const miss = res.missing?.length ? ` · ${res.missing.length} facture(s) absente(s) de la base` : '';
+      const unp = res.unparsed?.length ? ` · ${res.unparsed.length} ligne(s) sans n° FAC/AVR` : '';
+      setLinkResult(`${res.linked} PDF rattaché(s)${miss}${unp}`);
+      if (res.missing?.length) console.log('factures introuvables :', res.missing);
+      if (res.unparsed?.length) console.log('lignes ignorées :', res.unparsed);
+      await load();
+    } catch (e: any) {
+      setLinkResult('Erreur : ' + (e?.message || e));
+    }
+    setLinking(false);
+  };
+
+  // Chemin PDF d'une piece (facture en base, puis facture de la session)
+  const pdfOf = (numero?: string) =>
+    (numero && (factures.find(f => f.numero === numero)?.pdf_path
+      || localFactures.find(f => f.numero === numero)?.pdf_path)) || '';
 
   const handleGenerate = async () => {
     if (localFactures.length === 0) return;
@@ -575,6 +631,35 @@ export default function ScanDossierPage() {
             </div>
           </div>
 
+          {/* Rattachement des PDF (chemins Z:) */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+              <h3 className="font-semibold text-gray-700 text-sm">Rattacher les PDF</h3>
+              <span className="text-xs text-gray-400">
+                Le n° FAC/AVR du nom de fichier fait la liaison · ex. <code>VTE N°1-09-26 FAC2609-00002338.pdf</code>
+              </span>
+            </div>
+            <textarea
+              value={linkPaths}
+              onChange={e => setLinkPaths(e.target.value)}
+              placeholder={'Z:\\SCANFLASH\\EXERCICE\\2026\\DOCS COMPTABLES\\09-2026\\Facture\\VTE N°1-09-26 FAC2609-00002338.pdf\n(un chemin par ligne)'}
+              className="w-full h-24 input-sm font-mono text-xs"
+              data-testid="link-paths"
+            />
+            <div className="flex items-center gap-3 mt-2">
+              <button
+                onClick={handleLinkPdfs}
+                disabled={linking || !linkPaths.trim()}
+                className="btn btn-emerald px-4 py-2 rounded text-sm hover:bg-emerald-700 disabled:opacity-50"
+                data-testid="link-pdfs-btn"
+              >
+                <FileText size={15} className="inline mr-1" />
+                {linking ? 'Liaison...' : 'Lier les PDF'}
+              </button>
+              {linkResult && <span className="text-xs text-gray-600" data-testid="link-result">{linkResult}</span>}
+            </div>
+          </div>
+
           {/* Client mapping */}
           <div className="card p-4">
             <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
@@ -691,6 +776,7 @@ export default function ScanDossierPage() {
                   <th className="px-3 py-2 text-right">FODEC</th>
                   <th className="px-3 py-2 text-right">Timbre</th>
                   <th className="px-3 py-2 text-right">TTC</th>
+                  <th className="px-3 py-2 text-left">PDF</th>
                 </tr>
               </thead>
               <tbody>
@@ -709,12 +795,61 @@ export default function ScanDossierPage() {
                     <td className="px-3 py-1.5 text-right font-mono">{(f.fodec || 0).toFixed(3)}</td>
                     <td className="px-3 py-1.5 text-right font-mono">{(f.timbre || 0).toFixed(3)}</td>
                     <td className="px-3 py-1.5 text-right font-mono font-semibold">{(f.total_ttc || 0).toFixed(3)}</td>
+                    <td className="px-3 py-1.5 text-xs">
+                      {f.pdf_path ? (
+                        <button onClick={() => openPdf(f.pdf_path)} title={f.pdf_path}
+                          className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-mono">
+                          <FileText size={12} />{pdfLabel(f.pdf_path)}
+                        </button>
+                      ) : <span className="text-gray-300">—</span>}
+                    </td>
                   </tr>
                 ))}
-                {localFactures.length === 0 && <tr><td colSpan={11} className="text-center text-gray-400 py-6">Aucune facture</td></tr>}
+                {localFactures.length === 0 && <tr><td colSpan={12} className="text-center text-gray-400 py-6">Aucune facture</td></tr>}
               </tbody>
             </table>
           </div>
+
+          {/* Factures deja en base + leurs PDF (la table ci-dessus ne montre que la session en cours) */}
+          {factures.length > 0 && (
+            <div className="card overflow-x-auto" data-testid="factures-db">
+              <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-700 text-sm">Factures en base ({factures.length})</h3>
+                <span className="text-xs text-gray-400">{factures.filter(f => f.pdf_path).length} avec PDF</span>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="table-header">
+                  <tr>
+                    <th className="px-3 py-2 text-left">N°</th>
+                    <th className="px-3 py-2 text-left">Date</th>
+                    <th className="px-3 py-2 text-left">Client</th>
+                    <th className="px-3 py-2 text-right">TTC</th>
+                    <th className="px-3 py-2 text-left">PDF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {factures.map(f => (
+                    <tr key={f.id} className="row-hover">
+                      <td className="px-3 py-1.5 font-mono text-xs">
+                        <span className={f.is_avoir ? 'text-red-600 font-bold' : ''}>{formatNumero(f.numero, !!f.is_avoir)}</span>
+                      </td>
+                      <td className="px-3 py-1.5 text-xs">{f.date_facture}</td>
+                      <td className="px-3 py-1.5 text-xs">{f.client}</td>
+                      <td className="px-3 py-1.5 text-right font-mono text-xs font-semibold">{(f.total_ttc || 0).toFixed(3)}</td>
+                      <td className="px-3 py-1.5 text-xs">
+                        {f.pdf_path ? (
+                          <button onClick={() => openPdf(f.pdf_path)} title={f.pdf_path}
+                            className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-mono">
+                            <FileText size={12} />{pdfLabel(f.pdf_path)}
+                          </button>
+                        ) : <span className="text-gray-300">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Generate button */}
           {localFactures.length > 0 && (
@@ -785,6 +920,7 @@ export default function ScanDossierPage() {
                   <th className="px-3 py-2 text-center">D/C</th>
                   <th className="px-3 py-2 text-right">Debit</th>
                   <th className="px-3 py-2 text-right">Credit</th>
+                  <th className="px-3 py-2 text-left">PDF</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -801,12 +937,20 @@ export default function ScanDossierPage() {
                     </td>
                     <td className="px-3 py-1.5 text-right font-mono text-xs">{e.sens === 'D' ? (e.montant || 0).toFixed(3) : ''}</td>
                     <td className="px-3 py-1.5 text-right font-mono text-xs">{e.sens === 'C' ? (e.montant || 0).toFixed(3) : ''}</td>
+                    <td className="px-3 py-1.5 text-xs">
+                      {pdfOf(e.numero_doc) ? (
+                        <button onClick={() => openPdf(pdfOf(e.numero_doc))} title={pdfOf(e.numero_doc)}
+                          className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-mono">
+                          <FileText size={12} />{pdfLabel(pdfOf(e.numero_doc))}
+                        </button>
+                      ) : <span className="text-gray-300">—</span>}
+                    </td>
                     <td className="px-1">
                       <button onClick={() => setLocalEcritures(prev => prev.filter(x => x.id !== e.id))} className="text-red-400 hover:text-red-600"><Trash2 size={12} /></button>
                     </td>
                   </tr>
                 ))}
-                {localEcritures.length === 0 && <tr><td colSpan={9} className="text-center text-gray-400 py-6">Aucune ecriture - cliquer "Generer VT" ou ajouter manuellement</td></tr>}
+                {localEcritures.length === 0 && <tr><td colSpan={10} className="text-center text-gray-400 py-6">Aucune ecriture - cliquer "Generer VT" ou ajouter manuellement</td></tr>}
               </tbody>
             </table>
           </div>

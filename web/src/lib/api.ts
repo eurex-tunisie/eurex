@@ -103,6 +103,11 @@ export const api = {
     cleanup: (did: string) => req<any>(`/scan/dossiers/${did}/cleanup`, { method: 'POST', body: '{}' }),
     verifyAI: (did: string) => req<any>(`/scan/dossiers/${did}/verify-ai`, { method: 'POST', body: '{}' }),
     fixTVA: (did: string) => req<any>(`/scan/dossiers/${did}/fix-tva`, { method: 'POST', body: '{}' }),
+    // Rattachement des PDF aux factures : le numero FAC/AVR du nom de fichier
+    // est matche sur factures_scan.numero, le chemin complet stocke dans pdf_path.
+    linkPdfs: (did: string, paths: string[]) =>
+      req<{ linked: number; details: { numero: string; pdf_path: string }[]; missing: string[]; unparsed: string[] }>(
+        `/scan/dossiers/${did}/link-pdfs`, { method: 'POST', body: JSON.stringify({ paths }) }),
   },
   ef: {
     verify: (data: any, signal?: AbortSignal) => req<any>('/ef/verify', { method: 'POST', body: JSON.stringify(data), signal }),

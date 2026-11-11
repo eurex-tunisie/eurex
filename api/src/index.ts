@@ -2680,15 +2680,41 @@ Reponds en JSON:
         const existing = await env.DB.prepare('SELECT id FROM factures_scan WHERE dossier_id = ? AND numero = ?').bind(scanFacturesMatch[1], b.numero).first();
         if (existing) {
           await env.DB.prepare('UPDATE factures_scan SET date_facture = ?, client = ?, code_client = ?, compte_client = ?, is_avoir = ?, total_ht_0 = ?, total_ht_19 = ?, tva_19 = ?, fodec = ?, timbre = ?, total_ttc = ? WHERE id = ?').bind(b.date_facture, b.client, b.code_client || null, b.compte_client, b.is_avoir ? 1 : 0, b.total_ht_0 || 0, b.total_ht_19 || 0, b.tva_19 || 0, b.fodec || 0, b.timbre || 0, b.total_ttc || 0, existing.id).run();
+          // pdf_path renseigne seulement si fourni : ne pas ecraser un lien deja pose
+          if (b.pdf_path) await env.DB.prepare('UPDATE factures_scan SET pdf_path = ? WHERE id = ?').bind(String(b.pdf_path), existing.id).run();
           return json({ id: existing.id, updated: true, ...b });
         }
         const id = genId();
-        await env.DB.prepare('INSERT INTO factures_scan (id, dossier_id, numero, date_facture, client, code_client, compte_client, is_avoir, total_ht_0, total_ht_19, tva_19, fodec, timbre, total_ttc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, scanFacturesMatch[1], b.numero, b.date_facture, b.client, b.code_client || null, b.compte_client, b.is_avoir ? 1 : 0, b.total_ht_0 || 0, b.total_ht_19 || 0, b.tva_19 || 0, b.fodec || 0, b.timbre || 0, b.total_ttc || 0).run();
+        await env.DB.prepare('INSERT INTO factures_scan (id, dossier_id, numero, date_facture, client, code_client, compte_client, is_avoir, total_ht_0, total_ht_19, tva_19, fodec, timbre, total_ttc, pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(id, scanFacturesMatch[1], b.numero, b.date_facture, b.client, b.code_client || null, b.compte_client, b.is_avoir ? 1 : 0, b.total_ht_0 || 0, b.total_ht_19 || 0, b.tva_19 || 0, b.fodec || 0, b.timbre || 0, b.total_ttc || 0, b.pdf_path ? String(b.pdf_path) : null).run();
         return json({ id, ...b });
       }
       if (scanFacturesMatch && method === 'DELETE') {
         await env.DB.prepare('DELETE FROM factures_scan WHERE dossier_id = ?').bind(scanFacturesMatch[1]).run();
         return json({ ok: true });
+      }
+
+      // --- SCANFLASH: LIER DES PDF AUX FACTURES ---
+      // Body: { paths: ["Z:\\...\\VTE 68-10-26 FAC2610-00002472.pdf", ...] } ou { paths: "une\\par\\ligne" }
+      // Le numero (FAC/AVR) est lu dans le nom du fichier et matche sur factures_scan.numero.
+      const scanLinkPdfsMatch = path.match(/^\/api\/scan\/dossiers\/([^/]+)\/link-pdfs$/);
+      if (scanLinkPdfsMatch && method === 'POST') {
+        const b = await request.json() as any;
+        const lines: string[] = Array.isArray(b.paths) ? b.paths : String(b.paths || '').split(/\r?\n/);
+        const dossierId = scanLinkPdfsMatch[1];
+        let linked = 0;
+        const details: { numero: string; pdf_path: string }[] = [];
+        const missing: string[] = [];
+        const unparsed: string[] = [];
+        for (const raw of lines) {
+          const p = String(raw || '').trim().replace(/^["']|["']$/g, '');
+          if (!p) continue;
+          const m = p.match(/(FAC|AVR)\s*\d{4}-\d+/i);
+          if (!m) { unparsed.push(p); continue; }
+          const numero = m[0].replace(/\s+/g, '').toUpperCase();
+          const r = await env.DB.prepare('UPDATE factures_scan SET pdf_path = ? WHERE dossier_id = ? AND numero = ?').bind(p, dossierId, numero).run();
+          if (r.meta.changes) { linked++; details.push({ numero, pdf_path: p }); } else missing.push(numero);
+        }
+        return json({ linked, details, missing, unparsed });
       }
 
       // --- SCANFLASH: ECRITURES ---

@@ -266,7 +266,8 @@ CREATE TABLE IF NOT EXISTS factures_scan (
   total_ttc DOUBLE PRECISION DEFAULT 0,
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
   code_client TEXT,
-  is_avoir BIGINT DEFAULT 0
+  is_avoir BIGINT DEFAULT 0,
+  pdf_path TEXT
 );
 
 CREATE TABLE IF NOT EXISTS ecritures_scan (
