@@ -433,8 +433,10 @@ export default function ScanDossierPage() {
       alert("Indiquer d'abord le dossier de base, ex.\nZ:\\SCANFLASH\\EXERCICE\\2026\\DOCS COMPTABLES\\09-2026\\Facture");
       return;
     }
-    const names = Array.from(files).map(f => f.name).filter(n => n.toLowerCase().endsWith('.pdf'));
-    if (names.length === 0) { alert('Aucun PDF dans ce dossier.'); return; }
+    // Les scans de cheques/traites (FAC...-CHQ..., sous-dossier Les CHQS) portent
+    // le meme n° de facture : les exclure pour ne pas ecraser le PDF de la facture.
+    const names = Array.from(files).map(f => f.name).filter(n => n.toLowerCase().endsWith('.pdf') && /^vte/i.test(n));
+    if (names.length === 0) { alert('Aucun PDF de facture (VTE...) dans ce dossier.'); return; }
     const paths = names.map(n => base.replace(/[\\/]+$/, '') + '\\' + n);
     setLinkPaths(paths.join('\n'));
     localStorage.setItem('scan_pdf_base', base);
