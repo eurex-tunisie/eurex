@@ -409,7 +409,11 @@ export default function ScanDossierPage() {
       const res = await api.scan.linkPdfs(id, paths);
       const miss = res.missing?.length ? ` · ${res.missing.length} facture(s) absente(s) de la base` : '';
       const unp = res.unparsed?.length ? ` · ${res.unparsed.length} ligne(s) sans n° FAC/AVR` : '';
-      setLinkResult(`${res.linked} PDF rattaché(s)${miss}${unp}`);
+      // Chemin construit a la main (ex. ...\FAC2609-00002338.pdf) : le fichier reel
+      // porte le prefixe "VTE N°1-09-26", sans lui le nom affiche est vide.
+      const sansNom = (res.details || []).filter(d => !pdfLabel(d.pdf_path)).length;
+      const warn = sansNom ? ` · ⚠ ${sansNom} chemin(s) sans nom de pièce (VTE N°…)` : '';
+      setLinkResult(`${res.linked} PDF rattaché(s)${miss}${unp}${warn}`);
       if (res.missing?.length) console.log('factures introuvables :', res.missing);
       if (res.unparsed?.length) console.log('lignes ignorées :', res.unparsed);
       await load();
@@ -849,7 +853,7 @@ export default function ScanDossierPage() {
                       {f.pdf_path ? (
                         <button onClick={() => openPdf(f.pdf_path)} title={f.pdf_path}
                           className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-mono">
-                          <FileText size={12} />{pdfLabel(f.pdf_path)}
+                          <FileText size={12} />{pdfLabel(f.pdf_path) || '⚠ fichier introuvable'}
                         </button>
                       ) : <span className="text-gray-300">—</span>}
                     </td>
@@ -890,7 +894,7 @@ export default function ScanDossierPage() {
                         {f.pdf_path ? (
                           <button onClick={() => openPdf(f.pdf_path)} title={f.pdf_path}
                             className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-mono">
-                            <FileText size={12} />{pdfLabel(f.pdf_path)}
+                            <FileText size={12} />{pdfLabel(f.pdf_path) || '⚠ fichier introuvable'}
                           </button>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
@@ -991,7 +995,7 @@ export default function ScanDossierPage() {
                       {pdfOf(e.numero_doc) ? (
                         <button onClick={() => openPdf(pdfOf(e.numero_doc))} title={pdfOf(e.numero_doc)}
                           className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-mono">
-                          <FileText size={12} />{pdfLabel(pdfOf(e.numero_doc))}
+                          <FileText size={12} />{pdfLabel(pdfOf(e.numero_doc)) || '⚠ fichier introuvable'}
                         </button>
                       ) : <span className="text-gray-300">—</span>}
                     </td>
