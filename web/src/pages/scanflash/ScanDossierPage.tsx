@@ -55,6 +55,7 @@ export default function ScanDossierPage() {
   const [zipMsg, setZipMsg] = useState('');
   const [renaming, setRenaming] = useState(false);
   const [renameMsg, setRenameMsg] = useState('');
+  const [pendingDir, setPendingDir] = useState<{ dir: any; entries: any[] } | null>(null);
 
   // Client-side memory (no DB)
   const [localFactures, setLocalFactures] = useState<any[]>([]);
@@ -496,10 +497,103 @@ export default function ScanDossierPage() {
     return `PDF_${base.replace(/[^\w.-]+/g, '_')}.zip`;
   };
 
+  // Pieces du mois lues dans le scan_ecritures.xlsx (colonnes N° / Date pièce comptable)
+  const readPiecesFromXlsx = async (file: Blob, label: string) => {
+    const XLSXMod = await import('xlsx');
+    const XLSX: any = (XLSXMod as any).default || XLSXMod;
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false, defval: null }) as any[][];
+    const header = (rows[0] || []).map((h: any) => String(h ?? ''));
+    const iN = header.findIndex((h: string) => /n[°ºo]?\s*pi[eè]ce\s*comptable/i.test(h));
+    const iD = header.findIndex((h: string) => /date\s*pi[eè]ce\s*comptable/i.test(h));
+    if (iN < 0 || iD < 0) return null;
+    const pieces: { numero: string; date: string }[] = [];
+    for (const r of rows.slice(1)) {
+      const n = r[iN] == null ? '' : String(r[iN]).trim();
+      if (!n) continue;
+      let d = r[iD];
+      if (d instanceof Date) d = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      pieces.push({ numero: n.replace(/\s+/g, '').toUpperCase(), date: d == null ? '' : String(d).trim() });
+    }
+    return pieces.length ? { pieces, source: label } : null;
+  };
+
   // Renomme les PDF du dossier choisi en "VTE N°<ordre>-<mm>-<yy> <FAC/AVR>.pdf".
-  // Ordre = rang de la piece parmi les ecritures du mois (tri par date, puis numero),
-  // lu dans le scan_ecritures.xlsx du dossier (sinon factures en base).
-  // Chrome/Edge : File System Access API — acces en ecriture apres choix du dossier.
+  // Ordre = rang de la piece dans les ecritures du mois (tri par date, puis numero),
+  // lu dans le scan_ecritures.xlsx — aucune dependance a la base.
+  const runRename = async (dir: any, entries: any[], pieces: { numero: string; date: string }[], source: string) => {
+    // Rang : tri (date, numero) — accepte jj/mm/aaaa et ISO aaaa-mm-jj
+    const pd = (s: string) => {
+      const str = String(s);
+      let m = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})/); // ISO : 2026-09-02
+      if (m) return { k: m[1] + m[2].padStart(2, '0') + m[3].padStart(2, '0'), mm: m[2].padStart(2, '0'), yy: m[1].slice(2) };
+      m = str.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/); // classique : 02/09/2026
+      if (m) return { k: m[3] + m[2].padStart(2, '0') + m[1].padStart(2, '0'), mm: m[2].padStart(2, '0'), yy: m[3].slice(2) };
+      return null;
+    };
+    const seen = new Set<string>();
+    const uniq: { numero: string; date: string }[] = [];
+    for (const p of pieces) if (!seen.has(p.numero)) { seen.add(p.numero); uniq.push(p); }
+    uniq.sort((a, b) => {
+      const ka = pd(a.date)?.k || '99999999';
+      const kb = pd(b.date)?.k || '99999999';
+      return ka < kb ? -1 : ka > kb ? 1 : a.numero < b.numero ? -1 : a.numero > b.numero ? 1 : 0;
+    });
+    const rank = new Map(uniq.map((p, i) => [p.numero, { r: i + 1, d: pd(p.date) }]));
+
+    // Plan : "FAC2609-00002338.pdf" (ou VTE deja present) -> nom canonique
+    const plain = (n: string) => /^(FAC|AVR)\d{4}-\d+\.pdf$/i.test(n);
+    const vte = (n: string) => /^VTE\s*N?\s*°?\s*\d+-\d{2}-\d{2}\s+(FAC|AVR)\d{4}-\d+\.pdf$/i.test(n);
+    const plan: { from: string; to: string }[] = [];
+    const taken = new Set<string>();
+    let deja = 0, horsEcr = 0, sansDate = 0, nonConcerne = 0, conflit = 0;
+    for (const e of entries) {
+      if (e.kind !== 'file' || !/\.pdf$/i.test(e.name)) continue;
+      if (!plain(e.name) && !vte(e.name)) { nonConcerne++; continue; } // ex. "CHQ FAC...-Asso.pdf"
+      const m = e.name.match(/(FAC|AVR)\d{4}-\d+/i);
+      const num = m ? m[0].toUpperCase() : '';
+      const info = num ? rank.get(num) : undefined;
+      if (!info) { horsEcr++; continue; }
+      if (!info.d) { sansDate++; continue; }
+      const target = `VTE N°${info.r}-${info.d.mm}-${info.d.yy} ${num}.pdf`;
+      if (target === e.name) { deja++; continue; }
+      if (taken.has(target) || entries.some(x => x.kind === 'file' && x.name === target)) { conflit++; continue; }
+      taken.add(target);
+      plan.push({ from: e.name, to: target });
+    }
+
+    const detail = [
+      horsEcr && `${horsEcr} hors écritures`,
+      sansDate && `${sansDate} sans date`,
+      nonConcerne && `${nonConcerne} non concerné(s)`,
+      conflit && `${conflit} conflit(s)`,
+    ].filter(Boolean).join(' · ');
+
+    if (plan.length === 0) {
+      setRenameMsg(`Rien a renommer : ${deja} déjà conforme(s)${detail ? ' · ' + detail : ''} (${source}).`);
+      return;
+    }
+    const preview = plan.slice(0, 5).map(p => `  ${p.from}\n     -> ${p.to}`).join('\n');
+    const go = confirm(`Renommer ${plan.length} PDF dans « ${dir.name} » ?\n\n${preview}${plan.length > 5 ? `\n  ... et ${plan.length - 5} autres` : ''}\n\nSource : ${source}`);
+    if (!go) { setRenameMsg('Annulé.'); return; }
+
+    let ok = 0, err = 0;
+    for (const p of plan) {
+      try {
+        const fh = await dir.getFileHandle(p.from);
+        const buf = await (await fh.getFile()).arrayBuffer();
+        const wh = await dir.getFileHandle(p.to, { create: true });
+        const wtr = await wh.createWritable();
+        await wtr.write(buf);
+        await wtr.close();
+        await dir.removeEntry(p.from);
+        ok++;
+      } catch { err++; }
+    }
+    setRenameMsg(`${ok} renommé(s)${err ? `, ${err} erreur(s)` : ''} · ${deja} déjà conforme(s)${detail ? ' · ' + detail : ''} (${source})`);
+  };
+
+  // Etape 1 : choisir le dossier — le xlsx du mois doit y etre (sinon etape 2)
   const handleRenamePdfs = async () => {
     const win = window as any;
     if (typeof win.showDirectoryPicker !== 'function') {
@@ -515,101 +609,38 @@ export default function ScanDossierPage() {
     try {
       const entries: any[] = [];
       for await (const e of (dir as any).values()) entries.push(e);
-
-      // Pieces du mois : xlsx du dossier, sinon factures en base
+      // Pieces du mois : le xlsx dans le dossier choisi
       const xlsx = entries.find(e => e.kind === 'file' && /\.xlsx?$/i.test(e.name) && !e.name.startsWith('~$') && /scan/i.test(e.name))
         || entries.find(e => e.kind === 'file' && /\.xlsx?$/i.test(e.name) && !e.name.startsWith('~$'));
-      let pieces: { numero: string; date: string }[] = [];
-      let source = '';
       if (xlsx) {
-        const XLSXMod = await import('xlsx');
-        const XLSX: any = (XLSXMod as any).default || XLSXMod;
-        const wb = XLSX.read(await (await xlsx.getFile()).arrayBuffer(), { type: 'array' });
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false, defval: null }) as any[][];
-        const header = (rows[0] || []).map((h: any) => String(h ?? ''));
-        const iN = header.findIndex((h: string) => /n[°ºo]?\s*pi[eè]ce\s*comptable/i.test(h));
-        const iD = header.findIndex((h: string) => /date\s*pi[eè]ce\s*comptable/i.test(h));
-        if (iN >= 0 && iD >= 0) {
-          for (const r of rows.slice(1)) {
-            const n = r[iN] == null ? '' : String(r[iN]).trim();
-            if (!n) continue;
-            let d = r[iD];
-            if (d instanceof Date) d = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-            pieces.push({ numero: n.replace(/\s+/g, '').toUpperCase(), date: d == null ? '' : String(d).trim() });
-          }
-          source = `xlsx ${xlsx.name}`;
-        }
+        const r = await readPiecesFromXlsx(await xlsx.getFile(), `xlsx ${xlsx.name}`);
+        if (r) { await runRename(dir, entries, r.pieces, r.source); return; }
       }
-      if (pieces.length === 0) {
-        pieces = factures.filter(f => f.numero).map(f => ({ numero: String(f.numero).toUpperCase(), date: String(f.date_facture || '') }));
-        source = `${pieces.length} factures en base`;
-      }
-      if (pieces.length === 0) {
-        setRenameMsg('Aucune piece trouvee : mettre le scan_ecritures.xlsx dans ce dossier.');
-        return;
-      }
-
-      // Rang : tri (date jj/mm/aaaa, numero)
-      const pd = (s: string) => {
-        const m = String(s).match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
-        return m ? { k: m[3] + m[2].padStart(2, '0') + m[1].padStart(2, '0'), mm: m[2].padStart(2, '0'), yy: m[3].slice(2) } : null;
-      };
-      const seen = new Set<string>();
-      const uniq: { numero: string; date: string }[] = [];
-      for (const p of pieces) if (!seen.has(p.numero)) { seen.add(p.numero); uniq.push(p); }
-      uniq.sort((a, b) => {
-        const ka = pd(a.date)?.k || '99999999';
-        const kb = pd(b.date)?.k || '99999999';
-        return ka < kb ? -1 : ka > kb ? 1 : a.numero < b.numero ? -1 : a.numero > b.numero ? 1 : 0;
-      });
-      const rank = new Map(uniq.map((p, i) => [p.numero, { r: i + 1, d: pd(p.date) }]));
-
-      // Plan : "FAC2609-00002338.pdf" (ou VTE deja present) -> nom canonique
-      const plain = (n: string) => /^(FAC|AVR)\d{4}-\d+\.pdf$/i.test(n);
-      const vte = (n: string) => /^VTE\s*N?\s*°?\s*\d+-\d{2}-\d{2}\s+(FAC|AVR)\d{4}-\d+\.pdf$/i.test(n);
-      const plan: { from: string; to: string }[] = [];
-      const taken = new Set<string>();
-      let deja = 0, skip = 0;
-      for (const e of entries) {
-        if (e.kind !== 'file' || !/\.pdf$/i.test(e.name)) continue;
-        if (!plain(e.name) && !vte(e.name)) { skip++; continue; } // ex. "CHQ FAC...-Asso.pdf"
-        const m = e.name.match(/(FAC|AVR)\d{4}-\d+/i);
-        const num = m ? m[0].toUpperCase() : '';
-        const info = num ? rank.get(num) : undefined;
-        if (!info?.d) { skip++; continue; }
-        const target = `VTE N°${info.r}-${info.d.mm}-${info.d.yy} ${num}.pdf`;
-        if (target === e.name) { deja++; continue; }
-        if (taken.has(target) || entries.some(x => x.kind === 'file' && x.name === target)) { skip++; continue; }
-        taken.add(target);
-        plan.push({ from: e.name, to: target });
-      }
-
-      if (plan.length === 0) {
-        setRenameMsg(`Rien a renommer : ${deja} deja conforme(s), ${skip} ignore(s) (${source}).`);
-        return;
-      }
-      const preview = plan.slice(0, 5).map(p => `  ${p.from}\n     -> ${p.to}`).join('\n');
-      const go = confirm(`Renommer ${plan.length} PDF dans « ${dir.name} » ?\n\n${preview}${plan.length > 5 ? `\n  ... et ${plan.length - 5} autres` : ''}\n\nSource : ${source}`);
-      if (!go) { setRenameMsg('Annulé.'); return; }
-
-      let ok = 0, err = 0;
-      for (const p of plan) {
-        try {
-          const fh = await dir.getFileHandle(p.from);
-          const buf = await (await fh.getFile()).arrayBuffer();
-          const wh = await dir.getFileHandle(p.to, { create: true });
-          const wtr = await wh.createWritable();
-          await wtr.write(buf);
-          await wtr.close();
-          await dir.removeEntry(p.from);
-          ok++;
-        } catch { err++; }
-      }
-      setRenameMsg(`${ok} renommé(s)${err ? `, ${err} erreur(s)` : ''} · ${deja} déjà conforme(s) · ${skip} ignoré(s) (${source})`);
+      // Pas de xlsx utilisable : demander le scan_ecritures.xlsx du mois (etape 2)
+      setPendingDir({ dir, entries });
+      setRenameMsg('Dossier sans scan_ecritures.xlsx — choisir le fichier xlsx du mois pour calculer les n°.');
     } catch (e: any) {
       setRenameMsg('Erreur : ' + (e?.message || e));
+    } finally {
+      setRenaming(false);
     }
-    setRenaming(false);
+  };
+
+  // Etape 2 : xlsx choisi a la main -> calcul des n° -> renommage du dossier memorise
+  const handlePickRenameXlsx = async (file: File | null) => {
+    if (!file || !pendingDir) return;
+    setRenaming(true);
+    setRenameMsg('');
+    try {
+      const r = await readPiecesFromXlsx(file, `xlsx ${file.name}`);
+      if (!r) { setRenameMsg('Colonnes N°/Date pièce introuvables dans ce xlsx.'); return; }
+      await runRename(pendingDir.dir, pendingDir.entries, r.pieces, r.source);
+      setPendingDir(null);
+    } catch (e: any) {
+      setRenameMsg('Erreur : ' + (e?.message || e));
+    } finally {
+      setRenaming(false);
+    }
   };
 
   // Chemin PDF d'une piece (facture en base, puis facture de la session)
@@ -928,6 +959,19 @@ export default function ScanDossierPage() {
                 <Wrench size={15} className="inline mr-1" />
                 {renaming ? 'Renommage...' : 'Choisir le dossier → renommer'}
               </button>
+              {pendingDir && (
+                <label className="btn px-4 py-2 rounded text-sm border border-blue-300 text-blue-700 hover:bg-blue-50 cursor-pointer">
+                  <FileText size={15} className="inline mr-1" />
+                  Choisir le xlsx du mois
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    data-testid="rename-xlsx"
+                    onChange={e => { handlePickRenameXlsx(e.target.files?.[0] || null); e.target.value = ''; }}
+                  />
+                </label>
+              )}
               {renameMsg && <span className="text-xs text-gray-600" data-testid="rename-msg">{renameMsg}</span>}
             </div>
           </div>
