@@ -586,10 +586,10 @@ export default function OrgDashboardExpert() {
     .filter(d => Number(d.task_norm_seconds_total || 0) > 0 && Number(d.total_time_seconds || 0) > d.task_norm_seconds_total)
     .sort((a, b) => (Number(b.total_time_seconds || 0) - Number(b.task_norm_seconds_total || 0)) - (Number(a.total_time_seconds || 0) - Number(a.task_norm_seconds_total || 0)));
   // Taches du pire au meilleur (ecart ↓) — sauf celles depassees « aujourd'hui »
-  // (over_since_days === 0) : elles passent en toute fin de liste, la plus
-  // recente n'etant pas encore gravee.
+  // (over_since_days === 0) : elles passent en TETE de liste, la plus recente
+  // meritant le regard en premier.
   const overagesSorted = [...normsOverages].sort((a, b) =>
-    ((a.over_since_days === 0 ? 1 : 0) - (b.over_since_days === 0 ? 1 : 0))
+    ((a.over_since_days === 0 ? 0 : 1) - (b.over_since_days === 0 ? 0 : 1))
     || (Number(b.gap_seconds) - Number(a.gap_seconds)));
   const fmtMoney = (cents: number | null | undefined) => cents == null ? 'à compléter' : `${(cents / 100).toFixed(2)} DT`;
   const filteredBillingDossiers = billingDossiers

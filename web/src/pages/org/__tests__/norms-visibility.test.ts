@@ -183,10 +183,10 @@ describe('Tâches détaillées : mois + nisbet + âge du dépassement', () => {
     expect(dashboard).toContain('"aujourd\'hui"');
   });
 
-  it('les taches depassees « aujourd\'hui » passent en toute fin de liste', () => {
+  it('les taches depassees « aujourd\'hui » passent en tete de liste', () => {
     expect(dashboard).toContain('const overagesSorted = [...normsOverages].sort');
-    // cle : today (over_since_days === 0) = 1 (fin), sinon ecart descendant
-    expect(dashboard).toContain('(a.over_since_days === 0 ? 1 : 0) - (b.over_since_days === 0 ? 1 : 0)');
+    // cle : today (over_since_days === 0) = 0 (tete), sinon ecart descendant
+    expect(dashboard).toContain('(a.over_since_days === 0 ? 0 : 1) - (b.over_since_days === 0 ? 0 : 1)');
     expect(dashboard).toContain('Number(b.gap_seconds) - Number(a.gap_seconds)');
     // le rendu lit la version triée
     expect(dashboard).toContain('{overagesSorted.map(t => (');
