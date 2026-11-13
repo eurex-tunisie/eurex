@@ -92,6 +92,8 @@ export default function OrgDashboardExpert() {
   const [taskNormMinutes, setTaskNormMinutes] = useState('');
   const [taskNormLabel, setTaskNormLabel] = useState('');
   const [taskNormSaving, setTaskNormSaving] = useState(false);
+  // Journal des ajustements de norme (audit : qui a changé quoi, quand)
+  const [normsAudit, setNormsAudit] = useState<{ id: string; user_name: string | null; created_at: string; client_name: string | null; task_label: string | null; norm_seconds: number | null }[]>([]);
   const [billingForm, setBillingForm] = useState({ amount: '', invoiced: '', collected: '', note: '' });
   const [billingDossiers, setBillingDossiers] = useState<any[]>([]);
   const [billingYear, setBillingYear] = useState<number | 'all'>('all');
@@ -248,6 +250,8 @@ export default function OrgDashboardExpert() {
       console.error(err);
       setHoursDossiers([]);
     }).finally(() => setHoursLoading(false));
+    // Journal des ajustements de norme (audit) : chargé avec la tab
+    orgApi.getNormsAudit().then(setNormsAudit).catch(() => setNormsAudit([]));
   }, [tab]);
 
   // Renfort : ouvrir un acces temporaire directement depuis le dashboard (expert)
@@ -584,6 +588,8 @@ export default function OrgDashboardExpert() {
       await Promise.all(selectedBilling.map(d => orgApi.upsertDossierTaskNorm(d.id, label, norm_seconds)));
       const detailed = await orgApi.getAllDossiers(undefined, true);
       setBillingDossiers(detailed as any[]);
+      setHoursDossiers(detailed as any[]); // le tableau « Heures & coûts » lit hoursDossiers
+      orgApi.getNormsAudit().then(setNormsAudit).catch(() => {});
       setTaskNormLabel(''); setTaskNormHours(''); setTaskNormMinutes('');
     } catch (e: any) { alert(e.message || 'Erreur en enregistrant les normes'); }
     finally { setTaskNormSaving(false); }
@@ -1322,14 +1328,33 @@ export default function OrgDashboardExpert() {
                 <span className="text-[11px] text-gray-500 self-center">temps prévu / tâche</span>
               </div>
               <button onClick={saveDirectNorm} disabled={!selectedBilling.length || taskNormSaving} className="px-3 py-2 text-xs rounded-lg bg-indigo-600 text-white disabled:opacity-50">{taskNormSaving ? 'Enregistrement…' : 'Appliquer la norme aux dossiers sélectionnés'}</button>
+              {/* Traçabilité : qui a ajusté quelle norme, quand (org_audit_log) */}
+              <div className="border-t pt-2 space-y-1" data-testid="norms-audit-journal">
+                <p className="text-[11px] font-semibold text-gray-600">Derniers ajustements de norme <span className="font-normal text-gray-400">(journal d'audit)</span></p>
+                {normsAudit.length === 0 ? (
+                  <p className="text-[11px] text-gray-400">Aucun ajustement enregistré.</p>
+                ) : (
+                  <ul className="max-h-40 space-y-1 overflow-y-auto">
+                    {normsAudit.map(e => (
+                      <li key={e.id} className="text-[11px] text-gray-600 flex flex-wrap gap-x-1.5" data-testid="norm-audit-entry">
+                        <span className="text-gray-400">{e.created_at ? new Date(String(e.created_at).replace(' ', 'T') + 'Z').toLocaleString('fr-FR', { timeZone: 'Africa/Tunis' }) : ''}</span>
+                        <b>{e.user_name || '—'}</b>
+                        <span>· {e.client_name || 'dossier supprimé'} ·</span>
+                        <span className="font-medium text-gray-700">{e.task_label || '—'}</span>
+                        <span>→ {e.norm_seconds == null ? 'réinitialisé au modèle' : `${Math.floor(e.norm_seconds / 3600)}h${String(Math.floor((e.norm_seconds % 3600) / 60)).padStart(2, '0')}`}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
           <div className="card rounded-2xl overflow-x-auto">
-            <table className="w-full text-sm min-w-[760px]">
-              <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-600"><th className="px-4 py-3">✓</th><th className="px-4 py-3">Dossier</th><th className="px-4 py-3">Comptable assigné</th><th className="px-4 py-3 text-right">Temps total</th><th className="px-4 py-3 text-right">Coût du temps</th><th className="px-4 py-3 text-right">Facturé</th><th className="px-4 py-3 text-center">Détail</th></tr></thead>
+            <table className="w-full text-sm min-w-[980px]">
+              <thead><tr className="border-b bg-gray-50 text-left text-xs text-gray-600"><th className="px-4 py-3">✓</th><th className="px-4 py-3">Dossier</th><th className="px-4 py-3">Comptable assigné</th><th className="px-4 py-3 text-right">Temps total</th><th className="px-4 py-3 text-right">Norme</th><th className="px-4 py-3 text-right">Écart</th><th className="px-4 py-3 text-right">Coût du temps</th><th className="px-4 py-3 text-right">Facturé</th><th className="px-4 py-3 text-center">Détail</th></tr></thead>
               <tbody>
-                {hoursLoading ? <tr><td colSpan={7} className="p-6 text-center text-gray-400">Chargement des heures…</td></tr>
-                  : filteredHoursDossiers.length === 0 ? <tr><td colSpan={7} className="p-6 text-center text-gray-400">Aucun dossier pour ce filtre.</td></tr>
+                {hoursLoading ? <tr><td colSpan={9} className="p-6 text-center text-gray-400">Chargement des heures…</td></tr>
+                  : filteredHoursDossiers.length === 0 ? <tr><td colSpan={9} className="p-6 text-center text-gray-400">Aucun dossier pour ce filtre.</td></tr>
                     : filteredHoursDossiers.map(d => (
                       <Fragment key={d.id}>
                       <tr className="border-b last:border-0 hover:bg-purple-50/30" data-testid="hours-dossier-row">
@@ -1337,13 +1362,21 @@ export default function OrgDashboardExpert() {
                         <td className="px-4 py-3"><Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:underline">{d.client_name}</Link><span className="ml-2 text-xs text-gray-400">{d.exercice}</span></td>
                         <td className="px-4 py-3 text-gray-600">{d.comptable_name || '—'}</td>
                         <td className="px-4 py-3 text-right font-mono">{fmtHm(d.total_time_seconds)}</td>
+                        <td className="px-4 py-3 text-right font-mono text-indigo-700" data-testid="hours-dossier-norm">{d.task_norm_seconds_total > 0 ? fmtHm(d.task_norm_seconds_total) : '—'}</td>
+                        <td className="px-4 py-3 text-right" data-testid="hours-dossier-gap">
+                          {d.task_norm_seconds_total > 0 ? (
+                            Number(d.total_time_seconds || 0) > d.task_norm_seconds_total
+                              ? <span className="font-semibold text-red-700" title="Temps total au-dessus de la norme du dossier">⚠ +{fmtHm(Number(d.total_time_seconds) - d.task_norm_seconds_total)} au-dessus</span>
+                              : <span className="text-emerald-700" title="Temps restant avant la norme du dossier">{fmtHm(d.task_norm_seconds_total - Number(d.total_time_seconds || 0))} restants</span>
+                          ) : '—'}
+                        </td>
                         <td className="px-4 py-3 text-right font-semibold text-emerald-700">{fmtMoney(d.time_cost_cents)}</td>
                         <td className="px-4 py-3 text-right">{fmtMoney(d.billing?.invoiced_cents)}</td>
                         <td className="px-4 py-3 text-center"><Link to={`/cabinet/dossier/${d.id}`} className="text-xs text-blue-700 hover:underline">Dossier</Link></td>
               </tr>
               {d.time_by_person?.length > 0 && (
                 <tr key={`${d.id}-people`} className="border-b bg-gray-50/60" data-testid="hours-person-detail">
-                  <td colSpan={7} className="px-6 py-2">
+                  <td colSpan={9} className="px-6 py-2">
                     <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-gray-600">
                       {(d.time_by_person as { user_id: string; full_name: string; role: string; seconds: number; cost_cents: number | null }[]).map(p => <span key={p.user_id}><b>{p.full_name}</b> ({p.role}) · {fmtHm(p.seconds)} · {fmtMoney(p.cost_cents)}</span>)}
                     </div>

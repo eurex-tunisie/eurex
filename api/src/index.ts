@@ -3735,6 +3735,26 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         return json({ ok: true, task_label: label, norm_seconds });
       }
 
+      // --- ORG: JOURNAL DES AJUSTEMENTS DE NORME (traçabilité « qui a changé quoi ») ---
+      if (path === '/api/org/norms/audit' && method === 'GET') {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
+        const { results } = await env.DB.prepare(
+          "SELECT a.id, a.user_id, a.user_name, a.details, a.created_at, d.id AS dossier_id, c.name AS client_name FROM org_audit_log a LEFT JOIN org_dossiers d ON a.target_type = 'dossier' AND a.target_id = d.id LEFT JOIN org_clients c ON d.client_id = c.id WHERE a.organization_id = ? AND a.action = 'dossier_task_norm_updated' ORDER BY a.created_at DESC LIMIT 50",
+        ).bind(user.organization_id).all();
+        const entries = (results as any[]).map(r => {
+          let details: any = {};
+          try { details = JSON.parse(r.details || '{}'); } catch { /* details non JSON : on garde le brut */ }
+          return {
+            id: r.id, user_id: r.user_id, user_name: r.user_name, created_at: r.created_at,
+            dossier_id: r.dossier_id || null, client_name: r.client_name || null,
+            task_label: details.task_label || null, norm_seconds: details.norm_seconds ?? null,
+          };
+        });
+        return json(entries);
+      }
+
       // --- ORG: TRANSFERT DE DOSSIER — autre comptable (override du client) ---
       if (orgDossierGetMatch && method === 'PATCH') {
         const user = await verifyOrgToken(request);

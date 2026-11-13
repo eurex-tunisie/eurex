@@ -138,6 +138,11 @@ export default function OrgDossierPage() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTaskLabel, setEditTaskLabel] = useState('');
+  // Édition d'une norme depuis le dossier (expert/manager) : tâche en cours d'édition + valeurs h/min
+  const [normEditTaskId, setNormEditTaskId] = useState<string | null>(null);
+  const [normEditH, setNormEditH] = useState('');
+  const [normEditM, setNormEditM] = useState('');
+  const [normSaving, setNormSaving] = useState(false);
   const [comptables, setComptables] = useState<OrgComptable[]>([]);
   const [monthFilter, setMonthFilter] = useState<MonthFilter>(currentMonth());
   const [showAddDocFor, setShowAddDocFor] = useState<string | null>(null);
@@ -711,6 +716,43 @@ export default function OrgDossierPage() {
     }
   };
 
+  // Norme par tâche depuis le dossier (expert/manager) : upsert + rechargement.
+  // L'API écrit elle-même l'entrée d'audit (dossier_task_norm_updated).
+  const saveTaskNorm = async (task: any) => {
+    if (!dossier) return;
+    const h = Number(normEditH || 0), m = Number(normEditM || 0);
+    const seconds = h * 3600 + m * 60;
+    if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 720 || m < 0 || m > 59 || seconds < 60 || seconds > 86400 * 30) {
+      alert('Norme invalide (1 minute à 30 jours)');
+      return;
+    }
+    setNormSaving(true);
+    try {
+      await orgApi.upsertDossierTaskNorm(dossier.id, task.label, seconds);
+      setNormEditTaskId(null);
+      load();
+    } catch (err: any) {
+      alert(err.message || 'Erreur en enregistrant la norme');
+    } finally {
+      setNormSaving(false);
+    }
+  };
+
+  // Retour au modèle : supprime la norme dossier (repli sur norm_seconds du template)
+  const resetTaskNorm = async (task: any) => {
+    if (!dossier) return;
+    setNormSaving(true);
+    try {
+      await orgApi.upsertDossierTaskNorm(dossier.id, task.label, null);
+      setNormEditTaskId(null);
+      load();
+    } catch (err: any) {
+      alert(err.message || 'Erreur en réinitialisant la norme');
+    } finally {
+      setNormSaving(false);
+    }
+  };
+
   const setTaskDueValue = async (taskId: string, value: string) => {
     if (!dossier) return;
     try {
@@ -1231,7 +1273,14 @@ export default function OrgDossierPage() {
                         <div key={task.id} className="bg-gray-50 border border-gray-100 rounded-lg p-2" data-testid="kanban-card">
                           <p className="text-xs font-medium text-gray-700 leading-snug">{task.label}</p>
                            {(task.effective_norm_seconds ?? task.norm_seconds) != null && (
-                             <p className="text-[10px] text-indigo-600 mt-0.5">⏱ Norme {formatTime(task.effective_norm_seconds ?? task.norm_seconds ?? 0)}</p>
+                             <p className="text-[10px] mt-0.5">
+                               <span className="text-indigo-600">⏱ Norme {formatTime(task.effective_norm_seconds ?? task.norm_seconds ?? 0)}</span>
+                               {Number(task.total_time_seconds || 0) > (task.effective_norm_seconds ?? task.norm_seconds ?? 0) && (
+                                 <span className="ml-1 font-bold text-red-700" data-testid="kanban-over-norm" title={`Temps total ${formatTime(task.total_time_seconds)}`}>
+                                   ⚠ +{formatTime(Number(task.total_time_seconds) - (task.effective_norm_seconds ?? task.norm_seconds ?? 0))} au-dessus
+                                 </span>
+                               )}
+                             </p>
                            )}
                           {task.month && (
                             <p className="text-[10px] text-gray-400 mt-0.5">{monthLabel(task.month)}</p>
@@ -1378,15 +1427,50 @@ export default function OrgDossierPage() {
                   )}
                   {(() => {
                      const norm = task.effective_norm_seconds ?? task.norm_seconds ?? null;
-                     if (norm == null) return null;
+                     const over = norm != null && Number(task.total_time_seconds || 0) > norm;
+                     // Expert/manager : clic sur le badge pour éditer la norme depuis le dossier
+                     if (isExpert && normEditTaskId === task.id) {
+                       return (
+                         <span className="inline-flex items-center gap-1 text-[10px] text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-full whitespace-nowrap" onClick={e => e.stopPropagation()} data-testid="task-norm-editor">
+                           <span className="font-semibold">⏱ Norme</span>
+                           <input type="number" min="0" max="720" value={normEditH} onChange={e => setNormEditH(e.target.value)} className="w-9 px-1 py-0.5 text-[10px] text-gray-800 border border-indigo-200 rounded" placeholder="h" aria-label="Heures norme tâche" autoFocus />
+                           <span>h</span>
+                           <input type="number" min="0" max="59" value={normEditM} onChange={e => setNormEditM(e.target.value)} className="w-9 px-1 py-0.5 text-[10px] text-gray-800 border border-indigo-200 rounded" placeholder="min" aria-label="Minutes norme tâche" />
+                           <span>min</span>
+                           <button onClick={e => { e.stopPropagation(); saveTaskNorm(task); }} disabled={normSaving} className="font-bold text-emerald-700 hover:text-emerald-900 disabled:opacity-50" title="Enregistrer la norme">{normSaving ? '…' : '✓'}</button>
+                           <button onClick={e => { e.stopPropagation(); resetTaskNorm(task); }} disabled={normSaving} className="font-bold text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Réinitialiser au modèle">↩</button>
+                           <button onClick={e => { e.stopPropagation(); setNormEditTaskId(null); }} className="font-bold text-red-500 hover:text-red-700" title="Annuler">✕</button>
+                         </span>
+                       );
+                     }
                      return (
-                       <span
-                         className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-full whitespace-nowrap"
-                         title={`Norme de temps pour cette tâche${task.dossier_norm_seconds != null ? ' (norme entreprise)' : ''}`}
-                         data-testid="task-norm"
-                       >
-                         ⏱ Norme {formatTime(norm)}
-                       </span>
+                       <>
+                         <span
+                           className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap ${isExpert ? 'cursor-pointer hover:bg-indigo-100' : ''} ${over ? 'text-red-700 bg-red-50' : 'text-indigo-700 bg-indigo-50'}`}
+                           title={isExpert
+                             ? `Norme de temps pour cette tâche${task.dossier_norm_seconds != null ? ' (norme entreprise)' : ''} — cliquer pour modifier`
+                             : `Norme de temps pour cette tâche${task.dossier_norm_seconds != null ? ' (norme entreprise)' : ''}`}
+                           data-testid="task-norm"
+                           onClick={e => {
+                             if (!isExpert) return;
+                             e.stopPropagation();
+                             setNormEditTaskId(task.id);
+                             setNormEditH(norm == null ? '' : String(Math.floor(norm / 3600)));
+                             setNormEditM(norm == null ? '' : String(Math.floor((norm % 3600) / 60)));
+                           }}
+                         >
+                           ⏱ Norme {norm != null ? formatTime(norm) : '— à définir'}
+                         </span>
+                         {over && (
+                           <span
+                             className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                             title={`Temps total ${formatTime(task.total_time_seconds)} — norme ${formatTime(norm)}`}
+                             data-testid="task-over-norm"
+                           >
+                             ⚠ +{formatTime(Number(task.total_time_seconds) - norm)} au-dessus
+                           </span>
+                         )}
+                       </>
                      );
                    })()}
                    {(() => {
@@ -1533,8 +1617,9 @@ export default function OrgDossierPage() {
                             {(() => {
                               const norm = task.effective_norm_seconds ?? task.norm_seconds ?? null;
                               if (norm == null) return null;
-                              return <span className="text-[11px] text-indigo-700 bg-indigo-50 rounded px-2 py-1" data-testid="task-norm">
-                                Norme {formatTime(norm)} · {task.total_time_seconds > norm ? `+${formatTime(task.total_time_seconds - norm)} au-dessus` : `${formatTime(norm - task.total_time_seconds)} restantes`}
+                              const over = task.total_time_seconds > norm;
+                              return <span className={`text-[11px] rounded px-2 py-1 ${over ? 'text-red-700 bg-red-50 font-semibold' : 'text-indigo-700 bg-indigo-50'}`} data-testid="task-norm-detail">
+                                {over && '⚠ '}{norm != null && `Norme ${formatTime(norm)} · ${over ? `+${formatTime(task.total_time_seconds - norm)} au-dessus` : `${formatTime(norm - task.total_time_seconds)} restantes`}`}
                               </span>;
                             })()}
                             {isExpert && task.dossier_norm_seconds != null && <span className="text-[10px] text-violet-600">(norme entreprise)</span>}
