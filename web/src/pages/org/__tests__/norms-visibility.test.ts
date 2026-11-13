@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import dashboard from '../OrgDashboardExpert.tsx?raw';
 import dossierPage from '../OrgDossierPage.tsx?raw';
+import apiSrc from '../../../lib/orgApi.ts?raw';
 
 describe('Tab Heures & coûts : norme + écart par dossier', () => {
   it('affiche les colonnes Norme et Écart dans le tableau', () => {
@@ -78,5 +79,42 @@ describe('Page dossier : message de dépassement visible partout', () => {
   it('le detail desormais rougit quand on depasse', () => {
     expect(dossierPage).toContain('data-testid="task-norm-detail"');
     expect(dossierPage).toContain("text-red-700 bg-red-50 font-semibold");
+  });
+});
+
+describe('Tab Heures & coûts : carte « Dépassements de norme » (partie séparée)', () => {
+  it('la carte est au-dessus du tableau et distincte du journal d\'audit', () => {
+    expect(dashboard).toContain('data-testid="norms-overages-card"');
+    expect(dashboard).toContain('data-testid="norms-audit-journal"');
+    // la carte depassements apparait avant le tableau des heures
+    expect(dashboard.indexOf('data-testid="norms-overages-card"')).toBeLessThan(dashboard.indexOf('data-testid="hours-dossier-row"'));
+    expect(dashboard.indexOf('data-testid="norms-overages-card"')).toBeGreaterThan(dashboard.indexOf('data-testid="norms-audit-journal"'));
+  });
+
+  it('deux blocs : resume par dossier + detail des taches', () => {
+    expect(dashboard).toContain('data-testid="norms-overages-dossiers"');
+    expect(dashboard).toContain('data-testid="norms-overages-tasks"');
+    expect(dashboard).toContain('data-testid="norms-overage-dossier"');
+    expect(dashboard).toContain('data-testid="norms-overage-task"');
+    // resume : dossiers ou temps total > norme, tri du pire au meilleur
+    expect(dashboard).toContain('const overDossiers = filteredHoursDossiers');
+    expect(dashboard).toContain('.sort((a, b) => (Number(b.total_time_seconds || 0) - Number(b.task_norm_seconds_total || 0))');
+  });
+
+  it('charge le detail des taches via /org/norms/overages', () => {
+    expect(dashboard).toContain('orgApi.getNormsOverages()');
+    expect(dashboard).toContain('setNormsOverages');
+    // rechargement apres application d'une norme
+    expect(dashboard).toContain('orgApi.getNormsOverages().then(setNormsOverages)');
+  });
+
+  it('etat vide vert quand rien ne depasse', () => {
+    expect(dashboard).toContain('data-testid="norms-overages-empty"');
+    expect(dashboard).toContain("Aucun dépassement de norme pour l'instant");
+  });
+
+  it('orgApi expose bien la route overages', () => {
+    expect(apiSrc).toContain("/org/norms/overages");
+    expect(apiSrc).toContain('getNormsOverages');
   });
 });

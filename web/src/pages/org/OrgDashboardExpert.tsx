@@ -94,6 +94,8 @@ export default function OrgDashboardExpert() {
   const [taskNormSaving, setTaskNormSaving] = useState(false);
   // Journal des ajustements de norme (audit : qui a changé quoi, quand)
   const [normsAudit, setNormsAudit] = useState<{ id: string; user_name: string | null; created_at: string; client_name: string | null; task_label: string | null; norm_seconds: number | null }[]>([]);
+  // Depassements de norme : detail des taches au-dessus de leur norme effective
+  const [normsOverages, setNormsOverages] = useState<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number }[]>([]);
   const [billingForm, setBillingForm] = useState({ amount: '', invoiced: '', collected: '', note: '' });
   const [billingDossiers, setBillingDossiers] = useState<any[]>([]);
   const [billingYear, setBillingYear] = useState<number | 'all'>('all');
@@ -252,6 +254,8 @@ export default function OrgDashboardExpert() {
     }).finally(() => setHoursLoading(false));
     // Journal des ajustements de norme (audit) : chargé avec la tab
     orgApi.getNormsAudit().then(setNormsAudit).catch(() => setNormsAudit([]));
+    // Depassements de norme (detail des taches) : meme chargement
+    orgApi.getNormsOverages().then(setNormsOverages).catch(() => setNormsOverages([]));
   }, [tab]);
 
   // Renfort : ouvrir un acces temporaire directement depuis le dashboard (expert)
@@ -555,6 +559,10 @@ export default function OrgDashboardExpert() {
   const hoursByPartTotal = filteredHoursDossiers.reduce((sum, d) => sum + (Number(d.time_by_part?.comptable) || 0) + (Number(d.time_by_part?.entreprise) || 0), 0);
   const costComplete = filteredHoursDossiers.length > 0 && filteredHoursDossiers.every(d => d.time_cost_complete);
   const costTotalCents = costComplete ? filteredHoursDossiers.reduce((sum, d) => sum + (Number(d.time_cost_cents) || 0), 0) : null;
+  // Dossiers au-dessus de leur norme (resume de la carte « Depassements »), du pire au meilleur
+  const overDossiers = filteredHoursDossiers
+    .filter(d => Number(d.task_norm_seconds_total || 0) > 0 && Number(d.total_time_seconds || 0) > d.task_norm_seconds_total)
+    .sort((a, b) => (Number(b.total_time_seconds || 0) - Number(b.task_norm_seconds_total || 0)) - (Number(a.total_time_seconds || 0) - Number(a.task_norm_seconds_total || 0)));
   const fmtMoney = (cents: number | null | undefined) => cents == null ? 'à compléter' : `${(cents / 100).toFixed(2)} DT`;
   const filteredBillingDossiers = billingDossiers
     .filter(d => billingYear === 'all' || Number(d.exercice) === billingYear)
@@ -590,6 +598,7 @@ export default function OrgDashboardExpert() {
       setBillingDossiers(detailed as any[]);
       setHoursDossiers(detailed as any[]); // le tableau « Heures & coûts » lit hoursDossiers
       orgApi.getNormsAudit().then(setNormsAudit).catch(() => {});
+      orgApi.getNormsOverages().then(setNormsOverages).catch(() => {});
       setTaskNormLabel(''); setTaskNormHours(''); setTaskNormMinutes('');
     } catch (e: any) { alert(e.message || 'Erreur en enregistrant les normes'); }
     finally { setTaskNormSaving(false); }
@@ -1348,6 +1357,55 @@ export default function OrgDashboardExpert() {
                 )}
               </div>
             </div>
+          </div>
+          {/* Depassements de norme — partie separee : resume par dossier + detail des taches */}
+          <div className="card rounded-xl p-4 space-y-3" data-testid="norms-overages-card">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <AlertTriangle size={14} className="text-red-600" />
+              Dépassements de norme
+              <span className="text-xs font-normal text-gray-500">({overDossiers.length} dossier(s) · {normsOverages.length} tâche(s))</span>
+            </h3>
+            {overDossiers.length === 0 && normsOverages.length === 0 ? (
+              <p className="text-xs text-emerald-700" data-testid="norms-overages-empty">✓ Aucun dépassement de norme pour l'instant.</p>
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="space-y-1" data-testid="norms-overages-dossiers">
+                  <p className="text-[11px] font-semibold text-gray-600">Dossiers au-dessus de la norme <span className="font-normal text-gray-400">(résumé)</span></p>
+                  {overDossiers.length === 0 ? (
+                    <p className="text-[11px] text-gray-400">Aucun dossier en dépassement.</p>
+                  ) : (
+                    <ul className="max-h-44 space-y-1 overflow-y-auto">
+                      {overDossiers.map(d => (
+                        <li key={d.id} className="text-[11px] flex flex-wrap gap-x-2 border-b border-gray-50 pb-1 text-gray-600" data-testid="norms-overage-dossier">
+                          <Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:underline">{d.client_name}</Link>
+                          <span className="text-gray-400">{d.exercice}</span>
+                          <span className="font-mono">{fmtHm(d.total_time_seconds)} / {fmtHm(d.task_norm_seconds_total)}</span>
+                          <span className="font-bold text-red-700">⚠ +{fmtHm(Number(d.total_time_seconds || 0) - Number(d.task_norm_seconds_total || 0))}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="space-y-1" data-testid="norms-overages-tasks">
+                  <p className="text-[11px] font-semibold text-gray-600">Tâches détaillées <span className="font-normal text-gray-400">(pire d'abord)</span></p>
+                  {normsOverages.length === 0 ? (
+                    <p className="text-[11px] text-gray-400">Aucune tâche en dépassement.</p>
+                  ) : (
+                    <ul className="max-h-44 space-y-1 overflow-y-auto">
+                      {normsOverages.map(t => (
+                        <li key={t.task_id} className="text-[11px] flex flex-wrap gap-x-2 border-b border-gray-50 pb-1 text-gray-600" data-testid="norms-overage-task">
+                          <Link to={`/cabinet/dossier/${t.dossier_id}`} className="font-semibold text-purple-700 hover:underline">{t.client_name}</Link>
+                          <span className="text-gray-400">{t.exercice}</span>
+                          <span className="font-medium text-gray-700">{t.task_label}</span>
+                          <span className="font-mono">{fmtHm(t.total_time_seconds)} / {fmtHm(t.effective_norm)}</span>
+                          <span className="font-bold text-red-700">⚠ +{fmtHm(t.gap_seconds)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="card rounded-2xl overflow-x-auto">
             <table className="w-full text-sm min-w-[980px]">

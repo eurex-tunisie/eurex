@@ -3755,6 +3755,17 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         return json(entries);
       }
 
+      // --- ORG: DEPASSEMENTS DE NORME (lecture seule : taches au-dessus de leur norme effective) ---
+      if (path === '/api/org/norms/overages' && method === 'GET') {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
+        const { results } = await env.DB.prepare(
+          "SELECT t.id AS task_id, t.label AS task_label, t.dossier_id, d.exercice, c.name AS client_name, COALESCE(t.total_time_seconds, 0) AS total_time_seconds, COALESCE(n.norm_seconds, t.norm_seconds) AS effective_norm, COALESCE(t.total_time_seconds, 0) - COALESCE(n.norm_seconds, t.norm_seconds) AS gap_seconds FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_dossier_task_norms n ON n.dossier_id = t.dossier_id AND n.task_label = t.label WHERE c.organization_id = ? AND t.hidden = 0 AND COALESCE(n.norm_seconds, t.norm_seconds) IS NOT NULL AND COALESCE(t.total_time_seconds, 0) > COALESCE(n.norm_seconds, t.norm_seconds) ORDER BY gap_seconds DESC LIMIT 100",
+        ).bind(user.organization_id).all();
+        return json(results);
+      }
+
       // --- ORG: TRANSFERT DE DOSSIER — autre comptable (override du client) ---
       if (orgDossierGetMatch && method === 'PATCH') {
         const user = await verifyOrgToken(request);
