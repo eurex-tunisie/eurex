@@ -3761,7 +3761,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
         const { results } = await env.DB.prepare(
-          `SELECT t.id AS task_id, t.label AS task_label, t.dossier_id, d.exercice, c.name AS client_name, COALESCE(t.total_time_seconds, 0) AS total_time_seconds, COALESCE(n.norm_seconds, t.norm_seconds) AS effective_norm, COALESCE(t.total_time_seconds, 0) - COALESCE(n.norm_seconds, t.norm_seconds) AS gap_seconds, t.late_reason, au.full_name AS assigned_name, dc.full_name AS dossier_comptable_name, du.full_name AS done_by_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_dossier_task_norms n ON n.dossier_id = t.dossier_id AND n.task_label = t.label LEFT JOIN org_users au ON t.assigned_comptable_id = au.id LEFT JOIN org_users dc ON ${dossierComp()} = dc.id LEFT JOIN org_users du ON t.done_by = du.id WHERE c.organization_id = ? AND t.hidden = 0 AND COALESCE(n.norm_seconds, t.norm_seconds) IS NOT NULL AND COALESCE(t.total_time_seconds, 0) > COALESCE(n.norm_seconds, t.norm_seconds) ORDER BY gap_seconds DESC LIMIT 100`,
+          `SELECT t.id AS task_id, t.label AS task_label, t.dossier_id, d.exercice, t.month AS task_month, c.name AS client_name, COALESCE(t.total_time_seconds, 0) AS total_time_seconds, COALESCE(n.norm_seconds, t.norm_seconds) AS effective_norm, COALESCE(t.total_time_seconds, 0) - COALESCE(n.norm_seconds, t.norm_seconds) AS gap_seconds, t.late_reason, au.full_name AS assigned_name, dc.full_name AS dossier_comptable_name, du.full_name AS done_by_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_dossier_task_norms n ON n.dossier_id = t.dossier_id AND n.task_label = t.label LEFT JOIN org_users au ON t.assigned_comptable_id = au.id LEFT JOIN org_users dc ON ${dossierComp()} = dc.id LEFT JOIN org_users du ON t.done_by = du.id WHERE c.organization_id = ? AND t.hidden = 0 AND COALESCE(n.norm_seconds, t.norm_seconds) IS NOT NULL AND COALESCE(t.total_time_seconds, 0) > COALESCE(n.norm_seconds, t.norm_seconds) ORDER BY gap_seconds DESC LIMIT 100`,
         ).bind(user.organization_id).all();
         // Qui a reellement pointe du temps sur chaque tache (les comptables qui ont travaille dessus)
         const rows = results as any[];
@@ -3777,7 +3777,29 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             workersByTask.set(w.task_id, arr);
           }
         }
-        return json(rows.map(r => ({ ...r, workers: workersByTask.get(r.task_id) || [] })));
+        // Depuis quand chaque tache depasse-t-elle la norme : cumul chronologique
+        // des pointages, premiere entree qui franchit la norme effective (lecture
+        // seule ; entree sans duree = 0, entree en cours non comptee).
+        const normByTask = new Map(rows.map(r => [r.task_id, Number(r.effective_norm || 0)]));
+        const overSinceByTask = new Map<string, number | null>();
+        for (const chunk of chunkIds(rows.map(r => r.task_id))) {
+          if (!chunk.length) continue;
+          const { results: ents } = await env.DB.prepare(
+            `SELECT te.task_id, te.started_at, te.duration_seconds FROM org_time_entries te WHERE te.task_id IN (${chunk.map(() => '?').join(',')}) ORDER BY te.task_id, te.started_at`,
+          ).bind(...chunk).all();
+          const cum = new Map<string, number>();
+          for (const e of ents as any[]) {
+            if (overSinceByTask.has(e.task_id)) continue; // depassement deja localise
+            const total = (cum.get(e.task_id) || 0) + Number(e.duration_seconds || 0);
+            cum.set(e.task_id, total);
+            if (total > (normByTask.get(e.task_id) || 0)) {
+              // started_at = datetime('now') SQLite = UTC
+              const ms = Date.parse(String(e.started_at).replace(' ', 'T') + 'Z');
+              overSinceByTask.set(e.task_id, isNaN(ms) ? null : Math.max(0, Math.floor((Date.now() - ms) / 86400000)));
+            }
+          }
+        }
+        return json(rows.map(r => ({ ...r, workers: workersByTask.get(r.task_id) || [], over_since_days: overSinceByTask.has(r.task_id) ? overSinceByTask.get(r.task_id) : null })));
       }
 
       // --- ORG: TRANSFERT DE DOSSIER — autre comptable (override du client) ---

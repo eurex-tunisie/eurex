@@ -95,9 +95,26 @@ export default function OrgDashboardExpert() {
   // Journal des ajustements de norme (audit : qui a changé quoi, quand)
   const [normsAudit, setNormsAudit] = useState<{ id: string; user_name: string | null; created_at: string; client_name: string | null; task_label: string | null; norm_seconds: number | null }[]>([]);
   // Depassements de norme : detail des taches au-dessus de leur norme effective
-  const [normsOverages, setNormsOverages] = useState<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number; late_reason: string | null; assigned_name: string | null; dossier_comptable_name: string | null; done_by_name: string | null; workers: string[] }[]>([]);
+  const [normsOverages, setNormsOverages] = useState<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; task_month: number | null; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number; over_since_days: number | null; late_reason: string | null; assigned_name: string | null; dossier_comptable_name: string | null; done_by_name: string | null; workers: string[] }[]>([]);
   // Carte Depassements : deux onglets (resume dossiers / detail taches)
   const [overTab, setOverTab] = useState<'dossiers' | 'taches'>('taches');
+  // Taches de depassement deja vues (localStorage) : badge « NEW » uniquement a
+  // la premiere visite. L'etat est fige pour la session en cours (le badge reste
+  // visible jusqu'a la prochaine ouverture) ; ensuite il est considere comme vu.
+  const [seenOverages] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem('eurex_overages_seen') || '[]')); } catch { return new Set<string>(); }
+  });
+  const applyOverages = (rows: typeof normsOverages) => {
+    setNormsOverages(rows);
+    if (!rows.length) return;
+    try {
+      const all = new Set(seenOverages);
+      rows.forEach(r => all.add(r.task_id));
+      const arr = Array.from(all);
+      // plafond : on ne garde que les 300 derniers ids pour ne pas gonfler
+      localStorage.setItem('eurex_overages_seen', JSON.stringify(arr.slice(-300)));
+    } catch { /* stockage indisponible : pas de badge, sans erreur */ }
+  };
   const [billingForm, setBillingForm] = useState({ amount: '', invoiced: '', collected: '', note: '' });
   const [billingDossiers, setBillingDossiers] = useState<any[]>([]);
   const [billingYear, setBillingYear] = useState<number | 'all'>('all');
@@ -260,7 +277,7 @@ export default function OrgDashboardExpert() {
     // Journal des ajustements de norme (audit) : chargé avec la tab
     orgApi.getNormsAudit().then(setNormsAudit).catch(() => setNormsAudit([]));
     // Depassements de norme (detail des taches) : meme chargement
-    orgApi.getNormsOverages().then(setNormsOverages).catch(() => setNormsOverages([]));
+    orgApi.getNormsOverages().then(applyOverages).catch(() => setNormsOverages([]));
   }, [tab]);
 
   // Renfort : ouvrir un acces temporaire directement depuis le dashboard (expert)
@@ -603,7 +620,7 @@ export default function OrgDashboardExpert() {
       setBillingDossiers(detailed as any[]);
       setHoursDossiers(detailed as any[]); // le tableau « Heures & coûts » lit hoursDossiers
       orgApi.getNormsAudit().then(setNormsAudit).catch(() => {});
-      orgApi.getNormsOverages().then(setNormsOverages).catch(() => {});
+      orgApi.getNormsOverages().then(applyOverages).catch(() => {});
       setTaskNormLabel(''); setTaskNormHours(''); setTaskNormMinutes('');
     } catch (e: any) { alert(e.message || 'Erreur en enregistrant les normes'); }
     finally { setTaskNormSaving(false); }
@@ -614,6 +631,11 @@ export default function OrgDashboardExpert() {
     const s = Math.max(0, Math.floor(sec || 0));
     return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`;
   };
+  // Mois de la tache (org_tasks.month 1..12 ; null = decembre, cf. monthInScope)
+  const MONTH_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  const monthShort = (m?: number | null) => (m && m >= 1 && m <= 12 ? MONTH_SHORT[m - 1] : 'déc.');
+  // Nisbet du depassement par rapport a la norme (norme 0 : pas de pourcentage)
+  const overPct = (gap: number, norm: number) => (norm > 0 ? `${Math.round((Number(gap) / Number(norm)) * 100)}%` : null);
   const presMap: Record<string, OrgComptable> = Object.fromEntries(comptables.map(c => [c.id, c]));
 
   // Derniere connexion (last_seen_at = UTC SQLite) : "il y a 2 h", "hier a 14:32", ...
@@ -1430,9 +1452,15 @@ export default function OrgDashboardExpert() {
                         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <Link to={`/cabinet/dossier/${t.dossier_id}`} className="font-semibold text-purple-700 hover:underline">{t.client_name}</Link>
                           <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-medium">{t.exercice}</span>
+                          <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-medium" data-testid="norms-overage-month">{monthShort(t.task_month)}</span>
                           <span className="font-semibold text-gray-800">{t.task_label}</span>
+                          {!seenOverages.has(t.task_id) && <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded" data-testid="norms-overage-new">NEW</span>}
                           <span className="font-mono text-gray-600">{fmtHm(t.total_time_seconds)} / {fmtHm(t.effective_norm)}</span>
                           <span className="font-bold text-red-700">⚠ +{fmtHm(t.gap_seconds)}</span>
+                          {overPct(t.gap_seconds, t.effective_norm) && <span className="font-semibold text-red-600" data-testid="norms-overage-pct">({overPct(t.gap_seconds, t.effective_norm)})</span>}
+                          {t.over_since_days !== null && t.over_since_days !== undefined && (
+                            <span className="text-gray-500" data-testid="norms-overage-since">📅 {t.over_since_days === 0 ? "aujourd'hui" : `depuis ${t.over_since_days}j`}</span>
+                          )}
                         </span>
                         <span className="mt-1 flex flex-wrap gap-x-4 text-xs text-gray-500" data-testid="norms-overage-who">
                           <span>👤 Assigné : {t.assigned_name || t.dossier_comptable_name || '—'}{!t.assigned_name && t.dossier_comptable_name ? ' (dossier)' : ''}</span>

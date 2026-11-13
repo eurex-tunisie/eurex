@@ -104,8 +104,10 @@ describe('Tab Heures & coûts : carte « Dépassements de norme » (partie sépa
   it('charge le detail des taches via /org/norms/overages', () => {
     expect(dashboard).toContain('orgApi.getNormsOverages()');
     expect(dashboard).toContain('setNormsOverages');
-    // rechargement apres application d'une norme
-    expect(dashboard).toContain('orgApi.getNormsOverages().then(setNormsOverages)');
+    // rechargement apres application d'une norme (passe par applyOverages
+    // pour marquer les ids affiches comme vus)
+    expect(dashboard).toContain('orgApi.getNormsOverages().then(applyOverages)');
+    expect(dashboard).toContain('const applyOverages = (rows:');
   });
 
   it('etat vide vert quand rien ne depasse', () => {
@@ -155,5 +157,45 @@ describe('Tâches détaillées : les trois rôles + motif de retard', () => {
   it('fallback : comptable du dossier si la tache n\'est pas assignee', () => {
     expect(dashboard).toContain('t.assigned_name || t.dossier_comptable_name || ');
     expect(dashboard).toContain("' (dossier)'");
+  });
+});
+
+describe('Tâches détaillées : mois + nisbet + âge du dépassement', () => {
+  it('mois de la tache en badge a cote de l\'exercice', () => {
+    expect(dashboard).toContain('data-testid="norms-overage-month"');
+    expect(dashboard).toContain('monthShort(t.task_month)');
+    // null = decembre, cf. monthInScope
+    expect(dashboard).toContain("(m && m >= 1 && m <= 12 ? MONTH_SHORT[m - 1] : 'déc.')");
+    expect(apiSrc).toContain('task_month: number | null');
+  });
+
+  it('nisbet du depassement affichee entre parentheses', () => {
+    expect(dashboard).toContain('data-testid="norms-overage-pct"');
+    expect(dashboard).toContain('const overPct = (gap: number, norm: number)');
+    // norme 0 : pas de pourcentage (pas de division par zero)
+    expect(dashboard).toContain('(norm > 0 ? `${Math.round((Number(gap) / Number(norm)) * 100)}%` : null)');
+    expect(apiSrc).toContain('over_since_days: number | null');
+  });
+
+  it('age du depassement : « depuis Xj » ou « aujourd\'hui »', () => {
+    expect(dashboard).toContain('data-testid="norms-overage-since"');
+    expect(dashboard).toContain('depuis ${t.over_since_days}j');
+    expect(dashboard).toContain('"aujourd\'hui"');
+  });
+});
+
+describe('Badge NEW : tâche de dépassement pas encore vue', () => {
+  it('marque NEW uniquement si le task_id n\'est pas dans le localStorage', () => {
+    expect(dashboard).toContain('data-testid="norms-overage-new"');
+    expect(dashboard).toContain('!seenOverages.has(t.task_id)');
+    expect(dashboard).toContain("localStorage.getItem('eurex_overages_seen')");
+  });
+
+  it('enregistre les ids affiches (300 max) sans vider le badge en cours', () => {
+    expect(dashboard).toContain("localStorage.setItem('eurex_overages_seen'");
+    expect(dashboard).toContain('arr.slice(-300)');
+    // l'etat vu n'est PAS mis a jour au chargement : le badge reste visible
+    // jusqu'a la prochaine ouverture de la carte
+    expect(dashboard).toContain('const [seenOverages] = useState<Set<string>>');
   });
 });

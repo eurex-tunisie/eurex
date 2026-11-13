@@ -67,6 +67,22 @@ test('fallback : comptable du dossier (dossierComp) si tache non assignee', () =
   assert.match(block, /au\.full_name AS assigned_name/);
 });
 
+test('mois de la tache : t.month expose comme task_month', () => {
+  const block = endpointBlock();
+  assert.match(block, /t\.month AS task_month/);
+  assert.match(block, /over_since_days/);
+});
+
+test('age du depassement : cumul chronologique des pointages par paquets', () => {
+  const block = endpointBlock();
+  assert.match(block, /SELECT te\.task_id, te\.started_at, te\.duration_seconds FROM org_time_entries te WHERE te\.task_id IN/);
+  assert.match(block, /ORDER BY te\.task_id, te\.started_at/);
+  // la norme effective de chaque tache sert de seuil de franchissement
+  assert.match(block, /total > \(normByTask\.get\(e\.task_id\) \|\| 0\)/);
+  // franchissement non localise = null (pas d'inventaire)
+  assert.match(block, /overSinceByTask\.has\(r\.task_id\) \? overSinceByTask\.get\(r\.task_id\) : null/);
+});
+
 test('lecture seule : aucune ecriture dans le bloc', () => {
   const block = endpointBlock();
   assert.ok(!/INSERT INTO|UPDATE |DELETE FROM/.test(block), 'aucune écriture SQL dans l\'endpoint overages');
