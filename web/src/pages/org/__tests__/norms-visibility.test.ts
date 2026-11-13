@@ -147,7 +147,13 @@ describe('Tâches détaillées : les trois rôles + motif de retard', () => {
   it('orgApi typerait les nouveaux champs', () => {
     expect(apiSrc).toContain('late_reason: string | null');
     expect(apiSrc).toContain('assigned_name: string | null');
+    expect(apiSrc).toContain('dossier_comptable_name: string | null');
     expect(apiSrc).toContain('done_by_name: string | null');
     expect(apiSrc).toContain('workers: string[]');
+  });
+
+  it('fallback : comptable du dossier si la tache n\'est pas assignee', () => {
+    expect(dashboard).toContain('t.assigned_name || t.dossier_comptable_name || ');
+    expect(dashboard).toContain("' (dossier)'");
   });
 });

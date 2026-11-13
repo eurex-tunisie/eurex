@@ -59,6 +59,14 @@ test('qui a pointe : requete DISTINCT sur org_time_entries par paquets d\'ids', 
   assert.match(block, /workers: workersByTask\.get\(r\.task_id\) \|\| \[\]/);
 });
 
+test('fallback : comptable du dossier (dossierComp) si tache non assignee', () => {
+  const block = endpointBlock();
+  assert.match(block, /dc\.full_name AS dossier_comptable_name/);
+  assert.match(block, /LEFT JOIN org_users dc ON \$\{dossierComp\(\)\} = dc\.id/);
+  // l'assignation de la tache reste visible telle quelle
+  assert.match(block, /au\.full_name AS assigned_name/);
+});
+
 test('lecture seule : aucune ecriture dans le bloc', () => {
   const block = endpointBlock();
   assert.ok(!/INSERT INTO|UPDATE |DELETE FROM/.test(block), 'aucune écriture SQL dans l\'endpoint overages');

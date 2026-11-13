@@ -95,7 +95,7 @@ export default function OrgDashboardExpert() {
   // Journal des ajustements de norme (audit : qui a changé quoi, quand)
   const [normsAudit, setNormsAudit] = useState<{ id: string; user_name: string | null; created_at: string; client_name: string | null; task_label: string | null; norm_seconds: number | null }[]>([]);
   // Depassements de norme : detail des taches au-dessus de leur norme effective
-  const [normsOverages, setNormsOverages] = useState<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number; late_reason: string | null; assigned_name: string | null; done_by_name: string | null; workers: string[] }[]>([]);
+  const [normsOverages, setNormsOverages] = useState<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number; late_reason: string | null; assigned_name: string | null; dossier_comptable_name: string | null; done_by_name: string | null; workers: string[] }[]>([]);
   // Carte Depassements : deux onglets (resume dossiers / detail taches)
   const [overTab, setOverTab] = useState<'dossiers' | 'taches'>('taches');
   const [billingForm, setBillingForm] = useState({ amount: '', invoiced: '', collected: '', note: '' });
@@ -1435,7 +1435,7 @@ export default function OrgDashboardExpert() {
                           <span className="font-bold text-red-700">⚠ +{fmtHm(t.gap_seconds)}</span>
                         </span>
                         <span className="mt-1 flex flex-wrap gap-x-4 text-xs text-gray-500" data-testid="norms-overage-who">
-                          <span>👤 Assigné : {t.assigned_name || '—'}</span>
+                          <span>👤 Assigné : {t.assigned_name || t.dossier_comptable_name || '—'}{!t.assigned_name && t.dossier_comptable_name ? ' (dossier)' : ''}</span>
                           <span>⏱ Pointé : {t.workers.length ? t.workers.join(', ') : '—'}</span>
                           <span>✓ Terminé : {t.done_by_name || '—'}</span>
                           {t.late_reason && <span className="text-amber-700 font-medium" data-testid="norms-overage-reason">🕐 {t.late_reason}</span>}
