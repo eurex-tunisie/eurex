@@ -585,6 +585,12 @@ export default function OrgDashboardExpert() {
   const overDossiers = filteredHoursDossiers
     .filter(d => Number(d.task_norm_seconds_total || 0) > 0 && Number(d.total_time_seconds || 0) > d.task_norm_seconds_total)
     .sort((a, b) => (Number(b.total_time_seconds || 0) - Number(b.task_norm_seconds_total || 0)) - (Number(a.total_time_seconds || 0) - Number(a.task_norm_seconds_total || 0)));
+  // Taches du pire au meilleur (ecart ↓) — sauf celles depassees « aujourd'hui »
+  // (over_since_days === 0) : elles passent en toute fin de liste, la plus
+  // recente n'etant pas encore gravee.
+  const overagesSorted = [...normsOverages].sort((a, b) =>
+    ((a.over_since_days === 0 ? 1 : 0) - (b.over_since_days === 0 ? 1 : 0))
+    || (Number(b.gap_seconds) - Number(a.gap_seconds)));
   const fmtMoney = (cents: number | null | undefined) => cents == null ? 'à compléter' : `${(cents / 100).toFixed(2)} DT`;
   const filteredBillingDossiers = billingDossiers
     .filter(d => billingYear === 'all' || Number(d.exercice) === billingYear)
@@ -1447,7 +1453,7 @@ export default function OrgDashboardExpert() {
                   <p className="text-sm text-gray-400">Aucune tâche en dépassement.</p>
                 ) : (
                   <ul className="max-h-72 divide-y divide-gray-100 overflow-y-auto">
-                    {normsOverages.map(t => (
+                    {overagesSorted.map(t => (
                       <li key={t.task_id} className="py-2.5 text-sm" data-testid="norms-overage-task">
                         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <Link to={`/cabinet/dossier/${t.dossier_id}`} className="font-semibold text-purple-700 hover:underline">{t.client_name}</Link>

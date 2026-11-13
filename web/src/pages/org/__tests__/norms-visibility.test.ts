@@ -182,6 +182,15 @@ describe('Tâches détaillées : mois + nisbet + âge du dépassement', () => {
     expect(dashboard).toContain('depuis ${t.over_since_days}j');
     expect(dashboard).toContain('"aujourd\'hui"');
   });
+
+  it('les taches depassees « aujourd\'hui » passent en toute fin de liste', () => {
+    expect(dashboard).toContain('const overagesSorted = [...normsOverages].sort');
+    // cle : today (over_since_days === 0) = 1 (fin), sinon ecart descendant
+    expect(dashboard).toContain('(a.over_since_days === 0 ? 1 : 0) - (b.over_since_days === 0 ? 1 : 0)');
+    expect(dashboard).toContain('Number(b.gap_seconds) - Number(a.gap_seconds)');
+    // le rendu lit la version triée
+    expect(dashboard).toContain('{overagesSorted.map(t => (');
+  });
 });
 
 describe('Badge NEW : tâche de dépassement pas encore vue', () => {
