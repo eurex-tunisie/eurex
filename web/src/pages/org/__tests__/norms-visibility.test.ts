@@ -113,6 +113,18 @@ describe('Tab Heures & coûts : carte « Dépassements de norme » (partie sépa
     expect(dashboard).toContain("Aucun dépassement de norme pour l'instant");
   });
 
+  it('deux onglets Dossiers / Tâches (mutuellement exclusifs, texte agrandi)', () => {
+    expect(dashboard).toContain("const [overTab, setOverTab] = useState<'dossiers' | 'taches'>('taches')");
+    expect(dashboard).toContain('data-testid="overages-tab-dossiers"');
+    expect(dashboard).toContain('data-testid="overages-tab-taches"');
+    expect(dashboard).toContain(") : overTab === 'dossiers' ? (");
+    // un seul bloc visible a la fois (pas de grille 2 colonnes)
+    expect(dashboard).not.toContain('grid grid-cols-1 xl:grid-cols-2 gap-4');
+    // lignes plus grandes
+    expect(dashboard).toContain('py-2.5 text-sm');
+    expect(dashboard).toContain('max-h-72 divide-y divide-gray-100');
+  });
+
   it('orgApi expose bien la route overages', () => {
     expect(apiSrc).toContain("/org/norms/overages");
     expect(apiSrc).toContain('getNormsOverages');

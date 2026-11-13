@@ -96,6 +96,8 @@ export default function OrgDashboardExpert() {
   const [normsAudit, setNormsAudit] = useState<{ id: string; user_name: string | null; created_at: string; client_name: string | null; task_label: string | null; norm_seconds: number | null }[]>([]);
   // Depassements de norme : detail des taches au-dessus de leur norme effective
   const [normsOverages, setNormsOverages] = useState<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number; late_reason: string | null; assigned_name: string | null; done_by_name: string | null; workers: string[] }[]>([]);
+  // Carte Depassements : deux onglets (resume dossiers / detail taches)
+  const [overTab, setOverTab] = useState<'dossiers' | 'taches'>('taches');
   const [billingForm, setBillingForm] = useState({ amount: '', invoiced: '', collected: '', note: '' });
   const [billingDossiers, setBillingDossiers] = useState<any[]>([]);
   const [billingYear, setBillingYear] = useState<number | 'all'>('all');
@@ -1371,60 +1373,77 @@ export default function OrgDashboardExpert() {
               </div>
             </div>
           </div>
-          {/* Depassements de norme — partie separee : resume par dossier + detail des taches */}
-          <div className="card rounded-xl p-4 space-y-3" data-testid="norms-overages-card">
-            <h3 className="text-sm font-semibold flex items-center gap-1.5">
-              <AlertTriangle size={14} className="text-red-600" />
-              Dépassements de norme
-              <span className="text-xs font-normal text-gray-500">({overDossiers.length} dossier(s) · {normsOverages.length} tâche(s))</span>
-            </h3>
+          {/* Depassements de norme — partie separee : deux onglets (dossiers / taches), texte agrandi */}
+          <div className="card rounded-xl p-5 space-y-4" data-testid="norms-overages-card">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <h3 className="text-base font-semibold flex items-center gap-2">
+                <AlertTriangle size={16} className="text-red-600" />
+                Dépassements de norme
+                <span className="text-sm font-normal text-gray-500">({overDossiers.length} dossier(s) · {normsOverages.length} tâche(s))</span>
+              </h3>
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setOverTab('dossiers')}
+                  data-testid="overages-tab-dossiers"
+                  aria-pressed={overTab === 'dossiers'}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${overTab === 'dossiers' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Dossiers ({overDossiers.length})
+                </button>
+                <button
+                  onClick={() => setOverTab('taches')}
+                  data-testid="overages-tab-taches"
+                  aria-pressed={overTab === 'taches'}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${overTab === 'taches' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Tâches ({normsOverages.length})
+                </button>
+              </div>
+            </div>
             {overDossiers.length === 0 && normsOverages.length === 0 ? (
-              <p className="text-xs text-emerald-700" data-testid="norms-overages-empty">✓ Aucun dépassement de norme pour l'instant.</p>
+              <p className="text-sm text-emerald-700" data-testid="norms-overages-empty">✓ Aucun dépassement de norme pour l'instant.</p>
+            ) : overTab === 'dossiers' ? (
+              <div data-testid="norms-overages-dossiers">
+                {overDossiers.length === 0 ? (
+                  <p className="text-sm text-gray-400">Aucun dossier en dépassement — le total du dossier reste dans les normes (seules certaines tâches dépassent, voir l'onglet Tâches).</p>
+                ) : (
+                  <ul className="max-h-72 divide-y divide-gray-100 overflow-y-auto">
+                    {overDossiers.map(d => (
+                      <li key={d.id} className="py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" data-testid="norms-overage-dossier">
+                        <Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:underline">{d.client_name}</Link>
+                        <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-medium">{d.exercice}</span>
+                        <span className="font-mono text-gray-600">{fmtHm(d.total_time_seconds)} / {fmtHm(d.task_norm_seconds_total)}</span>
+                        <span className="font-bold text-red-700">⚠ +{fmtHm(Number(d.total_time_seconds || 0) - Number(d.task_norm_seconds_total || 0))}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <div className="space-y-1" data-testid="norms-overages-dossiers">
-                  <p className="text-[11px] font-semibold text-gray-600">Dossiers au-dessus de la norme <span className="font-normal text-gray-400">(résumé)</span></p>
-                  {overDossiers.length === 0 ? (
-                    <p className="text-[11px] text-gray-400">Aucun dossier en dépassement.</p>
-                  ) : (
-                    <ul className="max-h-44 space-y-1 overflow-y-auto">
-                      {overDossiers.map(d => (
-                        <li key={d.id} className="text-[11px] flex flex-wrap gap-x-2 border-b border-gray-50 pb-1 text-gray-600" data-testid="norms-overage-dossier">
-                          <Link to={`/cabinet/dossier/${d.id}`} className="font-semibold text-purple-700 hover:underline">{d.client_name}</Link>
-                          <span className="text-gray-400">{d.exercice}</span>
-                          <span className="font-mono">{fmtHm(d.total_time_seconds)} / {fmtHm(d.task_norm_seconds_total)}</span>
-                          <span className="font-bold text-red-700">⚠ +{fmtHm(Number(d.total_time_seconds || 0) - Number(d.task_norm_seconds_total || 0))}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div className="space-y-1" data-testid="norms-overages-tasks">
-                  <p className="text-[11px] font-semibold text-gray-600">Tâches détaillées <span className="font-normal text-gray-400">(pire d'abord)</span></p>
-                  {normsOverages.length === 0 ? (
-                    <p className="text-[11px] text-gray-400">Aucune tâche en dépassement.</p>
-                  ) : (
-                    <ul className="max-h-44 space-y-1 overflow-y-auto">
-                      {normsOverages.map(t => (
-                        <li key={t.task_id} className="text-[11px] border-b border-gray-50 pb-1 text-gray-600" data-testid="norms-overage-task">
-                          <span className="flex flex-wrap gap-x-2">
-                            <Link to={`/cabinet/dossier/${t.dossier_id}`} className="font-semibold text-purple-700 hover:underline">{t.client_name}</Link>
-                            <span className="text-gray-400">{t.exercice}</span>
-                            <span className="font-medium text-gray-700">{t.task_label}</span>
-                            <span className="font-mono">{fmtHm(t.total_time_seconds)} / {fmtHm(t.effective_norm)}</span>
-                            <span className="font-bold text-red-700">⚠ +{fmtHm(t.gap_seconds)}</span>
-                          </span>
-                          <span className="flex flex-wrap gap-x-2 text-[10px] text-gray-400" data-testid="norms-overage-who">
-                            <span>👤 Assigné : {t.assigned_name || '—'}</span>
-                            <span>⏱ Pointé : {t.workers.length ? t.workers.join(', ') : '—'}</span>
-                            <span>✓ Terminé : {t.done_by_name || '—'}</span>
-                            {t.late_reason && <span className="text-amber-700" data-testid="norms-overage-reason">🕐 {t.late_reason}</span>}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+              <div data-testid="norms-overages-tasks">
+                {normsOverages.length === 0 ? (
+                  <p className="text-sm text-gray-400">Aucune tâche en dépassement.</p>
+                ) : (
+                  <ul className="max-h-72 divide-y divide-gray-100 overflow-y-auto">
+                    {normsOverages.map(t => (
+                      <li key={t.task_id} className="py-2.5 text-sm" data-testid="norms-overage-task">
+                        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <Link to={`/cabinet/dossier/${t.dossier_id}`} className="font-semibold text-purple-700 hover:underline">{t.client_name}</Link>
+                          <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-medium">{t.exercice}</span>
+                          <span className="font-semibold text-gray-800">{t.task_label}</span>
+                          <span className="font-mono text-gray-600">{fmtHm(t.total_time_seconds)} / {fmtHm(t.effective_norm)}</span>
+                          <span className="font-bold text-red-700">⚠ +{fmtHm(t.gap_seconds)}</span>
+                        </span>
+                        <span className="mt-1 flex flex-wrap gap-x-4 text-xs text-gray-500" data-testid="norms-overage-who">
+                          <span>👤 Assigné : {t.assigned_name || '—'}</span>
+                          <span>⏱ Pointé : {t.workers.length ? t.workers.join(', ') : '—'}</span>
+                          <span>✓ Terminé : {t.done_by_name || '—'}</span>
+                          {t.late_reason && <span className="text-amber-700 font-medium" data-testid="norms-overage-reason">🕐 {t.late_reason}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </div>
