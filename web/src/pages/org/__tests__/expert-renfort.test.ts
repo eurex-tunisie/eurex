@@ -32,3 +32,23 @@ describe('Renfort depuis le dashboard expert', () => {
     expect(dashboard).toContain('orgApi.getGrantsAll()');
   });
 });
+
+describe('Renforts en cours : masqué par défaut, réaffichable', () => {
+  it('etat initial cache a chaque chargement', () => {
+    expect(dashboard).toContain('const [showRenforts, setShowRenforts] = useState(false)');
+  });
+
+  it('bouton Afficher / Masquer dans le header', () => {
+    expect(dashboard).toContain('data-testid="renforts-toggle"');
+    expect(dashboard).toContain("{showRenforts ? 'Masquer ▴' : 'Afficher ▸'}");
+    expect(dashboard).toContain('aria-expanded={showRenforts}');
+  });
+
+  it('la liste (et l\'etat vide) ne s\'affiche que si ouverte', () => {
+    expect(dashboard).toContain('{showRenforts && (allGrants.length === 0 ? (');
+  });
+
+  it('ouverture automatique apres la creation d\'un renfort (confirmation)', () => {
+    expect(dashboard).toContain('useEffect(() => { if (grantNotice) setShowRenforts(true); }, [grantNotice]);');
+  });
+});

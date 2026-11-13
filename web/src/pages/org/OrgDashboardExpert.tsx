@@ -95,7 +95,7 @@ export default function OrgDashboardExpert() {
   // Journal des ajustements de norme (audit : qui a changé quoi, quand)
   const [normsAudit, setNormsAudit] = useState<{ id: string; user_name: string | null; created_at: string; client_name: string | null; task_label: string | null; norm_seconds: number | null }[]>([]);
   // Depassements de norme : detail des taches au-dessus de leur norme effective
-  const [normsOverages, setNormsOverages] = useState<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number }[]>([]);
+  const [normsOverages, setNormsOverages] = useState<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number; late_reason: string | null; assigned_name: string | null; done_by_name: string | null; workers: string[] }[]>([]);
   const [billingForm, setBillingForm] = useState({ amount: '', invoiced: '', collected: '', note: '' });
   const [billingDossiers, setBillingDossiers] = useState<any[]>([]);
   const [billingYear, setBillingYear] = useState<number | 'all'>('all');
@@ -114,6 +114,9 @@ export default function OrgDashboardExpert() {
   const [grantBusy, setGrantBusy] = useState(false);
   const [grantError, setGrantError] = useState('');
   const [grantNotice, setGrantNotice] = useState('');
+  // Section « Renforts en cours » : masquée par défaut, bouton pour la réafficher
+  const [showRenforts, setShowRenforts] = useState(false);
+  useEffect(() => { if (grantNotice) setShowRenforts(true); }, [grantNotice]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [filterComptable, setFilterComptable] = useState<string>(searchParams.get('comptable') || 'all');
@@ -962,7 +965,7 @@ export default function OrgDashboardExpert() {
         </div>
       </div>
 
-      {/* Renforts en cours : accès temporaires ouverts dans le cabinet */}
+      {/* Renforts en cours : accès temporaires ouverts dans le cabinet — masqués par défaut */}
       <div className="card rounded-2xl p-4" data-testid="renforts-encours">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
@@ -970,9 +973,19 @@ export default function OrgDashboardExpert() {
             Renforts en cours
             <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-lg text-[11px] font-semibold">{allGrants.length}</span>
           </h3>
-          {grantNotice && <span className="text-[11px] font-medium text-emerald-600" data-testid="renfort-notice">{grantNotice}</span>}
+          <div className="flex items-center gap-3">
+            {grantNotice && <span className="text-[11px] font-medium text-emerald-600" data-testid="renfort-notice">{grantNotice}</span>}
+            <button
+              onClick={() => setShowRenforts(v => !v)}
+              data-testid="renforts-toggle"
+              aria-expanded={showRenforts}
+              className="text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg"
+            >
+              {showRenforts ? 'Masquer ▴' : 'Afficher ▸'}
+            </button>
+          </div>
         </div>
-        {allGrants.length === 0 ? (
+        {showRenforts && (allGrants.length === 0 ? (
           <p className="text-xs text-gray-400 mt-2" data-testid="renforts-empty">
             Aucun accès temporaire. Cliquez sur « Renfort » sur la carte d'un comptable pour lui ouvrir un ou plusieurs dossiers.
           </p>
@@ -997,7 +1010,7 @@ export default function OrgDashboardExpert() {
               </div>
             ))}
           </div>
-        )}
+        ))}
       </div>
 
       {/* Tab: Comptables */}
@@ -1393,12 +1406,20 @@ export default function OrgDashboardExpert() {
                   ) : (
                     <ul className="max-h-44 space-y-1 overflow-y-auto">
                       {normsOverages.map(t => (
-                        <li key={t.task_id} className="text-[11px] flex flex-wrap gap-x-2 border-b border-gray-50 pb-1 text-gray-600" data-testid="norms-overage-task">
-                          <Link to={`/cabinet/dossier/${t.dossier_id}`} className="font-semibold text-purple-700 hover:underline">{t.client_name}</Link>
-                          <span className="text-gray-400">{t.exercice}</span>
-                          <span className="font-medium text-gray-700">{t.task_label}</span>
-                          <span className="font-mono">{fmtHm(t.total_time_seconds)} / {fmtHm(t.effective_norm)}</span>
-                          <span className="font-bold text-red-700">⚠ +{fmtHm(t.gap_seconds)}</span>
+                        <li key={t.task_id} className="text-[11px] border-b border-gray-50 pb-1 text-gray-600" data-testid="norms-overage-task">
+                          <span className="flex flex-wrap gap-x-2">
+                            <Link to={`/cabinet/dossier/${t.dossier_id}`} className="font-semibold text-purple-700 hover:underline">{t.client_name}</Link>
+                            <span className="text-gray-400">{t.exercice}</span>
+                            <span className="font-medium text-gray-700">{t.task_label}</span>
+                            <span className="font-mono">{fmtHm(t.total_time_seconds)} / {fmtHm(t.effective_norm)}</span>
+                            <span className="font-bold text-red-700">⚠ +{fmtHm(t.gap_seconds)}</span>
+                          </span>
+                          <span className="flex flex-wrap gap-x-2 text-[10px] text-gray-400" data-testid="norms-overage-who">
+                            <span>👤 Assigné : {t.assigned_name || '—'}</span>
+                            <span>⏱ Pointé : {t.workers.length ? t.workers.join(', ') : '—'}</span>
+                            <span>✓ Terminé : {t.done_by_name || '—'}</span>
+                            {t.late_reason && <span className="text-amber-700" data-testid="norms-overage-reason">🕐 {t.late_reason}</span>}
+                          </span>
                         </li>
                       ))}
                     </ul>

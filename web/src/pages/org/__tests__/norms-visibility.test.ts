@@ -118,3 +118,24 @@ describe('Tab Heures & coûts : carte « Dépassements de norme » (partie sépa
     expect(apiSrc).toContain('getNormsOverages');
   });
 });
+
+describe('Tâches détaillées : les trois rôles + motif de retard', () => {
+  it('affiche assigné / pointé (qui a bossé) / terminé par', () => {
+    expect(dashboard).toContain('data-testid="norms-overage-who"');
+    expect(dashboard).toContain('Assigné : {t.assigned_name || ');
+    expect(dashboard).toContain('Pointé : {t.workers.length ? t.workers.join');
+    expect(dashboard).toContain('Terminé : {t.done_by_name || ');
+  });
+
+  it('affiche le motif de retard (late_reason) si présent', () => {
+    expect(dashboard).toContain('data-testid="norms-overage-reason"');
+    expect(dashboard).toContain('{t.late_reason && ');
+  });
+
+  it('orgApi typerait les nouveaux champs', () => {
+    expect(apiSrc).toContain('late_reason: string | null');
+    expect(apiSrc).toContain('assigned_name: string | null');
+    expect(apiSrc).toContain('done_by_name: string | null');
+    expect(apiSrc).toContain('workers: string[]');
+  });
+});

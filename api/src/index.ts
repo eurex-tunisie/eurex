@@ -3761,9 +3761,23 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
         const { results } = await env.DB.prepare(
-          "SELECT t.id AS task_id, t.label AS task_label, t.dossier_id, d.exercice, c.name AS client_name, COALESCE(t.total_time_seconds, 0) AS total_time_seconds, COALESCE(n.norm_seconds, t.norm_seconds) AS effective_norm, COALESCE(t.total_time_seconds, 0) - COALESCE(n.norm_seconds, t.norm_seconds) AS gap_seconds FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_dossier_task_norms n ON n.dossier_id = t.dossier_id AND n.task_label = t.label WHERE c.organization_id = ? AND t.hidden = 0 AND COALESCE(n.norm_seconds, t.norm_seconds) IS NOT NULL AND COALESCE(t.total_time_seconds, 0) > COALESCE(n.norm_seconds, t.norm_seconds) ORDER BY gap_seconds DESC LIMIT 100",
+          "SELECT t.id AS task_id, t.label AS task_label, t.dossier_id, d.exercice, c.name AS client_name, COALESCE(t.total_time_seconds, 0) AS total_time_seconds, COALESCE(n.norm_seconds, t.norm_seconds) AS effective_norm, COALESCE(t.total_time_seconds, 0) - COALESCE(n.norm_seconds, t.norm_seconds) AS gap_seconds, t.late_reason, au.full_name AS assigned_name, du.full_name AS done_by_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id LEFT JOIN org_dossier_task_norms n ON n.dossier_id = t.dossier_id AND n.task_label = t.label LEFT JOIN org_users au ON t.assigned_comptable_id = au.id LEFT JOIN org_users du ON t.done_by = du.id WHERE c.organization_id = ? AND t.hidden = 0 AND COALESCE(n.norm_seconds, t.norm_seconds) IS NOT NULL AND COALESCE(t.total_time_seconds, 0) > COALESCE(n.norm_seconds, t.norm_seconds) ORDER BY gap_seconds DESC LIMIT 100",
         ).bind(user.organization_id).all();
-        return json(results);
+        // Qui a reellement pointe du temps sur chaque tache (les comptables qui ont travaille dessus)
+        const rows = results as any[];
+        const workersByTask = new Map<string, string[]>();
+        for (const chunk of chunkIds(rows.map(r => r.task_id))) {
+          if (!chunk.length) continue;
+          const { results: workers } = await env.DB.prepare(
+            `SELECT DISTINCT te.task_id, u.full_name FROM org_time_entries te JOIN org_users u ON u.id = te.user_id WHERE te.task_id IN (${chunk.map(() => '?').join(',')})`,
+          ).bind(...chunk).all();
+          for (const w of workers as any[]) {
+            const arr = workersByTask.get(w.task_id) || [];
+            if (!arr.includes(w.full_name)) arr.push(w.full_name);
+            workersByTask.set(w.task_id, arr);
+          }
+        }
+        return json(rows.map(r => ({ ...r, workers: workersByTask.get(r.task_id) || [] })));
       }
 
       // --- ORG: TRANSFERT DE DOSSIER — autre comptable (override du client) ---

@@ -631,7 +631,7 @@ export const orgApi = {
   upsertDossierTaskNorm: (dossierId: string, taskLabel: string, norm_seconds: number | null) =>
     req<any>(`/org/dossiers/${dossierId}/norms`, { method: 'PUT', body: JSON.stringify({ task_label: taskLabel, norm_seconds }) }),
   getNormsAudit: () => req<{ id: string; user_id: string; user_name: string | null; created_at: string; dossier_id: string | null; client_name: string | null; task_label: string | null; norm_seconds: number | null }[]>('/org/norms/audit'),
-  getNormsOverages: () => req<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number }[]>('/org/norms/overages'),
+  getNormsOverages: () => req<{ task_id: string; task_label: string; dossier_id: string; exercice: number | string; client_name: string; total_time_seconds: number; effective_norm: number; gap_seconds: number; late_reason: string | null; assigned_name: string | null; done_by_name: string | null; workers: string[] }[]>('/org/norms/overages'),
   toggleComptable: (id: string, isActive: boolean) =>
     req<any>(`/org/comptables/${id}`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) }),
   updateComptable: (id: string, patch: { full_name?: string; email?: string; password?: string; role?: 'comptable' | 'manager' | 'expert'; hourly_cost_cents?: number | null }) =>
