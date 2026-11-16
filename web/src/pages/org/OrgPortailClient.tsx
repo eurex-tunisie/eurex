@@ -4,7 +4,7 @@ import { orgApi } from '../../lib/orgApi';
 
 type PortalData = {
   client_name: string;
-  dossier: { exercice: number; progress: number } | null;
+  dossier: { exercice: number; progress: number | null } | null;
   docs: { label: string; received: number }[];
   docs_received: number;
   docs_total: number;
@@ -61,17 +61,19 @@ export default function OrgPortailClient() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-semibold text-gray-700">Exercice {data.dossier.exercice}</p>
-                    <p className="text-sm font-bold text-purple-700">{Math.round(data.dossier.progress)}%</p>
+                    <p className="text-sm font-bold text-purple-700" data-testid="portal-progress">{data.dossier.progress === null ? '—' : `${Math.round(data.dossier.progress)}%`}</p>
                   </div>
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-1000"
-                      style={{
-                        width: `${Math.min(100, Math.round(data.dossier.progress))}%`,
-                        background: data.dossier.progress >= 80 ? 'linear-gradient(90deg,#10b981,#34d399)' : data.dossier.progress >= 40 ? 'linear-gradient(90deg,#3b82f6,#60a5fa)' : 'linear-gradient(90deg,#f59e0b,#fbbf24)',
-                      }}
-                    />
-                  </div>
+                  {data.dossier.progress !== null && (
+                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-1000"
+                        style={{
+                          width: `${Math.min(100, Math.round(data.dossier.progress))}%`,
+                          background: data.dossier.progress >= 80 ? 'linear-gradient(90deg,#10b981,#34d399)' : data.dossier.progress >= 40 ? 'linear-gradient(90deg,#3b82f6,#60a5fa)' : 'linear-gradient(90deg,#f59e0b,#fbbf24)',
+                        }}
+                      />
+                    </div>
+                  )}
                   <p className="text-xs text-gray-400 mt-1.5">
                     {data.docs_received}/{data.docs_total} pièce(s) reçue(s)
                   </p>

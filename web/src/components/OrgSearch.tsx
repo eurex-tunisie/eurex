@@ -128,7 +128,7 @@ export default function OrgSearch() {
                 <>
                   <span className="font-medium">{d.client_name}</span>
                   <span className="text-xs text-gray-400">· {d.exercice}</span>
-                  {typeof d.cached_progress === 'number' && <span className="text-xs text-gray-400">· {d.cached_progress}%</span>}
+                  {typeof d.cached_progress === 'number' && <span className="text-xs text-gray-400">· {d.is_ancient ? '—' : `${d.cached_progress}%`}</span>}
                 </>
               ))}
               {section('Tâches', '☐', r.tasks, 'task', (tk: any) => (

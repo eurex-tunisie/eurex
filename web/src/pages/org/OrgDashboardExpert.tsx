@@ -195,7 +195,7 @@ export default function OrgDashboardExpert() {
   const exportDossiersCsv = () => {
     const rows = filteredDossiers.map(d => [
       d.client_name, d.exercice, d.comptable_name || '', d.status === 'cloture' ? 'Clôturé' : 'En cours',
-      d.progress || 0, d.task_stats?.fait ?? '', d.task_stats?.total ?? '',
+      d.progress ?? '—', d.task_stats?.fait ?? '', d.task_stats?.total ?? '',
       d.task_stats?.bloque_client ?? '', unverifiedByDossier[d.id] || 0, fmtHm(d.total_time_seconds),
     ]);
     const csv = buildCsv(
@@ -547,8 +547,11 @@ export default function OrgDashboardExpert() {
   // KPIs
   const totalDossiers = allDossiers.length;
   const activeDossiers = allDossiers.filter(d => d.status === 'en_cours').length;
-  const avgProgress = totalDossiers > 0
-    ? Math.round(allDossiers.reduce((s, d) => s + (d.progress || 0), 0) / totalDossiers * 10) / 10
+  // Avancement moyen : ignore les dossiers d'exercice ancien (progress null) —
+  // num ET den, sinon la moyenne est fausse
+  const dossiersWithProg = allDossiers.filter(d => d.progress !== null);
+  const avgProgress = dossiersWithProg.length > 0
+    ? Math.round(dossiersWithProg.reduce((s, d) => s + (d.progress || 0), 0) / dossiersWithProg.length * 10) / 10
     : 0;
   const blockedCount = allDossiers.filter(d => d.task_stats?.bloque_client > 0).length; // used for table badge
 
@@ -1281,19 +1284,23 @@ export default function OrgDashboardExpert() {
                       )}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-3 justify-center">
-                        <div className="w-24 bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                          <div
-                            className="h-2.5 rounded-full transition-all duration-1000 ease-out"
-                            style={{
-                              width: `${d.progress || 0}%`,
-                              background: d.progress >= 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : d.progress >= 40 ? 'linear-gradient(90deg, #3b82f6, #60a5fa)' : 'linear-gradient(90deg, #f59e0b, #fbbf24)',
-                              boxShadow: d.progress >= 80 ? '0 0 8px #10b98140' : d.progress >= 40 ? '0 0 8px #3b82f640' : '0 0 8px #f59e0b40',
-                            }}
-                          />
+                      {d.progress === null ? (
+                        <span className="block text-center text-xs font-semibold text-gray-400" data-testid="dossier-progress-none">—</span>
+                      ) : (
+                        <div className="flex items-center gap-3 justify-center">
+                          <div className="w-24 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                            <div
+                              className="h-2.5 rounded-full transition-all duration-1000 ease-out"
+                              style={{
+                                width: `${d.progress || 0}%`,
+                                background: d.progress >= 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : d.progress >= 40 ? 'linear-gradient(90deg, #3b82f6, #60a5fa)' : 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                                boxShadow: d.progress >= 80 ? '0 0 8px #10b98140' : d.progress >= 40 ? '0 0 8px #3b82f640' : '0 0 8px #f59e0b40',
+                              }}
+                            />
+                          </div>
+                          <span className="text-xs font-bold text-gray-700 w-10 text-right">{d.progress || 0}%</span>
                         </div>
-                        <span className="text-xs font-bold text-gray-700 w-10 text-right">{d.progress || 0}%</span>
-                      </div>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-center text-xs whitespace-nowrap">
                       <span className="font-semibold text-gray-800">{d.task_stats?.fait ?? 0}</span>

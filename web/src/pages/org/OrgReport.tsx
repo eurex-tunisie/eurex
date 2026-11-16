@@ -65,7 +65,7 @@ export default function OrgReport() {
       ['Vérifications (qualité)', t.verify_score != null ? `${t.verify_score}% (${t.verify_done} ok / ${t.verify_returned} renvois)` : '—'],
       [],
       ['Dossiers', 'État', 'Avancement %', 'Tâches faites', 'Tâches total', 'Retards', 'Documents reçus', 'Documents total', 'Heures'],
-      ...data.dossiers.map((d: any) => [d.client_name, statusLabel[d.status] || d.status, d.progress, d.tasks_done, d.tasks_total, d.tasks_late, d.docs_received, d.docs_total, fmtH(d.hours_seconds)]),
+      ...data.dossiers.map((d: any) => [d.client_name, statusLabel[d.status] || d.status, d.progress ?? '—', d.tasks_done, d.tasks_total, d.tasks_late, d.docs_received, d.docs_total, fmtH(d.hours_seconds)]),
       [],
       ['Heures par collaborateur', 'Saisies', 'Heures'],
       ...data.hours_by_user.map((u: any) => [u.full_name, u.entries, fmtH(u.seconds)]),
@@ -153,10 +153,14 @@ export default function OrgReport() {
                       <td className="px-4 py-2 font-semibold text-gray-900">{d.client_name}</td>
                       <td className="px-2 py-2">{d.status === 'clos' ? '🔒' : '🔵'} {statusLabel[d.status] || d.status}</td>
                       <td className="px-2 py-2">
+                        {d.progress == null ? (
+                          <span className="text-xs font-semibold text-gray-400">—</span>
+                        ) : (
                         <div className="flex items-center gap-2">
                           <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-purple-500" style={{ width: `${Math.min(100, d.progress)}%` }} /></div>
                           <span className="text-xs font-bold text-gray-600">{d.progress}%</span>
                         </div>
+                        )}
                       </td>
                       <td className="px-2 py-2 text-gray-700">{d.tasks_done}/{d.tasks_total}</td>
                       <td className="px-2 py-2">{d.tasks_late ? <span className="font-bold text-rose-600">{d.tasks_late}</span> : <span className="text-gray-400">0</span>}</td>

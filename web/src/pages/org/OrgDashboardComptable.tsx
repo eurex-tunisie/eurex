@@ -105,8 +105,11 @@ export default function OrgDashboardComptable() {
   const filtered = clients
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.matricule_fiscal?.includes(search))
     .sort((a, b) => {
-      if (sort === 'blocked') return b.task_stats.bloque_client - a.task_stats.bloque_client || a.progress - b.progress;
-      if (sort === 'progress') return a.progress - b.progress;
+      // progress null = dossier d'exercice ancien (« — ») : trie en fin de liste
+      const pa = a.progress ?? Number.MAX_SAFE_INTEGER;
+      const pb = b.progress ?? Number.MAX_SAFE_INTEGER;
+      if (sort === 'blocked') return b.task_stats.bloque_client - a.task_stats.bloque_client || pa - pb;
+      if (sort === 'progress') return pa - pb;
       return a.name.localeCompare(b.name);
     });
 
@@ -123,8 +126,10 @@ export default function OrgDashboardComptable() {
   const docsRecus = clients.reduce((s, c) => s + (c.doc_stats?.received || 0), 0);
   const docsMissing = Math.max(0, docsTotal - docsRecus);
   const closedClients = clients.filter(c => c.dossier_actuel?.status === 'cloture').length;
-  const avgProgress = clients.length > 0
-    ? Math.round(clients.reduce((s, c) => s + (c.progress || 0), 0) / clients.length * 10) / 10
+  // Moyenne : ignore les dossiers d'exercice ancien (progress null) — num ET den
+  const clientsWithProg = clients.filter(c => c.progress !== null);
+  const avgProgress = clientsWithProg.length > 0
+    ? Math.round(clientsWithProg.reduce((s, c) => s + (c.progress || 0), 0) / clientsWithProg.length * 10) / 10
     : 0;
   // File de validation : ce que j'ai rendu et qui attend la validation de l'expert
   // (tous mois confondus). Derive des clients deja charges : aucune requete en plus.

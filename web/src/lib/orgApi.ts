@@ -36,7 +36,8 @@ export interface OrgClient {
   // hors perimetre d'export confondus (une tache rendue doit etre validee).
   verify_counts?: VerifyCounts;
   doc_stats: { total: number; received: number };
-  progress: number;
+  /** Avancement : null = dossier d'exercice ancien (affiché « — », hors KPI) */
+  progress: number | null;
 }
 
 export interface OrgDossier {
@@ -64,7 +65,8 @@ export interface OrgDossier {
   can_close: boolean;
   can_force_close: boolean;
   block_reasons: string[];
-  progress: number;
+  /** Avancement : null = dossier d'exercice ancien (affiché « — », hors KPI) */
+  progress: number | null;
   time_entries: any[];
   time_by_user: { user_name: string; seconds: number }[];
   time_by_part?: { entreprise: number; comptable: number };
@@ -405,7 +407,7 @@ export const orgApi = {
     portalToken: (clientId: string) =>
       req<{ token: string }>(`/org/clients/${clientId}/portal-token`, { method: 'POST' }),
     getPublicPortal: (token: string) =>
-      req<{ client_name: string; dossier: { exercice: number; progress: number } | null; docs: { label: string; received: number }[]; docs_received: number; docs_total: number }>(`/org/public/client/${token}`),
+      req<{ client_name: string; dossier: { exercice: number; progress: number | null } | null; docs: { label: string; received: number }[]; docs_received: number; docs_total: number }>(`/org/public/client/${token}`),
     // Suppression d'un compte utilisateur (expert + manager) — comptes de test/jetables
     deleteComptable: (id: string) => req<{ ok: boolean; deleted: string }>(`/org/comptables/${id}`, { method: 'DELETE' }),
 
@@ -539,7 +541,7 @@ export const orgApi = {
 
   // Recherche globale (clients, dossiers, taches, documents, notes)
   search: (q: string) =>
-    req<{ q: string; clients: any[]; dossiers: any[]; tasks: any[]; documents: any[]; notes: any[] }>(`/org/search?q=${encodeURIComponent(q)}`),
+    req<{ q: string; clients: any[]; dossiers: Array<{ id: string; exercice: number; status: string; cached_progress: number; is_ancient?: boolean; client_name: string }>; tasks: any[]; documents: any[]; notes: any[] }>(`/org/search?q=${encodeURIComponent(q)}`),
 
   // Fiscal alerts (échéances)
   getAlerts: (dossierId?: string) =>

@@ -190,7 +190,7 @@ export default function OrgComptableDetail() {
                 <ProgressDonut fait={d.task_stats.fait} enCours={d.task_stats.en_cours} bloqueClient={d.task_stats.bloque_client} size={104} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{d.client_name}</p>
-                  <p className="text-[11px] text-gray-400">Exercice {d.exercice} • {d.progress}%</p>
+                  <p className="text-[11px] text-gray-400">Exercice {d.exercice} • {d.progress == null ? '—' : `${d.progress}%`}</p>
                 </div>
                 {d.status === 'cloture' && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
@@ -270,7 +270,7 @@ export default function OrgComptableDetail() {
                   {d.total_time_seconds > 0 && <span className="font-mono">⏱ {formatTime(d.total_time_seconds)}</span>}
                 </div>
               </div>
-              <span className="text-lg font-bold text-gray-700">{d.progress}%</span>
+              <span className="text-lg font-bold text-gray-700">{d.progress == null ? '—' : `${d.progress}%`}</span>
             </div>
           ))}
         </div>
