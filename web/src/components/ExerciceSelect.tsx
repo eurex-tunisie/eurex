@@ -29,7 +29,7 @@ export default function ExerciceSelect({ value, options, onChange, allowAll = fa
           <option key={y} value={y} data-testid={`dash-exercice-${y}`}>{y}</option>
         ))}
       </select>
-      {!showBadge && (
+      {showBadge && (
         <span data-testid="dash-exercice-badge" className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">
           {value > cur ? t('dash.exercice_next') : t('dash.exercice_previous')}
         </span>
