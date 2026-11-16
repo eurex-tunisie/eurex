@@ -3197,7 +3197,12 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
       async function orgCanAccessClient(user: any, clientId: string): Promise<boolean> {
         if (isSupervisor(user.role)) return true;
         const c = await env.DB.prepare('SELECT assigned_comptable_id FROM org_clients WHERE id = ? AND organization_id = ?').bind(clientId, user.organization_id).first() as any;
-        return c?.assigned_comptable_id === user.id;
+        if (c?.assigned_comptable_id === user.id) return true;
+        // Renfort : un grant actif sur UN dossier du client ouvre l'acces au
+        // client (le comptable choisit ensuite ses dossiers via le picker) —
+        // sans cela le picker « Choisir les dossiers » renvoyait 403.
+        const g = await env.DB.prepare(`SELECT 1 AS x FROM org_dossier_grants g JOIN org_dossiers d ON d.id = g.dossier_id WHERE d.client_id = ? AND g.granted_to = ? AND ${ORG_GRANT_ACTIVE}`).bind(clientId, user.id).first();
+        return !!g;
       }
 
       // Statuts export possibles d'un client + portée export d'une échéance (JSON array, NULL = toutes)
