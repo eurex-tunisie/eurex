@@ -3292,7 +3292,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const r = await env.DB.prepare('SELECT c.*, u.full_name as comptable_name FROM org_clients c LEFT JOIN org_users u ON c.assigned_comptable_id = u.id WHERE c.organization_id = ? AND c.deleted_at IS NULL ORDER BY c.name').bind(user.organization_id).all();
           clients = r.results;
         } else {
-          const r = await env.DB.prepare('SELECT c.*, u.full_name as comptable_name FROM org_clients c LEFT JOIN org_users u ON c.assigned_comptable_id = u.id WHERE c.organization_id = ? AND c.deleted_at IS NULL AND (c.assigned_comptable_id = ? OR EXISTS (SELECT 1 FROM org_dossiers dd WHERE dd.client_id = c.id AND dd.status = \'en_cours\' AND dd.assigned_comptable_id = ?)) ORDER BY c.name').bind(user.organization_id, user.id, user.id).all();
+          const r = await env.DB.prepare('SELECT c.*, u.full_name as comptable_name FROM org_clients c LEFT JOIN org_users u ON c.assigned_comptable_id = u.id WHERE c.organization_id = ? AND c.deleted_at IS NULL AND (c.assigned_comptable_id = ? OR EXISTS (SELECT 1 FROM org_dossiers dd WHERE dd.client_id = c.id AND dd.status = \'en_cours\' AND dd.assigned_comptable_id = ?) OR EXISTS (SELECT 1 FROM org_dossier_grants g JOIN org_dossiers dg ON dg.id = g.dossier_id WHERE dg.client_id = c.id AND g.granted_to = ? AND ' + ORG_GRANT_ACTIVE + ')) ORDER BY c.name').bind(user.organization_id, user.id, user.id, user.id).all();
           clients = r.results;
         }
         // Enrich with dossier + progress. AVANT : 1 requete dossiers + 1 taches
@@ -3317,7 +3317,35 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           }
         }
         // Exercice filtre : le client sans dossier cette annee disparait du dashboard
-        const kept = exerciceSel ? clients.filter((c: any) => dosByClient.has(c.id)) : clients;
+        const scoped = exerciceSel ? clients.filter((c: any) => dosByClient.has(c.id)) : clients;
+        // Carte cliquable : le dossier selectionne doit etre OUVRABLE par le
+        // comptable (meme regle que orgCanAccessDossier : grant actif SUR CE
+        // dossier, ou dossier assigne au comptable). Un client entre par
+        // RENFORT (grant sur UN seul dossier du client) n'apparait donc que
+        // si son dossier de l'exercice est bien celui qu'il a ouvert — sinon
+        // sa carte menait a « Accès refusé ». Les clients dont le comptable
+        // est responsable restent inchanges (comportement historique).
+        const openable = new Set<string>();
+        if (!isSupervisor(user.role)) {
+          const selIds: string[] = [];
+          for (const c of scoped as any[]) {
+            const d = dosByClient.get(c.id);
+            if (d && c.assigned_comptable_id !== user.id) selIds.push(d.id);
+          }
+          for (const chunk of chunkIds(selIds)) {
+            const ph = chunk.map(() => '?').join(',');
+            const { results: gr } = await env.DB.prepare(
+              `SELECT g.dossier_id FROM org_dossier_grants g WHERE g.granted_to = ? AND ${ORG_GRANT_ACTIVE} AND g.dossier_id IN (${ph})`,
+            ).bind(user.id, ...chunk).all();
+            for (const row of gr as any[]) openable.add(row.dossier_id);
+          }
+        }
+        const kept = (scoped as any[]).filter((c: any) => {
+          const d = dosByClient.get(c.id);
+          if (!d || isSupervisor(user.role) || c.assigned_comptable_id === user.id) return true;
+          const comp = d.assigned_comptable_id ?? c.assigned_comptable_id;
+          return comp === user.id || openable.has(d.id);
+        });
         const dossierIds: string[] = [];
         for (const c of kept as any[]) { const d = dosByClient.get(c.id); if (d) dossierIds.push(d.id); }
 

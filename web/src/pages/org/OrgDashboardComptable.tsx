@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { orgApi, OrgClient, OrgMyGrant, OrgDossier } from '../../lib/orgApi';
 import { useOrgAuth } from '../../lib/orgAuth';
@@ -48,13 +48,16 @@ export default function OrgDashboardComptable() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sort, search]);
 
+  const loadSeqRef = useRef(0);
   const load = () => {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     // Même raison que sur le tableau de bord expert : une route en échec ne
     // doit pas effacer celles qui ont répondu. On n'affiche l'erreur que si
     // la liste des clients — le contenu principal — n'est pas venue.
     Promise.allSettled([orgApi.getClients(exercice), orgApi.getMyGrants(), orgApi.getExercices(), orgApi.getMyTimers()])
       .then(([rc, rg, rex, rt]) => {
+        if (seq !== loadSeqRef.current) return; // reponse perimee : ignorer
         if (rc.status === 'fulfilled') setClients(rc.value);
         if (rg.status === 'fulfilled') setMyGrants(rg.value);
         if (rex.status === 'fulfilled') {
@@ -67,7 +70,7 @@ export default function OrgDashboardComptable() {
         [rc, rg, rex].forEach(r => { if (r.status === 'rejected') console.error(r.reason); });
         setLoadError(rc.status !== 'fulfilled');
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (seq === loadSeqRef.current) setLoading(false); });
   };
 
   useEffect(() => { load(); }, [exercice]);

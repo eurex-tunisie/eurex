@@ -59,6 +59,28 @@ test('self-service : le comptable ne s auto-grante que s il a deja un renfort su
   assert.match(block, /expiresAt = src\.expires_at;/);
 });
 
+test('GET /org/clients : scope comptable inclut les clients en renfort (grant actif)', () => {
+  assert.ok(SRC.includes("path === '/api/org/clients' && method === 'GET'"), 'endpoint trouve');
+  // la requete scope comptable (branche else) contient l OR EXISTS sur
+  // org_dossier_grants joint a org_dossiers du client
+  assert.ok(
+    SRC.includes("OR EXISTS (SELECT 1 FROM org_dossier_grants g JOIN org_dossiers dg ON dg.id = g.dossier_id WHERE dg.client_id = c.id AND g.granted_to = ? AND ' + ORG_GRANT_ACTIVE + '))"),
+    'clause grant presente dans le scope comptable',
+  );
+  // bind : organization_id, user.id (assigned), user.id (dd.assigned), user.id (granted_to)
+  assert.ok(SRC.includes('.bind(user.organization_id, user.id, user.id, user.id).all()'), 'bind a 4 parametres');
+});
+
+test('GET /org/clients : carte cliquable — dossier selectionne doit etre ouvrable', () => {
+  const idx = SRC.indexOf("path === '/api/org/clients' && method === 'GET'");
+  const block = SRC.slice(idx, idx + 7000);
+  // batch des grants actifs sur les dossiers selectionnes
+  assert.ok(block.includes('SELECT g.dossier_id FROM org_dossier_grants g WHERE g.granted_to = ? AND ${ORG_GRANT_ACTIVE} AND g.dossier_id IN'), 'batch grants');
+  // filtre kept : responsable du client passe toujours ; sinon grant ou dossier assigne
+  assert.ok(block.includes('if (!d || isSupervisor(user.role) || c.assigned_comptable_id === user.id) return true;'), 'garde responsable');
+  assert.ok(block.includes('const comp = d.assigned_comptable_id ?? c.assigned_comptable_id;'), 'dossierComp');
+  assert.ok(block.includes('return comp === user.id || openable.has(d.id);'), 'openable');
+});
 test('grants/mine expose d.exercice (filtre de la carte renfort par exercice)', () => {
   const idx = SRC.indexOf("path === '/api/org/grants/mine' && method === 'GET'");
   assert.ok(idx > 0, 'endpoint grants/mine trouvé');

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const LS_KEY_DEFAULT = 'eurex_dash_exercice';
 
@@ -25,5 +25,17 @@ export default function useExercice(opts?: { defaultAll?: boolean; storageKey?: 
     setState(y);
     try { localStorage.setItem(key, String(y)); } catch { /* stockage indisponible */ }
   };
+  // Synchronisation multi-onglets : si un autre onglet change l'exercice, celui-ci
+  // suit (evite d'afficher des donnees d'une annee alors que le selecteur dit une
+  // autre — confusion lors de tests en plusieurs onglets).
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== key || e.newValue === null) return;
+      const n = Number(e.newValue);
+      if (Number.isInteger(n) && n >= 0 && n <= 2100) setState(n);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [key]);
   return [exercice, setExercice];
 }

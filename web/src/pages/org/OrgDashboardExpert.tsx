@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect, useMemo } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { orgApi, OrgComptable, OrgDossier, OrgClient, OrgVerifyTask, OrgGrantRow } from '../../lib/orgApi';
 import { t } from '../../lib/orgI18n';
@@ -237,7 +237,9 @@ export default function OrgDashboardExpert() {
   // résolues, et l'utilisateur perdait une page entière pour une requête.
   // On affiche donc ce qui a répondu, et on ne signale l'erreur que si rien
   // n'est venu.
+  const fetchSeqRef = useRef(0);
   const fetchDashboard = async () => {
+    const seq = ++fetchSeqRef.current;
     const results = await Promise.allSettled([
       orgApi.getComptables().then(dashTeam),
       orgApi.getAllDossiers(exercice),
@@ -245,6 +247,7 @@ export default function OrgDashboardExpert() {
       orgApi.getExercices(),
       orgApi.getGrantsAll(),
     ]);
+    if (seq !== fetchSeqRef.current) return;
     const [rc, rd, rcl, rex, rg] = results;
     if (rc.status === 'fulfilled') setComptables(rc.value);
     if (rd.status === 'fulfilled') setAllDossiers(rd.value);
