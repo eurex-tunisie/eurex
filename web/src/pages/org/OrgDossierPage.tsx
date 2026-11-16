@@ -32,6 +32,7 @@ const AUDIT_LABELS: Record<string, string> = {
   task_verified: 'Tâche vérifiée',
   task_unvalidated: 'Validation annulée',
   task_returned: 'Renvoyée en correction',
+  task_returned_self: 'Reprise par le comptable',
   task_renamed: 'Tâche renommée',
   task_assigned: 'Tâche assignée',
   task_due_changed: 'Échéance modifiée',
@@ -361,6 +362,36 @@ export default function OrgDossierPage() {
       load();
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  // Le comptable "proprietaire" d'une tache : assignee a lui ou qu'il a lui-meme rendu
+  const isTaskOwner = (task: OrgTask) =>
+    !!state.user && (task.assigned_comptable_id === state.user.id || task.done_by === state.user.id);
+
+  // Retour en correction par le comptable : a_verifier -> en_cours (motif requis)
+  const [returnTaskTarget, setReturnTaskTarget] = useState<OrgTask | null>(null);
+  const [returnReason, setReturnReason] = useState('');
+  const [returnBusy, setReturnBusy] = useState(false);
+
+  const openReturnModal = (task: OrgTask) => {
+    setReturnTaskTarget(task);
+    setReturnReason('');
+  };
+
+  const submitReturn = async () => {
+    if (!dossier || !returnTaskTarget) return;
+    const reason = returnReason.trim();
+    if (reason.length < 3) { alert('Motif requis (3 caractères minimum)'); return; }
+    setReturnBusy(true);
+    try {
+      await orgApi.returnTask(dossier.id, returnTaskTarget.id, reason);
+      setReturnTaskTarget(null);
+      load();
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors du retour en correction');
+    } finally {
+      setReturnBusy(false);
     }
   };
 
@@ -1301,7 +1332,9 @@ export default function OrgDossierPage() {
                             {task.status === 'a_verifier' && (
                               <>
                                 <button onClick={() => { if (isExpert) openVerifyModal(task); else updateTaskStatus(task.id, 'fait'); }} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100">✓ Valider</button>
-                                <button onClick={() => updateTaskStatus(task.id, 'en_cours')} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100">↩</button>
+                                {(isExpert || isTaskOwner(task)) && (
+                                  <button onClick={() => openReturnModal(task)} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-600 hover:bg-amber-100" title="Renvoyer en correction" data-testid="task-return-btn">↩</button>
+                                )}
                               </>
                             )}
                             {task.status === 'fait' && (
@@ -1900,6 +1933,11 @@ export default function OrgDossierPage() {
                           ⏳ {t('status.a_verifier_pending')}
                         </span>
                       )}
+                      {task.status === 'a_verifier' && !isExpert && isTaskOwner(task) && (
+                        <button onClick={() => openReturnModal(task)} className="px-3 py-1.5 rounded-lg text-xs bg-amber-100 text-amber-800 hover:bg-amber-200 font-semibold" data-testid="task-return-btn-detail">
+                          ↩ Reprendre
+                        </button>
+                      )}
                       {task.status !== 'bloque_client' && task.status !== 'fait' && (
                         <button
                           onClick={() => {
@@ -2401,6 +2439,46 @@ export default function OrgDossierPage() {
                 data-testid="task-verify-submit"
               >
                 {verifyBusy ? 'Validation…' : 'Valider'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Retour en correction (expert OU comptable proprietaire) : motif obligatoire */}
+      {returnTaskTarget && (
+        <div className="modal-overlay" data-testid="task-return-modal">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-md">
+            <h3 className="font-bold text-gray-800 mb-1">↩ Reprendre en correction</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              « {returnTaskTarget.label} »
+              <br />
+              La tâche repasse en <strong>En cours</strong>. Indiquez ce qui doit être corrigé.
+            </p>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Motif <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">(3 caractères minimum)</span>
+            </label>
+            <textarea
+              value={returnReason}
+              onChange={e => setReturnReason(e.target.value)}
+              rows={3}
+              autoFocus
+              maxLength={1000}
+              placeholder="Ce qui doit être corrigé…"
+              className="input-field w-full p-2.5 text-sm resize-none"
+              data-testid="task-return-reason"
+            />
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setReturnTaskTarget(null)} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">
+                Annuler
+              </button>
+              <button
+                onClick={submitReturn}
+                disabled={returnBusy}
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                data-testid="task-return-submit"
+              >
+                {returnBusy ? 'Envoi…' : 'Renvoyer'}
               </button>
             </div>
           </div>

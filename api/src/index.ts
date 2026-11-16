@@ -3179,6 +3179,13 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         return !!g;
       }
 
+      // "Tague" (collaborateur) sur cette tache ? Son temps ne rejoint PAS le total
+      // norme de la tache (Option A) — il reste dans ses propres pointages.
+      async function isTaskCollab(taskId: string, userId: string): Promise<boolean> {
+        const r = await env.DB.prepare('SELECT 1 AS x FROM org_task_collaborators WHERE task_id = ? AND user_id = ?').bind(taskId, userId).first();
+        return !!r;
+      }
+
       // Un comptable (cible d'assignation) a-t-il acces au dossier ? (assigne OU renfort actif)
       async function orgCompCanAccessDossier(compId: string, dossierId: string): Promise<boolean> {
         const d = await env.DB.prepare(`SELECT ${dossierComp()} as comptable_id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ?`).bind(dossierId).first() as any;
@@ -3818,7 +3825,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         for (const chunk of chunkIds(rows.map(r => r.task_id))) {
           if (!chunk.length) continue;
           const { results: ents } = await env.DB.prepare(
-            `SELECT te.task_id, te.started_at, te.duration_seconds FROM org_time_entries te WHERE te.task_id IN (${chunk.map(() => '?').join(',')}) ORDER BY te.task_id, te.started_at`,
+            `SELECT te.task_id, te.started_at, te.duration_seconds FROM org_time_entries te WHERE te.task_id IN (${chunk.map(() => '?').join(',')}) AND NOT EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = te.task_id AND tc.user_id = te.user_id) ORDER BY te.task_id, te.started_at`,
           ).bind(...chunk).all();
           const cum = new Map<string, number>();
           for (const e of ents as any[]) {
@@ -4053,7 +4060,12 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             for (const rt of runnings as any[]) {
               const elapsed = Math.floor((Date.now() - new Date(rt.started_at + 'Z').getTime()) / 1000);
               await env.DB.prepare("UPDATE org_time_entries SET stopped_at = datetime('now'), duration_seconds = ? WHERE id = ?").bind(elapsed, rt.id).run();
-              await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = COALESCE(total_time_seconds, 0) + ? WHERE id = ?").bind(elapsed, rt.task_id).run();
+              // Tague en train d'etre retire : son chrono ne rejoint pas le total norme
+              // (le row collab du taskId vient d'etre supprime ; tague ailleurs = meme regle)
+              const taggedTime = rt.task_id === taskId || await isTaskCollab(rt.task_id, targetId);
+              if (!taggedTime) {
+                await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = COALESCE(total_time_seconds, 0) + ? WHERE id = ?").bind(elapsed, rt.task_id).run();
+              }
               const still = await env.DB.prepare('SELECT 1 AS x FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL').bind(rt.task_id).first();
               if (!still) {
                 await env.DB.prepare("UPDATE org_tasks SET timer_started_at = NULL, timer_user_id = NULL WHERE id = ?").bind(rt.task_id).run();
@@ -4272,7 +4284,10 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         for (const at of activeTimers as any[]) {
           const elapsed = Math.floor((Date.now() - new Date(at.started_at + 'Z').getTime()) / 1000);
           await env.DB.prepare("UPDATE org_time_entries SET stopped_at = datetime('now'), duration_seconds = ? WHERE id = ?").bind(elapsed, at.id).run();
-          await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = COALESCE(total_time_seconds, 0) + ? WHERE id = ?").bind(elapsed, at.task_id).run();
+          // Tague sur cette tache ? Son chrono ne rejoint pas le total norme
+          if (!await isTaskCollab(at.task_id, user.id)) {
+            await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = COALESCE(total_time_seconds, 0) + ? WHERE id = ?").bind(elapsed, at.task_id).run();
+          }
           // Le timer de la tache ne se vide que si plus aucun chrono actif dessus
           const still = await env.DB.prepare('SELECT 1 AS x FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL').bind(at.task_id).first();
           if (!still) await env.DB.prepare("UPDATE org_tasks SET timer_started_at = NULL, timer_user_id = NULL WHERE id = ?").bind(at.task_id).run();
@@ -4303,8 +4318,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const elapsed = Math.floor((Date.now() - new Date(entry.started_at + 'Z').getTime()) / 1000);
         // Stop entry
         await env.DB.prepare("UPDATE org_time_entries SET stopped_at = datetime('now'), duration_seconds = ? WHERE id = ?").bind(elapsed, entry.id).run();
-        // Update task total
-        const newTotal = (task.total_time_seconds || 0) + elapsed;
+        // Update task total — le temps d'un tague ne rejoint pas le total norme
+        const collabStop = await isTaskCollab(taskId, user.id);
+        const newTotal = (task.total_time_seconds || 0) + (collabStop ? 0 : elapsed);
         // Un autre comptable chronometre encore ? le timer de la tache reste ouvert sur son chrono
         const remaining = await env.DB.prepare('SELECT user_id, started_at FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL ORDER BY started_at, id LIMIT 1').bind(taskId).first() as any;
         if (remaining) {
@@ -4336,7 +4352,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!Number.isFinite(secs) || secs <= 0) return json({ error: 'Durée invalide' }, 400);
         if (secs > 86400) return json({ error: 'Durée maximale : 24 h par saisie' }, 400);
         const noteTxt = note ? String(note).trim().slice(0, 500) : null;
-        const newTotal = (task.total_time_seconds || 0) + secs;
+        // Saisie d'un tague : comptee dans SES pointages mais pas dans le total norme
+        const collabManual = await isTaskCollab(taskId, user.id);
+        const newTotal = (task.total_time_seconds || 0) + (collabManual ? 0 : secs);
         await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?").bind(newTotal, user.id, taskId).run();
         // Entrée de temps cohérente : time_by_user / time_by_dossier comptent aussi la saisie manuelle
         const entryId = genId();
@@ -4504,26 +4522,35 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         return json({ ok: true, progress });
       }
 
-      // --- ORG: RETOUR EN CORRECTION (expert/manager renvoie une tache a_verifier motivé) ---
+      // --- ORG: RETOUR EN CORRECTION (expert/manager sur n'importe quelle tache,
+      // OU le comptable PROPRIETAIRE : assigne a lui, ou qu'il a lui-meme rendu) ---
       const orgTaskReturnMatch = path.match(/^\/api\/org\/dossiers\/([^/]+)\/tasks\/([^/]+)\/return$/);
       if (orgTaskReturnMatch && method === 'POST') {
         const user = await verifyOrgToken(request);
         if (!user) return json({ error: 'Non autorisé' }, 401);
-        if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
         if (!await orgCanAccessDossier(user, orgTaskReturnMatch[1])) return json({ error: 'Accès refusé' }, 403);
         const task = await env.DB.prepare('SELECT * FROM org_tasks WHERE id = ? AND dossier_id = ?').bind(orgTaskReturnMatch[2], orgTaskReturnMatch[1]).first() as any;
         if (!task) return json({ error: 'Tâche non trouvée' }, 404);
+        const isSup = isSupervisor(user.role);
+        const isOwner = task.assigned_comptable_id === user.id || task.done_by === user.id;
+        if (!isSup && !isOwner) return json({ error: 'Réservé au rôle expert/manager ou au comptable assigné' }, 403);
         if (task.status !== 'a_verifier') return json({ error: 'Seule une tâche en vérification peut être renvoyée en correction' }, 400);
         const { reason } = await request.json() as any;
         const reasonTxt = String(reason || '').trim();
         if (reasonTxt.length < 3) return json({ error: 'Motif requis (3 caractères minimum)' }, 400);
         await env.DB.prepare("UPDATE org_tasks SET status = 'en_cours', verify_due_at = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?").bind(user.id, task.id).run();
         const progress = await orgRecalcProgress(env.DB, orgTaskReturnMatch[1]);
-        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'task_returned\', \'task\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, task.id, JSON.stringify({ label: task.label, dossier_id: orgTaskReturnMatch[1], from: 'a_verifier', to: 'en_cours', reason: reasonTxt })).run();
-        // Notification au comptable qui a travaille la tache (ou a qui elle est assignee)
-        const targetId = task.done_by || task.assigned_comptable_id;
-        if (targetId) {
-          await env.DB.prepare('INSERT INTO org_notifications (id, user_id, dossier_id, message) VALUES (?, ?, ?, ?)').bind(genId(), targetId, orgTaskReturnMatch[1], `Tâche « ${task.label} » renvoyée en correction : ${reasonTxt}`).run();
+        // Action distinguee : le KPI qualite ne compte que task_returned (renvoi par
+        // un superviseur) - un comptable qui reprend SA tache ne se penalise pas.
+        const action = isSup ? 'task_returned' : 'task_returned_self';
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, \'task\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, action, task.id, JSON.stringify({ label: task.label, dossier_id: orgTaskReturnMatch[1], from: 'a_verifier', to: 'en_cours', reason: reasonTxt, by: isSup ? 'expert' : 'comptable' })).run();
+        // Notification au comptable qui a travaille la tache : seulement quand c'est
+        // un superviseur qui renvoie (l'auto-retour, le comptable le sait deja).
+        if (isSup) {
+          const targetId = task.done_by || task.assigned_comptable_id;
+          if (targetId) {
+            await env.DB.prepare('INSERT INTO org_notifications (id, user_id, dossier_id, message) VALUES (?, ?, ?, ?)').bind(genId(), targetId, orgTaskReturnMatch[1], `Tâche « ${task.label} » renvoyée en correction : ${reasonTxt}`).run();
+          }
         }
         return json({ ok: true, progress });
       }
