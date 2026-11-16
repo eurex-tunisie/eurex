@@ -4792,13 +4792,23 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
       const orgDupMatch = path.match(/^\/api\/org\/dossiers\/([^/]+)\/duplicate$/);
       if (orgDupMatch && method === 'POST') {
         const user = await verifyOrgToken(request);
-        if (!user || !isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert' }, 403);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
         const src = await env.DB.prepare('SELECT d.*, c.assigned_comptable_id, c.name as client_name, c.organization_id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ? AND c.organization_id = ?').bind(orgDupMatch[1], user.organization_id).first() as any;
         if (!src) return json({ error: 'Dossier source introuvable' }, 404);
+        // Expert/manager : tout dossier de l'org. Comptable : SES dossiers
+        // (assigne OU renfort) — cf. garde juste apres le body.
+        const dupSup = isSupervisor(user.role);
+        if (!dupSup && !await orgCanAccessDossier(user, orgDupMatch[1])) return json({ error: 'Accès refusé' }, 403);
         const body = (await request.json().catch(() => ({}))) as any;
         const targetClient = body?.client_id ? String(body.client_id) : src.client_id;
         const targetYear = body?.exercice ? Number(body.exercice) : src.exercice;
         if (!Number.isInteger(targetYear) || targetYear < 2000 || targetYear > 2100) return json({ error: 'Exercice invalide' }, 400);
+        // Comptable : retour arriere uniquement (exercice passe) et sans
+        // changement de client (le transfert reste reserve a l'expert).
+        if (!dupSup) {
+          if (!isAncientExercice(targetYear)) return json({ error: 'Le comptable ne peut dupliquer que vers un exercice passé' }, 403);
+          if (targetClient !== src.client_id) return json({ error: 'Le comptable ne peut pas changer de client' }, 403);
+        }
         if (targetClient !== src.client_id) {
           const cl = await env.DB.prepare('SELECT id FROM org_clients WHERE id = ? AND organization_id = ? AND deleted_at IS NULL').bind(targetClient, user.organization_id).first();
           if (!cl) return json({ error: 'Client cible introuvable' }, 404);

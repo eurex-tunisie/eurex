@@ -1083,17 +1083,18 @@ export default function OrgDossierPage() {
           </a>
         )}
 
+        {/* Duplication de la checklist vers un autre exercice : expert partout,
+            comptable vers un exercice passe (retour arriere sur ses dossiers) */}
+        <button
+          onClick={() => { setDupYear(isExpert ? dossier.exercice + 1 : dossier.exercice - 1); setShowDup(true); }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+          title={isExpert ? 'Copier la checklist vers un autre exercice' : 'Dupliquer vers un exercice passé'}
+          data-testid="btn-duplicate-dossier"
+        >
+          📋 Dupliquer
+        </button>
         {isExpert && (
           <>
-            {/* Duplication de la checklist vers un autre exercice */}
-            <button
-              onClick={() => { setDupYear(dossier.exercice + 1); setShowDup(true); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
-              title="Copier la checklist vers un autre exercice"
-              data-testid="btn-duplicate-dossier"
-            >
-              📋 Dupliquer
-            </button>
             {/* Transfert du client vers un autre comptable */}
             <button
               onClick={() => { setTransferComp(''); setShowTransfer(true); }}
@@ -2660,13 +2661,18 @@ export default function OrgDossierPage() {
               className="input-field w-full p-2.5 text-sm"
               data-testid="dup-year"
             />
+            {!isExpert && (
+              <p className="text-[10px] text-amber-600 font-medium mt-1" data-testid="dup-hint-past">
+                Comptable : vers un exercice passé uniquement (ex. {dossier.exercice - 1}).
+              </p>
+            )}
             <div className="flex gap-2 justify-end mt-4">
               <button onClick={() => setShowDup(false)} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600">
                 Annuler
               </button>
               <button
                 onClick={runDuplicate}
-                disabled={dupBusy || dupYear === dossier.exercice}
+                disabled={dupBusy || dupYear === dossier.exercice || (!isExpert && dupYear >= new Date().getFullYear())}
                 className="px-4 py-2 rounded-lg text-sm font-medium btn btn-accent hover:bg-purple-700 disabled:opacity-50"
                 data-testid="dup-submit"
               >
