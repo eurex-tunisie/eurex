@@ -306,7 +306,8 @@ CREATE TABLE IF NOT EXISTS org_users (
   created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
   role_label TEXT,
   last_seen_at TEXT,
-  hourly_cost_cents BIGINT
+  hourly_cost_cents BIGINT,
+  hours_norm_seconds BIGINT DEFAULT 30600
 );
 
 CREATE TABLE IF NOT EXISTS org_clients (

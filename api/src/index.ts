@@ -92,7 +92,8 @@ async function buildHoursPayload(env: Env, userId: string, view: string, exercic
   const runningDossier = await env.DB.prepare('SELECT started_at FROM org_time_entries WHERE user_id = ? AND stopped_at IS NULL').bind(userId).first() as any;
   const runningInternal = await env.DB.prepare('SELECT started_at FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NULL').bind(userId).first() as any;
   const running = runningDossier || runningInternal;
-  const me = await env.DB.prepare('SELECT last_seen_at FROM org_users WHERE id = ?').bind(userId).first() as any;
+  const me = await env.DB.prepare('SELECT last_seen_at, hours_norm_seconds FROM org_users WHERE id = ?').bind(userId).first() as any;
+  const userNorm = Number(me?.hours_norm_seconds) > 0 ? Number(me.hours_norm_seconds) : 30600;
   const parseUtc = (s: any) => s ? Math.floor(Date.parse(String(s).replace(' ', 'T') + 'Z') / 1000) : 0;
   const runningSec = running ? Math.max(0, Math.floor(nowMs / 1000) - parseUtc(running.started_at)) : 0;
   const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -106,7 +107,7 @@ async function buildHoursPayload(env: Env, userId: string, view: string, exercic
   const mkDay = (ds: string, y: number, m: number, d: number, isToday: boolean) => {
     const dow = new Date(Date.UTC(y, m, d)).getUTCDay();
     const rest = dow === 0 || dow === 6;
-    const norm = rest ? 0 : 30600;
+    const norm = rest ? 0 : userNorm;
     let worked = byDay.get(ds) || 0;
     if (isToday && !isPastExercice) worked += runningSec;
     const missing = norm > 0 ? Math.max(0, norm - worked) : 0;
@@ -5582,9 +5583,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const runByUser = new Map((running as any[]).map(r => [r.user_id, r]));
         const nowS = Math.floor(Date.now() / 1000);
         const parseUtc = (s: any) => s ? Math.floor(Date.parse(String(s).replace(' ', 'T') + 'Z') / 1000) : 0;
-        // Norme 8h30 uniquement lun-ven (heure locale TN = UTC+1) ; sam/dim = repos
+        // Norme par utilisateur (defaut 8h30 = 30600s) — Abla manager = 8h
+        const { results: normRows } = await env.DB.prepare('SELECT id, hours_norm_seconds FROM org_users WHERE organization_id = ?').bind(user.organization_id).all();
+        const normByUser = new Map((normRows as any[]).map(r => [r.id, Number(r.hours_norm_seconds) > 0 ? Number(r.hours_norm_seconds) : 30600]));
         const dowTn = new Date(Date.now() + 3600000).getUTCDay();
-        const normSec = (dowTn !== 0 && dowTn !== 6) ? 30600 : 0;
+        const normSecFor = (uid: string) => (dowTn !== 0 && dowTn !== 6) ? (normByUser.get(uid) || 30600) : 0;
         // 2 requetes groupees au lieu de 2 par comptable (19 requetes pour 8
         // comptables) : le plafond CPU du Worker gratuit se partage entre les
         // requetes concurrentes d'un isolat, d'ou des 503 "error code: 1102".
@@ -5647,7 +5650,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             verify_stats: { verified: qual.verified, returned: qual.returned, score: qualTotal > 0 ? Math.round((qual.verified / qualTotal) * 100) : null },
             online: parseUtc(c.last_seen_at) >= nowS - 180,
             worked_today_seconds: (Number(dayByUser.get(c.id)) || 0) + Math.max(0, runStart ? nowS - runStart : 0),
-            norm_seconds: normSec };
+            norm_seconds: normSecFor(c.id) };
         });
         return json(enriched);
       }
