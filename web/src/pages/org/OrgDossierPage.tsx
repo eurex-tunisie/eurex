@@ -333,6 +333,11 @@ export default function OrgDossierPage() {
   const [lateTaskTarget, setLateTaskTarget] = useState<OrgTask | null>(null);
   const [lateTaskReason, setLateTaskReason] = useState('');
   const [lateTaskBusy, setLateTaskBusy] = useState(false);
+  // Edition/suppression d'un pointage (temps pointé)
+  const [editTimeEntry, setEditTimeEntry] = useState<any | null>(null);
+  const [editTimeMins, setEditTimeMins] = useState('');
+  const [editTimeNote, setEditTimeNote] = useState('');
+  const [editTimeBusy, setEditTimeBusy] = useState(false);
 
   const submitVerify = async () => {
     if (!dossier || !verifyTaskTarget) return;
@@ -451,6 +456,32 @@ export default function OrgDossierPage() {
     } finally {
       setLateTaskBusy(false);
     }
+  };
+
+  const openEditTime = (entry: any) => {
+    setEditTimeEntry(entry);
+    setEditTimeMins(String(Math.round((Number(entry.duration_seconds) || 0) / 60)));
+    setEditTimeNote(entry.note || '');
+  };
+  const submitEditTime = async () => {
+    if (!dossier || !editTimeEntry) return;
+    const mins = Number(editTimeMins);
+    if (!Number.isFinite(mins) || mins < 0) { alert('Durée invalide'); return; }
+    setEditTimeBusy(true);
+    try {
+      await orgApi.updateTimeEntry(dossier.id, editTimeEntry.id, { duration_seconds: Math.round(mins * 60), note: editTimeNote.trim() || null });
+      setEditTimeEntry(null);
+      load();
+    } catch (err: any) { alert(err.message); }
+    finally { setEditTimeBusy(false); }
+  };
+  const deleteTimeEntry = async (entry: any) => {
+    if (!dossier) return;
+    if (!confirm(`Supprimer ce pointage (${formatTime(Number(entry.duration_seconds) || 0)}) ? Le total de la tâche sera recalculé.`)) return;
+    try {
+      await orgApi.deleteTimeEntry(dossier.id, entry.id);
+      load();
+    } catch (err: any) { alert(err.message); }
   };
 
   // Delai de validation : compte a rebours (verify_due_at stocke en UTC)
@@ -1176,7 +1207,7 @@ export default function OrgDossierPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-xs font-semibold uppercase table-header">
-                    <th className="px-3 py-2">Tâche</th><th className="px-3 py-2">Partie</th><th className="px-3 py-2">Intervenant</th><th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Temps pointé</th><th className="px-3 py-2">Note</th>
+                    <th className="px-3 py-2">Tâche</th><th className="px-3 py-2">Partie</th><th className="px-3 py-2">Intervenant</th><th className="px-3 py-2">Date</th><th className="px-3 py-2 text-right">Temps pointé</th><th className="px-3 py-2">Note</th><th className="px-3 py-2 text-right">Actions</th>
                   </tr></thead>
                   <tbody className="divide-y divide-gray-100">
                     {(dossier.time_entries || []).map((entry: any) => (
@@ -1191,6 +1222,14 @@ export default function OrgDossierPage() {
                         <td className="px-3 py-2 text-xs text-gray-500">{new Date(String(entry.started_at).replace(' ', 'T') + 'Z').toLocaleString('fr-FR')}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatTime(Number(entry.duration_seconds) || 0)}</td>
                         <td className="px-3 py-2 text-xs text-gray-500">{entry.note || '-'}</td>
+                      <td className="px-3 py-2 text-right">
+                        {(entry.user_id === state.user?.id || isExpert) && (
+                          <div className="flex gap-1 justify-end">
+                            <button onClick={() => openEditTime(entry)} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100" title="Modifier">✎</button>
+                            <button onClick={() => deleteTimeEntry(entry)} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-600 hover:bg-red-100" title="Supprimer">🗑</button>
+                          </div>
+                        )}
+                      </td>
                       </tr>
                     ))}
                   </tbody>
@@ -2524,6 +2563,26 @@ export default function OrgDossierPage() {
                 data-testid="task-late-submit"
               >
                 {lateTaskBusy ? 'Envoi…' : 'Terminer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edition d'un pointage (temps pointé) */}
+      {editTimeEntry && (
+        <div className="modal-overlay" data-testid="time-entry-edit-modal">
+          <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-md">
+            <h3 className="font-bold text-gray-800 mb-1">Modifier le pointage</h3>
+            <p className="text-xs text-gray-500 mb-3">{editTimeEntry.task_label || 'Tâche'} — {editTimeEntry.user_name}</p>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Durée (minutes)</label>
+            <input type="number" min={0} value={editTimeMins} onChange={e => setEditTimeMins(e.target.value)} className="input-field w-full p-2.5 text-sm mb-3" data-testid="time-entry-mins" />
+            <label className="block text-xs font-medium text-gray-600 mb-1">Note</label>
+            <textarea value={editTimeNote} onChange={e => setEditTimeNote(e.target.value)} rows={2} maxLength={500} className="input-field w-full p-2.5 text-sm" data-testid="time-entry-note" />
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setEditTimeEntry(null)} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">Annuler</button>
+              <button onClick={submitEditTime} disabled={editTimeBusy} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50" data-testid="time-entry-submit">
+                {editTimeBusy ? 'Envoi…' : 'Enregistrer'}
               </button>
             </div>
           </div>

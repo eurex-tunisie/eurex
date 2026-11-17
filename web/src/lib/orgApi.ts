@@ -568,6 +568,10 @@ export const orgApi = {
     req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ label }) }),
   deleteTask: (dossierId: string, taskId: string) =>
     req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}`, { method: 'DELETE' }),
+  deleteTimeEntry: (dossierId: string, entryId: string) =>
+    req<any>(`/org/dossiers/${dossierId}/time-entries/${entryId}`, { method: 'DELETE' }),
+  updateTimeEntry: (dossierId: string, entryId: string, patch: { duration_seconds?: number; note?: string | null }) =>
+    req<any>(`/org/dossiers/${dossierId}/time-entries/${entryId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   addTask: (dossierId: string, label: string, assignedComptableId?: string | null, month?: number | null) =>
     req<any>(`/org/dossiers/${dossierId}/tasks`, { method: 'POST', body: JSON.stringify({ label, assigned_comptable_id: assignedComptableId || null, month: month ?? null }) }),
   setTaskDue: (dossierId: string, taskId: string, dueDate: string | null) =>

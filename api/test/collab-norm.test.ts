@@ -66,7 +66,7 @@ test('site 4 : saisie manuelle — newTotal neutre si tague, pointage conserve',
 test('aucun autre site d\'ecriture du total sans garde', () => {
   // toutes les ecritures SQL du total sont dans les 4 zones ci-dessus
   const matches = SRC.match(/UPDATE org_tasks SET total_time_seconds[^\n]*/g) || [];
-  assert.equal(matches.length, 6, 'exactement 6 UPDATE (sites 1, 2, 3 x2 branches, 4, + arret chrono interne)');
+  assert.equal(matches.length, 9, 'exactement 9 UPDATE (6 sites originaux + 3 nouveaux : suppression + modification +/- d un pointage)');
   // les 3 sites incrementaux (+?) sont enveloppes d'une garde collab
   const guards = SRC.match(/isTaskCollab\(/g) || [];
   assert.ok(guards.length >= 6, 'helper appele au moins 5 fois + declaration');

@@ -4809,6 +4809,47 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         return json({ ok: true, progress });
       }
 
+      // --- ORG: EDIT / DELETE TIME ENTRY (pointage) ---
+      const orgTimeEntryMatch = path.match(/^\/api\/org\/dossiers\/([^/]+)\/time-entries\/([^/]+)$/);
+      if (orgTimeEntryMatch && (method === 'PATCH' || method === 'DELETE')) {
+        const dossierId = orgTimeEntryMatch[1];
+        const entryId = orgTimeEntryMatch[2];
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!await orgCanAccessDossier(user, dossierId)) return json({ error: 'Accès refusé' }, 403);
+        const entry = await env.DB.prepare('SELECT * FROM org_time_entries WHERE id = ? AND dossier_id = ?').bind(entryId, dossierId).first() as any;
+        if (!entry) return json({ error: 'Pointage non trouvé' }, 404);
+        if (entry.user_id !== user.id && !isSupervisor(user.role)) return json({ error: 'Réservé à l\'auteur du pointage ou à un superviseur' }, 403);
+        if (!entry.stopped_at) return json({ error: 'Arrêtez le chrono avant de modifier ce pointage' }, 400);
+        const collab = await env.DB.prepare('SELECT 1 AS x FROM org_task_collaborators WHERE task_id = ? AND user_id = ?').bind(entry.task_id, entry.user_id).first() as any;
+        const isCollab = !!collab;
+
+        if (method === 'DELETE') {
+          await env.DB.prepare('DELETE FROM org_time_entries WHERE id = ?').bind(entryId).run();
+          if (!isCollab) {
+            await env.DB.prepare('UPDATE org_tasks SET total_time_seconds = CASE WHEN total_time_seconds > ? THEN total_time_seconds - ? ELSE 0 END WHERE id = ?').bind(entry.duration_seconds || 0, entry.duration_seconds || 0, entry.task_id).run();
+          }
+          await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'time_entry_deleted\', \'time_entry\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, entryId, JSON.stringify({ dossier_id: dossierId, task_id: entry.task_id, duration_seconds: entry.duration_seconds })).run();
+          return json({ ok: true });
+        }
+
+        const body = await request.json().catch(() => ({})) as any;
+        const newDuration = body.duration_seconds !== undefined ? Math.max(0, Math.floor(Number(body.duration_seconds) || 0)) : (entry.duration_seconds || 0);
+        const newNote = body.note !== undefined ? (body.note === null ? null : String(body.note).trim().slice(0, 500) || null) : entry.note;
+        const oldDuration = entry.duration_seconds || 0;
+        const delta = newDuration - oldDuration;
+        await env.DB.prepare('UPDATE org_time_entries SET duration_seconds = ?, note = ? WHERE id = ?').bind(newDuration, newNote, entryId).run();
+        if (!isCollab && delta !== 0) {
+          if (delta > 0) {
+            await env.DB.prepare('UPDATE org_tasks SET total_time_seconds = total_time_seconds + ? WHERE id = ?').bind(delta, entry.task_id).run();
+          } else {
+            await env.DB.prepare('UPDATE org_tasks SET total_time_seconds = CASE WHEN total_time_seconds > ? THEN total_time_seconds - ? ELSE 0 END WHERE id = ?').bind(-delta, -delta, entry.task_id).run();
+          }
+        }
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, \'time_entry_updated\', \'time_entry\', ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, entryId, JSON.stringify({ dossier_id: dossierId, task_id: entry.task_id, old_duration: oldDuration, new_duration: newDuration })).run();
+        return json({ ok: true, duration_seconds: newDuration });
+      }
+
       // --- ORG: ADD TASK ---
       if (path.match(/^\/api\/org\/dossiers\/([^/]+)\/tasks$/) && method === 'POST') {
         const dossierId = path.match(/^\/api\/org\/dossiers\/([^/]+)\/tasks$/)![1];
