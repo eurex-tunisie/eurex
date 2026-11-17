@@ -19,6 +19,27 @@ describe('carte Collaboration (tags recus)', () => {
   });
 });
 
+describe('carte Collaboration : pointage sans ouvrir le dossier', () => {
+  test('boutons chrono + saisie rapide duree', () => {
+    expect(card).toContain('data-testid="tag-collab-timer-start"');
+    expect(card).toContain('data-testid="tag-collab-timer-stop"');
+    expect(card).toContain('data-testid="tag-collab-add-time"');
+    expect(card).toContain('data-testid="tag-collab-time-input"');
+    expect(card).toContain('data-testid="tag-collab-my-time"');
+  });
+
+  test('reutilise les endpoints existants (acces via le tag)', () => {
+    expect(card).toContain('orgApi.startTimer(tg.dossier_id, tg.task_id)');
+    expect(card).toContain('orgApi.stopTimer(tg.dossier_id, tg.task_id)');
+    expect(card).toContain('orgApi.addTaskTime(tg.dossier_id, tg.task_id, secs)');
+  });
+
+  test('saisie accepte minutes et heures', () => {
+    expect(card).toContain('/^(\\d+):([0-5]?\\d)$/');
+    expect(card).toContain('/^(\\d+)h(\\d{0,2})$/');
+  });
+});
+
 describe('toast nouveau tag', () => {
   test('poll 60 s, pas de toast au 1er chargement', () => {
     expect(toast).toContain('getRecentTags()');

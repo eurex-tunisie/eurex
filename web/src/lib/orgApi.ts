@@ -249,6 +249,9 @@ export interface OrgRecentTag {
   exercice: number;
   client_name: string;
   tagged_by_name: string | null;
+  // Pointage direct depuis la carte Collaboration
+  my_seconds?: number;
+  my_timer_started_at?: string | null;
 }
 
 // Taches transverses (page Mes taches) — filtres status/retard/assignation

@@ -28,6 +28,14 @@ test('tag comptable : /org/me/tasks renvoie is_tagged + tagged_by_name', () => {
   assert.ok(SRC.includes('tagged_by_name: tagByTask.get(t.id) ?? null'), 'tagged_by_name');
 });
 
+test('carte Collaboration : temps perso + chrono ouvert du comptable tague', () => {
+  const block = SRC.slice(SRC.indexOf("path === '/api/org/me/tags/recent'"), SRC.indexOf("path === '/api/org/me/tasks' && method === 'GET'"));
+  assert.ok(block.includes('my_seconds'), 'my_seconds renvoye par la carte');
+  assert.ok(block.includes('my_timer_started_at'), 'chrono ouvert renvoye par la carte');
+  assert.ok(block.includes('FROM org_time_entries WHERE user_id = ?'), 'uniquement le temps du comptable connecte');
+  assert.ok(block.includes("MAX(CASE WHEN stopped_at IS NULL THEN started_at END) AS running"), 'chrono ouvert = entree non arretee');
+});
+
 test('tag comptable : filtre mine=1 inclut les taches ou je suis tague', () => {
   assert.ok(SRC.includes('OR EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = t.id AND tc.user_id = ?)'), 'mine inclut collaboration');
 });

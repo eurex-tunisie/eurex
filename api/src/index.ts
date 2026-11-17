@@ -4243,7 +4243,23 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
            WHERE tc.user_id = ? AND t.hidden = 0 AND tc.created_at >= datetime('now', '-' || ? || ' days')
            ORDER BY tc.created_at DESC LIMIT ?`,
         ).bind(user.id, days, limit).all();
-        return json({ tags: results || [], days });
+        // Pointage direct depuis la carte Collaboration : mon temps deja saisi sur
+        // chaque tache + mon chrono ouvert (meme si le dossier n'est pas ouvert).
+        const rows = (results as any[]) || [];
+        const myTime = new Map<string, { secs: number; running: string | null }>();
+        for (const chunk of chunkIds(rows.map(r => r.task_id))) {
+          if (!chunk.length) continue;
+          const { results: timeRows } = await env.DB.prepare(
+            `SELECT task_id, SUM(CASE WHEN stopped_at IS NOT NULL THEN COALESCE(duration_seconds, 0) ELSE 0 END) AS secs, MAX(CASE WHEN stopped_at IS NULL THEN started_at END) AS running
+             FROM org_time_entries WHERE user_id = ? AND task_id IN (${chunk.map(() => '?').join(',')}) GROUP BY task_id`,
+          ).bind(user.id, ...chunk).all();
+          for (const tr of timeRows as any[]) myTime.set(tr.task_id, { secs: Number(tr.secs || 0), running: tr.running || null });
+        }
+        const tags = rows.map(r => {
+          const mt = myTime.get(r.task_id);
+          return { ...r, my_seconds: mt?.secs || 0, my_timer_started_at: mt?.running || null };
+        });
+        return json({ tags, days });
       }
 
       // --- ORG: MES TACHES TRANSVERSES (filtres status/retard/assignation/recherche) ---
