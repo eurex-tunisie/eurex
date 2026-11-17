@@ -3,6 +3,7 @@ import card from '../../../components/TagsCollaboration.tsx?raw';
 import toast from '../../../components/TagsRecus.tsx?raw';
 import comptable from '../OrgDashboardComptable.tsx?raw';
 import expert from '../OrgDashboardExpert.tsx?raw';
+import dossierPage from '../OrgDossierPage.tsx?raw';
 import orgApiSrc from '../../../lib/orgApi.ts?raw';
 
 describe('carte Collaboration (tags recus)', () => {
@@ -38,5 +39,17 @@ describe('dashboards', () => {
 describe('api client', () => {
   test('getRecentTags accepte un nombre de jours', () => {
     expect(orgApiSrc).toContain('getRecentTags: (days: number = 2) =>');
+  });
+});
+
+describe('Option 1 : tag sans renfort ni duree', () => {
+  test('plus de selecteur de duree dans la page dossier', () => {
+    expect(dossierPage).not.toContain('task-collab-days');
+    expect(dossierPage).toContain('addCollaborator(dossier.id, taskId, collabUser)');
+  });
+
+  test('addCollaborator ne transmet plus de duree', () => {
+    expect(orgApiSrc).toContain('addCollaborator: (dossierId: string, taskId: string, userId: string) =>');
+    expect(orgApiSrc).toContain("body: JSON.stringify({ user_id: userId })");
   });
 });

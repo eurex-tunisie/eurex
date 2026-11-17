@@ -455,8 +455,8 @@ export const orgApi = {
   // Collaboration : taguer un comptable sur une tache (acces auto au dossier)
   listCollabCandidates: (dossierId: string) =>
     req<OrgCollabCandidate[]>(`/org/dossiers/${dossierId}/collaborators/eligible`),
-  addCollaborator: (dossierId: string, taskId: string, userId: string, days: number) =>
-    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/collaborators`, { method: 'POST', body: JSON.stringify({ user_id: userId, days }) }),
+  addCollaborator: (dossierId: string, taskId: string, userId: string) =>
+    req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/collaborators`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
   removeCollaborator: (dossierId: string, taskId: string, userId: string) =>
     req<{ ok: boolean; grant_revoked: boolean }>(`/org/dossiers/${dossierId}/tasks/${taskId}/collaborators/${userId}`, { method: 'DELETE' }),
   // Mes heures : vues jours (7j) / mois / annee (realise vs norme 8h30) — exercice optionnel

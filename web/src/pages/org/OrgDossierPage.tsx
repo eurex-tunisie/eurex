@@ -197,18 +197,16 @@ export default function OrgDossierPage() {
     finally { setReportingBusy(false); }
   };
 
-  // Collaboration : taguer un autre comptable sur une tache (acces auto au dossier)
+  // Collaboration : taguer un autre comptable sur une tache (acces lecture + pointage tant que le tag existe)
   const [collabCands, setCollabCands] = useState<OrgCollabCandidate[]>([]);
   const [collabTaskId, setCollabTaskId] = useState<string | null>(null);
   const [collabUser, setCollabUser] = useState('');
-  const [collabDays, setCollabDays] = useState(7);
   const [collabBusy, setCollabBusy] = useState(false);
 
   const openCollab = async (taskId: string) => {
     if (collabTaskId === taskId) { setCollabTaskId(null); return; }
     setCollabTaskId(taskId);
     setCollabUser('');
-    setCollabDays(7);
     if (!collabCands.length) {
       try { setCollabCands(await orgApi.listCollabCandidates(id!)); } catch (err: any) { alert(err.message); setCollabTaskId(null); }
     }
@@ -217,7 +215,7 @@ export default function OrgDossierPage() {
     if (!dossier || !collabUser) return;
     setCollabBusy(true);
     try {
-      await orgApi.addCollaborator(dossier.id, taskId, collabUser, collabDays);
+      await orgApi.addCollaborator(dossier.id, taskId, collabUser);
       setCollabTaskId(null);
       load();
       try { setCollabCands(await orgApi.listCollabCandidates(dossier.id)); } catch {}
@@ -1742,19 +1740,6 @@ export default function OrgDossierPage() {
                               <option key={c.id} value={c.id}>{c.full_name}{c.has_access ? ' (accès)' : ''}</option>
                             ))}
                           </select>
-                          <select
-                            value={collabDays}
-                            onChange={e => setCollabDays(Number(e.target.value))}
-                            data-testid="task-collab-days"
-                            className="border border-indigo-200 rounded-lg px-2 py-1 text-xs bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                          >
-                            <option value={1}>1 jour</option>
-                            <option value={7}>7 jours</option>
-                            <option value={30}>30 jours</option>
-                            <option value={180}>6 mois</option>
-                            <option value={365}>1 an</option>
-                            <option value={0}>À vie</option>
-                          </select>
                           <button
                             onClick={() => submitCollab(task.id)}
                             disabled={!collabUser || collabBusy}
@@ -1770,7 +1755,7 @@ export default function OrgDossierPage() {
                             ✕
                           </button>
                           <span className="text-[10px] text-indigo-500 w-full">
-                            Le comptable reçoit un accès temporaire au dossier et chronomètre sa part des heures.
+                            Le comptable peut pointer son temps sur cette tâche tant que le tag existe (pas d'accès renfort).
                           </span>
                         </div>
                       )}

@@ -41,3 +41,19 @@ test('tag comptable : /org/me/tasks/recent renvoie aussi is_tagged', () => {
 test('tag comptable : GET dossier expose added_by_name sur les collaborateurs', () => {
   assert.ok(SRC.includes('cb.full_name AS added_by_name'), 'added_by_name dans la liste des collaborateurs');
 });
+
+test('tag comptable : aucun renfort/duree cree (Option 1)', () => {
+  const block = SRC.slice(SRC.indexOf('orgCollabAddMatch'), SRC.indexOf('orgCollabDelMatch'));
+  assert.ok(!block.includes('INSERT INTO org_dossier_grants'), 'pas de grant a la creation du tag');
+  assert.ok(block.includes('INSERT INTO org_task_collaborators'), 'le tag est bien insere');
+});
+
+test('tag comptable : acces dossier via collaboration (lecture + pointage)', () => {
+  assert.ok(SRC.includes('JOIN org_tasks t ON t.id = tc.task_id WHERE t.dossier_id = ? AND tc.user_id = ?'), 'collab dans orgCanAccessDossier');
+  assert.ok(SRC.includes('const stillAccess = (others as any[]).length > 0 || await orgCompCanAccessDossier(targetId, dossierId);'), 'arret des chronos si acces perdu');
+});
+
+test('tag comptable : taches taguees visibles dans Mes taches', () => {
+  const tasksBlock = SRC.slice(SRC.indexOf("path === '/api/org/me/tasks' && method === 'GET'"), SRC.indexOf("path === '/api/org/me/timers'"));
+  assert.ok(tasksBlock.includes('OR EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = t.id AND tc.user_id = ?)'), 'access inclut la collaboration');
+});

@@ -3192,7 +3192,10 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const d = await env.DB.prepare(`SELECT ${dossierComp()} as comptable_id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ? AND c.organization_id = ?`).bind(dossierId, user.organization_id).first() as any;
         if (d?.comptable_id === user.id) return true;
         const g = await env.DB.prepare(`SELECT 1 AS x FROM org_dossier_grants WHERE dossier_id = ? AND granted_to = ? AND ${ORG_GRANT_ACTIVE}`).bind(dossierId, user.id).first();
-        return !!g;
+        if (g) return true;
+        // Collaboration : tague sur au moins une tache du dossier -> acces tant que le tag existe
+        const tc = await env.DB.prepare('SELECT 1 AS x FROM org_task_collaborators tc JOIN org_tasks t ON t.id = tc.task_id WHERE t.dossier_id = ? AND tc.user_id = ?').bind(dossierId, user.id).first();
+        return !!tc;
       }
 
       // "Tague" (collaborateur) sur cette tache ? Son temps ne rejoint PAS le total
@@ -4057,35 +4060,20 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!task) return json({ error: 'Tâche non trouvée' }, 404);
         const body = await request.json() as any;
         const targetId = body?.user_id;
-        const grantDays = body?.days === undefined || body?.days === null ? 7 : Number(body.days);
         if (!targetId) return json({ error: 'Comptable requis' }, 400);
         if (targetId === user.id) return json({ error: 'Vous êtes déjà sur cette tâche' }, 400);
-        if (![1, 3, 7, 14, 30, 180, 365, 0].includes(grantDays)) return json({ error: 'Durée invalide (1, 3, 7, 14, 30, 180, 365 jours ou à vie)' }, 400);
         const target = await env.DB.prepare("SELECT id, full_name FROM org_users WHERE id = ? AND organization_id = ? AND role = 'comptable' AND is_active = 1").bind(targetId, user.organization_id).first() as any;
         if (!target) return json({ error: 'Comptable introuvable' }, 400);
         const dup = await env.DB.prepare('SELECT 1 AS x FROM org_task_collaborators WHERE task_id = ? AND user_id = ?').bind(taskId, targetId).first();
         if (dup) return json({ error: 'Déjà collaborateur sur cette tâche' }, 400);
-        // Acces au dossier : assigne OU renfort deja actif ? sinon ouverture auto du renfort
-        const { results: gr } = await env.DB.prepare(`SELECT id, expires_at FROM org_dossier_grants WHERE dossier_id = ? AND granted_to = ? AND ${ORG_GRANT_ACTIVE}`).bind(dossierId, targetId).all();
-        const alreadyGranted = (gr as any[]).length > 0;
-        const isAssigned = targetId === dossier.comptable_id;
-        let grantCreated = false;
-        let expiresAt: string | null = alreadyGranted ? (gr as any[])[0].expires_at || null : null;
-        if (!isAssigned && !alreadyGranted) {
-          const gid = genId();
-          const reason = `Collaboration : ${String(task.label).slice(0, 150)}`;
-          const collabExpiresSql = grantDays === 0 ? `'9999-12-31 23:59:59'` : `datetime('now', '+${grantDays} days')`;
-          await env.DB.prepare(`INSERT INTO org_dossier_grants (id, dossier_id, granted_to, granted_by, reason, days, expires_at) VALUES (?, ?, ?, ?, ?, ?, ${collabExpiresSql})`).bind(gid, dossierId, targetId, user.id, reason, grantDays).run();
-          expiresAt = ((await env.DB.prepare('SELECT expires_at FROM org_dossier_grants WHERE id = ?').bind(gid).first()) as any)?.expires_at || null;
-          grantCreated = true;
-          await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'grant_created', 'dossier', dossierId, JSON.stringify({ granted_to: targetId, granted_to_name: target.full_name, days: grantDays, reason, source: 'task_collab' })).run();
-        }
+        // Option 1 : le tag n'ouvre PAS de renfort/duree. Le comptable tague peut
+        // ouvrir le dossier et pointer son temps sur ses taches TANT QUE le tag existe.
         await env.DB.prepare('INSERT INTO org_task_collaborators (task_id, user_id, added_by) VALUES (?, ?, ?)').bind(taskId, targetId, user.id).run();
-        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'task_collab_added', 'task', taskId, JSON.stringify({ dossier_id: dossierId, user_id: targetId, user_name: target.full_name, grant_created: grantCreated, expires_at: expiresAt })).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'task_collab_added', 'task', taskId, JSON.stringify({ dossier_id: dossierId, user_id: targetId, user_name: target.full_name })).run();
         // Notification immediate au comptable tague (cloche + compteur non-lus)
         const notifMsg = `👥 ${user.full_name} vous a tagué sur « ${String(task.label).slice(0, 120)} » — ${dossier.client_name} · exercice ${dossier.exercice}`;
         await env.DB.prepare('INSERT INTO org_notifications (id, user_id, dossier_id, message) VALUES (?, ?, ?, ?)').bind(genId(), targetId, dossierId, notifMsg).run();
-        return json({ ok: true, collaborator: { user_id: targetId, full_name: target.full_name }, grant_created: grantCreated, expires_at: expiresAt }, 201);
+        return json({ ok: true, collaborator: { user_id: targetId, full_name: target.full_name }, grant_created: false, expires_at: null }, 201);
       }
 
       // --- ORG: COLLABORATEUR — retirer le tag (et l'acces auto s'il n'en reste aucun) ---
@@ -4098,33 +4086,37 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const row = await env.DB.prepare('SELECT 1 AS x FROM org_task_collaborators WHERE task_id = ? AND user_id = ? AND task_id IN (SELECT id FROM org_tasks WHERE dossier_id = ?)').bind(taskId, targetId, dossierId).first();
         if (!row) return json({ error: 'Collaborateur introuvable' }, 404);
         await env.DB.prepare('DELETE FROM org_task_collaborators WHERE task_id = ? AND user_id = ?').bind(taskId, targetId).run();
-        // Plus aucun tag dans ce dossier ? On retire aussi l'acces auto ouvert par le tag
         let grantRevoked = false;
         const { results: others } = await env.DB.prepare('SELECT tc.task_id FROM org_task_collaborators tc JOIN org_tasks t ON t.id = tc.task_id WHERE tc.user_id = ? AND t.dossier_id = ?').bind(targetId, dossierId).all();
+        // Legacy : un grant ouvert par un ancien tag n'est plus utile s'il ne reste aucun tag
         if ((others as any[]).length === 0) {
           const g = await env.DB.prepare(`SELECT id FROM org_dossier_grants WHERE dossier_id = ? AND granted_to = ? AND granted_by = ? AND reason LIKE 'Collaboration%' AND ${ORG_GRANT_ACTIVE}`).bind(dossierId, targetId, user.id).first() as any;
           if (g) {
             await env.DB.prepare("UPDATE org_dossier_grants SET revoked_at = datetime('now') WHERE id = ?").bind(g.id).run();
             grantRevoked = true;
             await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'grant_revoked', 'dossier', dossierId, JSON.stringify({ grant_id: g.id, granted_to: targetId, source: 'task_collab_removed' })).run();
-            // L'acces disparaissant : on arrete ses chronos actifs sur ce dossier (sinon entree orpheline)
-            const { results: runnings } = await env.DB.prepare('SELECT id, task_id, started_at FROM org_time_entries WHERE dossier_id = ? AND user_id = ? AND stopped_at IS NULL').bind(dossierId, targetId).all();
-            for (const rt of runnings as any[]) {
-              const elapsed = Math.floor((Date.now() - new Date(rt.started_at + 'Z').getTime()) / 1000);
-              await env.DB.prepare("UPDATE org_time_entries SET stopped_at = datetime('now'), duration_seconds = ? WHERE id = ?").bind(elapsed, rt.id).run();
-              // Tague en train d'etre retire : son chrono ne rejoint pas le total norme
-              // (le row collab du taskId vient d'etre supprime ; tague ailleurs = meme regle)
-              const taggedTime = rt.task_id === taskId || await isTaskCollab(rt.task_id, targetId);
-              if (!taggedTime) {
-                await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = COALESCE(total_time_seconds, 0) + ? WHERE id = ?").bind(elapsed, rt.task_id).run();
-              }
-              const still = await env.DB.prepare('SELECT 1 AS x FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL').bind(rt.task_id).first();
-              if (!still) {
-                await env.DB.prepare("UPDATE org_tasks SET timer_started_at = NULL, timer_user_id = NULL WHERE id = ?").bind(rt.task_id).run();
-              } else {
-                const nxt = await env.DB.prepare('SELECT user_id, started_at FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL ORDER BY started_at, id LIMIT 1').bind(rt.task_id).first() as any;
-                if (nxt) await env.DB.prepare("UPDATE org_tasks SET timer_started_at = ?, timer_user_id = ? WHERE id = ?").bind(nxt.started_at, nxt.user_id, rt.task_id).run();
-              }
+          }
+        }
+        // Plus aucun acces (assigne / renfort / autre tag) ? On arrete ses chronos ouverts
+        // sur ce dossier, sinon l'entree resterait ouverte sans possibilité de l'arreter.
+        const stillAccess = (others as any[]).length > 0 || await orgCompCanAccessDossier(targetId, dossierId);
+        if (!stillAccess) {
+          const { results: runnings } = await env.DB.prepare('SELECT id, task_id, started_at FROM org_time_entries WHERE dossier_id = ? AND user_id = ? AND stopped_at IS NULL').bind(dossierId, targetId).all();
+          for (const rt of runnings as any[]) {
+            const elapsed = Math.floor((Date.now() - new Date(rt.started_at + 'Z').getTime()) / 1000);
+            await env.DB.prepare("UPDATE org_time_entries SET stopped_at = datetime('now'), duration_seconds = ? WHERE id = ?").bind(elapsed, rt.id).run();
+            // Tague en train d'etre retire : son chrono ne rejoint pas le total norme
+            // (le row collab du taskId vient d'etre supprime ; tague ailleurs = meme regle)
+            const taggedTime = rt.task_id === taskId || await isTaskCollab(rt.task_id, targetId);
+            if (!taggedTime) {
+              await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = COALESCE(total_time_seconds, 0) + ? WHERE id = ?").bind(elapsed, rt.task_id).run();
+            }
+            const still = await env.DB.prepare('SELECT 1 AS x FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL').bind(rt.task_id).first();
+            if (!still) {
+              await env.DB.prepare("UPDATE org_tasks SET timer_started_at = NULL, timer_user_id = NULL WHERE id = ?").bind(rt.task_id).run();
+            } else {
+              const nxt = await env.DB.prepare('SELECT user_id, started_at FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL ORDER BY started_at, id LIMIT 1').bind(rt.task_id).first() as any;
+              if (nxt) await env.DB.prepare("UPDATE org_tasks SET timer_started_at = ?, timer_user_id = ? WHERE id = ?").bind(nxt.started_at, nxt.user_id, rt.task_id).run();
             }
           }
         }
@@ -4211,8 +4203,8 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const exSel = exParam ? Number(exParam) : null;
         const access = isSupervisor(user.role)
           ? 'c.organization_id = ?'
-          : "(c.organization_id = ? AND (" + dossierComp() + " = ? OR EXISTS (SELECT 1 FROM org_dossier_grants g WHERE g.dossier_id = d.id AND g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now')))))";
-        const binds: any[] = isSupervisor(user.role) ? [user.organization_id] : [user.organization_id, user.id, user.id];
+          : "(c.organization_id = ? AND (" + dossierComp() + " = ? OR EXISTS (SELECT 1 FROM org_dossier_grants g WHERE g.dossier_id = d.id AND g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now'))) OR EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = t.id AND tc.user_id = ?)))";
+        const binds: any[] = isSupervisor(user.role) ? [user.organization_id] : [user.organization_id, user.id, user.id, user.id];
         const { results } = await pgAll(env, `SELECT t.id, t.label, t.status, t.created_at, t.due_date, d.id as dossier_id, d.exercice, d.status as dossier_status, c.name as client_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE ${access} AND t.hidden = 0 AND t.created_by IS NOT NULL AND t.created_at >= datetime('now', '-' || ? || ' days') ${exSel ? 'AND d.exercice = ?' : ''} ORDER BY t.created_at DESC, t.id DESC LIMIT 10`, ...binds, days, ...(exSel ? [exSel] : []));
         // Tague sur ces taches ? (badge « Tagué par X » cote comptable)
         const tagByTask = new Map<string, string | null>();
@@ -4269,8 +4261,8 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const limit = Math.max(10, Math.min(300, Number(params.get('limit')) || 100));
         const access = isSupervisor(user.role)
           ? 'c.organization_id = ?'
-          : "(c.organization_id = ? AND (" + dossierComp() + " = ? OR EXISTS (SELECT 1 FROM org_dossier_grants g WHERE g.dossier_id = d.id AND g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now')))))";
-        const binds: any[] = isSupervisor(user.role) ? [user.organization_id] : [user.organization_id, user.id, user.id];
+          : "(c.organization_id = ? AND (" + dossierComp() + " = ? OR EXISTS (SELECT 1 FROM org_dossier_grants g WHERE g.dossier_id = d.id AND g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now'))) OR EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = t.id AND tc.user_id = ?)))";
+        const binds: any[] = isSupervisor(user.role) ? [user.organization_id] : [user.organization_id, user.id, user.id, user.id];
         let where = `WHERE ${access} AND t.hidden = 0 AND t.created_by IS NOT NULL`;
         if (statusSel) { where += ' AND t.status = ?'; binds.push(statusSel); }
         if (overdue) { where += " AND t.due_date IS NOT NULL AND t.due_date < date('now') AND t.status != 'fait'"; }
