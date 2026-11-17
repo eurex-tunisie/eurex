@@ -499,6 +499,13 @@ export const orgApi = {
     req<{ ok: boolean; entry_id: string; duration_seconds: number }>('/org/internal-time/manual', { method: 'POST', body: JSON.stringify({ category, seconds, note }) }),
   getActiveInternalTimers: () =>
     req<{ timers: { id: string; category: string; started_at: string; note: string | null }[] }>('/org/internal-time/active'),
+  // Categories de temps interne (reunion, informatique + personnalisees)
+  getInternalTimeCategories: () =>
+    req<{ categories: { code: string; label: string; created_by: string | null; deletable: boolean }[] }>('/org/internal-time/categories'),
+  createInternalTimeCategory: (label: string) =>
+    req<{ ok: boolean; code: string; label: string }>('/org/internal-time/categories', { method: 'POST', body: JSON.stringify({ label }) }),
+  deleteInternalTimeCategory: (code: string) =>
+    req<{ ok: boolean }>(`/org/internal-time/categories/${encodeURIComponent(code)}`, { method: 'DELETE' }),
   // Taches en attente de verification (expert/manager) + validation en un clic
   getTasksToVerify: (exercice?: number | null) =>
     req<{ tasks: OrgVerifyTask[] }>(`/org/tasks/verify${exercice ? `?exercice=${exercice}` : ''}`),

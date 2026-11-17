@@ -15,8 +15,10 @@ test('internal time : endpoints start/stop/manual/active existent', () => {
   assert.ok(SRC.includes("/api/org/internal-time/active' && method === 'GET'"), 'active');
 });
 
-test('internal time : categories reunion/informatique', () => {
-  assert.ok(SRC.includes("['reunion','informatique']"), 'categories validees');
+test('internal time : categories par defaut reunion/informatique + editables', () => {
+  assert.ok(SRC.includes("code: 'reunion', label: 'Réunion'"), 'defaut reunion');
+  assert.ok(SRC.includes("code: 'informatique', label: 'Informatique'"), 'defaut informatique');
+  assert.ok(SRC.includes('/api/org/internal-time/categories'), 'endpoint categories');
 });
 
 test('internal time : agrege dans buildHoursPayload (UNION)', () => {

@@ -39,6 +39,20 @@ function isSupervisor(role: string): boolean {
   return role === 'expert' || role === 'manager';
 }
 
+// Categories par defaut du temps interne (toujours disponibles)
+const INTERNAL_TIME_DEFAULTS: { code: string; label: string }[] = [
+  { code: 'reunion', label: 'Réunion' },
+  { code: 'informatique', label: 'Informatique' },
+];
+async function isValidInternalCategory(env: any, orgId: string, code: string): Promise<boolean> {
+  if (INTERNAL_TIME_DEFAULTS.some(c => c.code === code)) return true;
+  const row = await env.DB.prepare('SELECT 1 AS x FROM org_internal_time_categories WHERE organization_id = ? AND code = ?').bind(orgId, code).first();
+  return !!row;
+}
+function slugifyInternalCategory(label: string): string {
+  return String(label).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+}
+
 // Duree de vie du jeton du cabinet (en-tete Authorization: Bearer).
 // Elle etait de 24 h : l'utilisateur devait retaper email + mot de passe chaque
 // jour, et un jeton perime le renvoyait a l'ecran de connexion sans prevenir.
@@ -4376,7 +4390,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
         const body = await request.json().catch(() => ({})) as any;
         const category = String(body?.category || '').trim();
-        if (!['reunion','informatique'].includes(category)) return json({ error: 'Catégorie invalide' }, 400);
+        if (!(await isValidInternalCategory(env, user.organization_id, category))) return json({ error: 'Catégorie invalide' }, 400);
         const note = body?.note ? String(body.note).trim().slice(0, 500) : null;
         // Un seul chrono par utilisateur : on arrete tout chrono actif (dossier ou interne)
         const activeDossier = await env.DB.prepare('SELECT id, task_id, started_at FROM org_time_entries WHERE user_id = ? AND stopped_at IS NULL').bind(user.id).all();
@@ -4408,7 +4422,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
         const body = await request.json().catch(() => ({})) as any;
         const category = body?.category ? String(body.category).trim() : null;
-        if (category && !['reunion','informatique'].includes(category)) return json({ error: 'Catégorie invalide' }, 400);
+        if (category && !(await isValidInternalCategory(env, user.organization_id, category))) return json({ error: 'Catégorie invalide' }, 400);
         const sql = category
           ? 'SELECT id, started_at FROM org_internal_time_entries WHERE user_id = ? AND category = ? AND stopped_at IS NULL'
           : 'SELECT id, started_at FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NULL';
@@ -4431,7 +4445,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
         const body = await request.json().catch(() => ({})) as any;
         const category = String(body?.category || '').trim();
-        if (!['reunion','informatique'].includes(category)) return json({ error: 'Catégorie invalide' }, 400);
+        if (!(await isValidInternalCategory(env, user.organization_id, category))) return json({ error: 'Catégorie invalide' }, 400);
         const secs = Number(body?.seconds);
         if (!Number.isFinite(secs) || secs <= 0 || secs > 604800) return json({ error: 'Durée invalide (1s à 7 jours)' }, 400);
         const note = body?.note ? String(body.note).trim().slice(0, 500) : null;
@@ -4448,6 +4462,57 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
         const { results } = await env.DB.prepare('SELECT id, category, started_at, note FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NULL ORDER BY started_at DESC').bind(user.id).all();
         return json({ timers: results || [] });
+      }
+
+      // --- ORG: CATEGORIES DE TEMPS INTERNE ---
+      const orgInternalTimeCategoriesGetPath = path === '/api/org/internal-time/categories' && method === 'GET';
+      if (orgInternalTimeCategoriesGetPath) {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
+        const { results } = await env.DB.prepare('SELECT code, label, created_by FROM org_internal_time_categories WHERE organization_id = ? ORDER BY label').bind(user.organization_id).all();
+        const custom = (results as any[]).map(r => ({ code: r.code, label: r.label, created_by: r.created_by, deletable: isSupervisor(user.role) || r.created_by === user.id }));
+        // défauts toujours présents (non supprimables)
+        const defaults = INTERNAL_TIME_DEFAULTS.map(c => ({ code: c.code, label: c.label, created_by: null, deletable: false }));
+        // éviter doublons si un défaut a été recréé en perso
+        const customCodes = new Set(custom.map(c => c.code));
+        const merged = [...defaults.filter(d => !customCodes.has(d.code)), ...custom];
+        return json({ categories: merged });
+      }
+
+      const orgInternalTimeCategoriesPostPath = path === '/api/org/internal-time/categories' && method === 'POST';
+      if (orgInternalTimeCategoriesPostPath) {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
+        const body = await request.json().catch(() => ({})) as any;
+        const label = String(body?.label || '').trim().slice(0, 60);
+        if (label.length < 2) return json({ error: 'Libellé trop court' }, 400);
+        const code = slugifyInternalCategory(label);
+        if (!code) return json({ error: 'Libellé invalide' }, 400);
+        // défauts non recréables
+        if (INTERNAL_TIME_DEFAULTS.some(c => c.code === code)) return json({ error: 'Catégorie déjà existante' }, 400);
+        const dup = await env.DB.prepare('SELECT 1 AS x FROM org_internal_time_categories WHERE organization_id = ? AND code = ?').bind(user.organization_id, code).first();
+        if (dup) return json({ error: 'Catégorie déjà existante' }, 400);
+        const id = genId();
+        await env.DB.prepare('INSERT INTO org_internal_time_categories (id, organization_id, code, label, created_by) VALUES (?, ?, ?, ?, ?)').bind(id, user.organization_id, code, label, user.id).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'internal_time_category_created', 'internal_time_category', id, JSON.stringify({ code, label })).run();
+        return json({ ok: true, code, label });
+      }
+
+      const orgInternalTimeCategoriesDeleteMatch = path.match(/^\/api\/org\/internal-time\/categories\/([^/]+)$/);
+      if (orgInternalTimeCategoriesDeleteMatch && method === 'DELETE') {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
+        const code = decodeURIComponent(orgInternalTimeCategoriesDeleteMatch[1]);
+        if (INTERNAL_TIME_DEFAULTS.some(c => c.code === code)) return json({ error: 'Catégorie par défaut non supprimable' }, 400);
+        const row = await env.DB.prepare('SELECT created_by FROM org_internal_time_categories WHERE organization_id = ? AND code = ?').bind(user.organization_id, code).first() as any;
+        if (!row) return json({ error: 'Catégorie non trouvée' }, 404);
+        if (!isSupervisor(user.role) && row.created_by !== user.id) return json({ error: 'Accès refusé' }, 403);
+        await env.DB.prepare('DELETE FROM org_internal_time_categories WHERE organization_id = ? AND code = ?').bind(user.organization_id, code).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'internal_time_category_deleted', 'internal_time_category', code, JSON.stringify({ code })).run();
+        return json({ ok: true });
       }
 
       // --- ORG: ADD TIME MANUELLEMENT ---
