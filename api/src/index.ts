@@ -85,7 +85,7 @@ async function buildHoursPayload(env: Env, userId: string, view: string, exercic
   // Heures pointees groupees par jour local TN (UTC+1) — fenetre 400j pour la vue annee
   // Exercice filtre : bornes explicites annee (les pointages d'un exercice passe sortent de la fenetre glissante)
   const { results: dayRows } = exYear
-    ? await env.DB.prepare(`SELECT d, COALESCE(SUM(secs),0) AS secs FROM (SELECT date(datetime(te.started_at, '+60 minutes')) AS d, te.duration_seconds AS secs FROM org_time_entries te JOIN org_dossiers dd ON te.dossier_id = dd.id WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND dd.exercice = ? AND te.started_at >= ? AND te.started_at < datetime(?, '+1 year') UNION ALL SELECT date(datetime(started_at, '+60 minutes')) AS d, duration_seconds AS secs FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND strftime('%Y', datetime(started_at, '+60 minutes')) = ? AND started_at >= ? AND started_at < datetime(?, '+1 year')) GROUP BY d`).bind(userId, exYear, `${exYear}-01-01`, `${exYear}-01-01`, userId, String(exYear), `${exYear}-01-01`, `${exYear}-01-01`).all()
+    ? await env.DB.prepare(`SELECT d, COALESCE(SUM(secs),0) AS secs FROM (SELECT date(datetime(te.started_at, '+60 minutes')) AS d, te.duration_seconds AS secs FROM org_time_entries te JOIN org_dossiers dd ON te.dossier_id = dd.id WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND dd.exercice = ? UNION ALL SELECT date(datetime(started_at, '+60 minutes')) AS d, duration_seconds AS secs FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND strftime('%Y', datetime(started_at, '+60 minutes')) = ?) GROUP BY d`).bind(userId, exYear, userId, String(exYear)).all()
     : await env.DB.prepare(`SELECT d, COALESCE(SUM(secs),0) AS secs FROM (SELECT date(datetime(started_at, '+60 minutes')) AS d, duration_seconds AS secs FROM org_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND started_at >= datetime('now', '-400 days') UNION ALL SELECT date(datetime(started_at, '+60 minutes')) AS d, duration_seconds AS secs FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND started_at >= datetime('now', '-400 days')) GROUP BY d`).bind(userId, userId).all();
   const byDay = new Map((dayRows as any[]).map(r => [String(r.d), Number(r.secs) || 0]));
   // Chrono en cours : ajoute au jour TN courant
@@ -139,12 +139,27 @@ async function buildHoursPayload(env: Env, userId: string, view: string, exercic
     }
   }
   const rows: any[] = effView === 'year' ? (months as any[]) : days;
+  // Heures pointees sur des dossiers de cet exercice mais a une date hors de l'annee
+  // (travail courant sur un dossier passe) : on les compte dans le total pour ne
+  // pas les perdre, et on les expose pour affichage.
+  let extraWorked = 0;
+  if (exYear) {
+    const yearPrefix = String(exYear);
+    for (const [d, secs] of byDay) {
+      if (!String(d).startsWith(yearPrefix)) extraWorked += Number(secs) || 0;
+    }
+  }
   const totals = rows.reduce((acc, r) => ({ worked_seconds: acc.worked_seconds + r.worked_seconds, norm_seconds: acc.norm_seconds + r.norm_seconds, missing_seconds: acc.missing_seconds + r.missing_seconds, overtime_seconds: acc.overtime_seconds + r.overtime_seconds }), { worked_seconds: 0, norm_seconds: 0, missing_seconds: 0, overtime_seconds: 0 });
+  if (extraWorked > 0) {
+    totals.worked_seconds += extraWorked;
+    totals.missing_seconds = Math.max(0, totals.norm_seconds - totals.worked_seconds);
+    totals.overtime_seconds = Math.max(0, totals.worked_seconds - totals.norm_seconds);
+  }
   const net_missing = Math.max(0, totals.norm_seconds - totals.worked_seconds);
   const surplus = Math.max(0, totals.worked_seconds - totals.norm_seconds);
   const today = mkDay(`${tY}-${pad2(tM + 1)}-${pad2(tD)}`, tY, tM, tD, true);
   const online = parseUtc(me?.last_seen_at) >= Math.floor(nowMs / 1000) - 180;
-  return { view: effView, exercice: exYear, days, months, today, totals: { ...totals, net_missing_seconds: net_missing, surplus_seconds: surplus }, online, today_dow: todayDow };
+  return { view: effView, exercice: exYear, days, months, today, totals: { ...totals, net_missing_seconds: net_missing, surplus_seconds: surplus }, online, today_dow: todayDow, extra_worked_seconds: extraWorked };
 }
 
 // Portee export d'une tache / d'une echeance (JSON array, NULL = toutes) vs statut export du client
