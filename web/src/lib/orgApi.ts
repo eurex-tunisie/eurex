@@ -490,6 +490,15 @@ export const orgApi = {
   // Mes chronos actifs (comptable) : taches en cours de chronometrage
   getMyTimers: () =>
     req<{ timers: { task_id: string; started_at: string; task_label: string; dossier_id: string; client_name: string; exercice: number }[] }>('/org/me/timers'),
+  // Temps interne (reunion, informatique) : hors dossier client, compte dans Mes heures
+  startInternalTime: (category: 'reunion' | 'informatique', note?: string) =>
+    req<{ ok: boolean; entry_id: string; category: string; started_at: string }>('/org/internal-time/start', { method: 'POST', body: JSON.stringify({ category, note }) }),
+  stopInternalTime: (category?: 'reunion' | 'informatique') =>
+    req<{ ok: boolean; duration_seconds: number }>('/org/internal-time/stop', { method: 'POST', body: JSON.stringify(category ? { category } : {}) }),
+  manualInternalTime: (category: 'reunion' | 'informatique', seconds: number, note?: string) =>
+    req<{ ok: boolean; entry_id: string; duration_seconds: number }>('/org/internal-time/manual', { method: 'POST', body: JSON.stringify({ category, seconds, note }) }),
+  getActiveInternalTimers: () =>
+    req<{ timers: { id: string; category: string; started_at: string; note: string | null }[] }>('/org/internal-time/active'),
   // Taches en attente de verification (expert/manager) + validation en un clic
   getTasksToVerify: (exercice?: number | null) =>
     req<{ tasks: OrgVerifyTask[] }>(`/org/tasks/verify${exercice ? `?exercice=${exercice}` : ''}`),

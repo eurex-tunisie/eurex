@@ -71,11 +71,13 @@ async function buildHoursPayload(env: Env, userId: string, view: string, exercic
   // Heures pointees groupees par jour local TN (UTC+1) — fenetre 400j pour la vue annee
   // Exercice filtre : bornes explicites annee (les pointages d'un exercice passe sortent de la fenetre glissante)
   const { results: dayRows } = exYear
-    ? await env.DB.prepare(`SELECT date(datetime(te.started_at, '+60 minutes')) as d, COALESCE(SUM(te.duration_seconds),0) AS secs FROM org_time_entries te JOIN org_dossiers d ON te.dossier_id = d.id WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND d.exercice = ? AND te.started_at >= ? AND te.started_at < datetime(?, '+1 year') GROUP BY d`).bind(userId, exYear, `${exYear}-01-01`, `${exYear}-01-01`).all()
-    : await env.DB.prepare(`SELECT date(datetime(started_at, '+60 minutes')) as d, COALESCE(SUM(duration_seconds),0) AS secs FROM org_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND started_at >= datetime('now', '-400 days') GROUP BY d`).bind(userId).all();
+    ? await env.DB.prepare(`SELECT d, COALESCE(SUM(secs),0) AS secs FROM (SELECT date(datetime(te.started_at, '+60 minutes')) AS d, te.duration_seconds AS secs FROM org_time_entries te JOIN org_dossiers dd ON te.dossier_id = dd.id WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND dd.exercice = ? AND te.started_at >= ? AND te.started_at < datetime(?, '+1 year') UNION ALL SELECT date(datetime(started_at, '+60 minutes')) AS d, duration_seconds AS secs FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND strftime('%Y', datetime(started_at, '+60 minutes')) = ? AND started_at >= ? AND started_at < datetime(?, '+1 year')) GROUP BY d`).bind(userId, exYear, `${exYear}-01-01`, `${exYear}-01-01`, userId, String(exYear), `${exYear}-01-01`, `${exYear}-01-01`).all()
+    : await env.DB.prepare(`SELECT d, COALESCE(SUM(secs),0) AS secs FROM (SELECT date(datetime(started_at, '+60 minutes')) AS d, duration_seconds AS secs FROM org_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND started_at >= datetime('now', '-400 days') UNION ALL SELECT date(datetime(started_at, '+60 minutes')) AS d, duration_seconds AS secs FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND started_at >= datetime('now', '-400 days')) GROUP BY d`).bind(userId, userId).all();
   const byDay = new Map((dayRows as any[]).map(r => [String(r.d), Number(r.secs) || 0]));
   // Chrono en cours : ajoute au jour TN courant
-  const running = await env.DB.prepare('SELECT started_at FROM org_time_entries WHERE user_id = ? AND stopped_at IS NULL').bind(userId).first() as any;
+  const runningDossier = await env.DB.prepare('SELECT started_at FROM org_time_entries WHERE user_id = ? AND stopped_at IS NULL').bind(userId).first() as any;
+  const runningInternal = await env.DB.prepare('SELECT started_at FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NULL').bind(userId).first() as any;
+  const running = runningDossier || runningInternal;
   const me = await env.DB.prepare('SELECT last_seen_at FROM org_users WHERE id = ?').bind(userId).first() as any;
   const parseUtc = (s: any) => s ? Math.floor(Date.parse(String(s).replace(' ', 'T') + 'Z') / 1000) : 0;
   const runningSec = running ? Math.max(0, Math.floor(nowMs / 1000) - parseUtc(running.started_at)) : 0;
@@ -4364,6 +4366,88 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // Audit log
         await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'timer_stopped', 'task', taskId, JSON.stringify({ dossier_id: dossierId, duration_seconds: elapsed, total_seconds: newTotal })).run();
         return json({ ok: true, duration_seconds: elapsed, total_seconds: newTotal });
+      }
+
+      // --- ORG: TEMPS INTERNE (reunion, informatique) ---
+      const orgInternalTimeStartPath = path === '/api/org/internal-time/start' && method === 'POST';
+      if (orgInternalTimeStartPath) {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
+        const body = await request.json().catch(() => ({})) as any;
+        const category = String(body?.category || '').trim();
+        if (!['reunion','informatique'].includes(category)) return json({ error: 'Catégorie invalide' }, 400);
+        const note = body?.note ? String(body.note).trim().slice(0, 500) : null;
+        // Un seul chrono par utilisateur : on arrete tout chrono actif (dossier ou interne)
+        const activeDossier = await env.DB.prepare('SELECT id, task_id, started_at FROM org_time_entries WHERE user_id = ? AND stopped_at IS NULL').bind(user.id).all();
+        for (const at of (activeDossier.results as any[])) {
+          const elapsed = Math.max(0, Math.floor((Date.now() - new Date(at.started_at + 'Z').getTime()) / 1000));
+          await env.DB.prepare("UPDATE org_time_entries SET stopped_at = datetime('now'), duration_seconds = ? WHERE id = ?").bind(elapsed, at.id).run();
+          const collab = await isTaskCollab(at.task_id, user.id);
+          if (!collab) {
+            await env.DB.prepare("UPDATE org_tasks SET total_time_seconds = COALESCE(total_time_seconds,0) + ? WHERE id = ?").bind(elapsed, at.task_id).run();
+          }
+          const still = await env.DB.prepare('SELECT 1 AS x FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL').bind(at.task_id).first();
+          if (!still) await env.DB.prepare("UPDATE org_tasks SET timer_started_at = NULL, timer_user_id = NULL WHERE id = ?").bind(at.task_id).run();
+        }
+        const activeInternal = await env.DB.prepare('SELECT id, started_at FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NULL').bind(user.id).all();
+        for (const at of (activeInternal.results as any[])) {
+          const elapsed = Math.max(0, Math.floor((Date.now() - new Date(at.started_at + 'Z').getTime()) / 1000));
+          await env.DB.prepare("UPDATE org_internal_time_entries SET stopped_at = datetime('now'), duration_seconds = ? WHERE id = ?").bind(elapsed, at.id).run();
+        }
+        const entryId = genId();
+        await env.DB.prepare("INSERT INTO org_internal_time_entries (id, user_id, organization_id, category, started_at, note) VALUES (?, ?, ?, ?, datetime('now'), ?)").bind(entryId, user.id, user.organization_id, category, note).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'internal_time_started', 'internal_time', entryId, JSON.stringify({ category, note })).run();
+        return json({ ok: true, entry_id: entryId, category, started_at: new Date().toISOString() });
+      }
+
+      const orgInternalTimeStopPath = path === '/api/org/internal-time/stop' && method === 'POST';
+      if (orgInternalTimeStopPath) {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
+        const body = await request.json().catch(() => ({})) as any;
+        const category = body?.category ? String(body.category).trim() : null;
+        if (category && !['reunion','informatique'].includes(category)) return json({ error: 'Catégorie invalide' }, 400);
+        const sql = category
+          ? 'SELECT id, started_at FROM org_internal_time_entries WHERE user_id = ? AND category = ? AND stopped_at IS NULL'
+          : 'SELECT id, started_at FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NULL';
+        const binds = category ? [user.id, category] : [user.id];
+        const { results } = await env.DB.prepare(sql).bind(...binds).all();
+        let total = 0;
+        for (const at of (results as any[])) {
+          const elapsed = Math.max(0, Math.floor((Date.now() - new Date(at.started_at + 'Z').getTime()) / 1000));
+          await env.DB.prepare("UPDATE org_internal_time_entries SET stopped_at = datetime('now'), duration_seconds = ? WHERE id = ?").bind(elapsed, at.id).run();
+          total += elapsed;
+        }
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'internal_time_stopped', 'internal_time', user.id, JSON.stringify({ category: category || 'all', duration_seconds: total })).run();
+        return json({ ok: true, duration_seconds: total });
+      }
+
+      const orgInternalTimeManualPath = path === '/api/org/internal-time/manual' && method === 'POST';
+      if (orgInternalTimeManualPath) {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
+        const body = await request.json().catch(() => ({})) as any;
+        const category = String(body?.category || '').trim();
+        if (!['reunion','informatique'].includes(category)) return json({ error: 'Catégorie invalide' }, 400);
+        const secs = Number(body?.seconds);
+        if (!Number.isFinite(secs) || secs <= 0 || secs > 604800) return json({ error: 'Durée invalide (1s à 7 jours)' }, 400);
+        const note = body?.note ? String(body.note).trim().slice(0, 500) : null;
+        const entryId = genId();
+        await env.DB.prepare("INSERT INTO org_internal_time_entries (id, user_id, organization_id, category, started_at, stopped_at, duration_seconds, note) VALUES (?, ?, ?, ?, datetime('now', ?), datetime('now'), ?, ?)").bind(entryId, user.id, user.organization_id, category, `-${secs} seconds`, secs, note).run();
+        await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'internal_time_manual', 'internal_time', entryId, JSON.stringify({ category, duration_seconds: secs, note })).run();
+        return json({ ok: true, entry_id: entryId, duration_seconds: secs });
+      }
+
+      const orgInternalTimeActivePath = path === '/api/org/internal-time/active' && method === 'GET';
+      if (orgInternalTimeActivePath) {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
+        const { results } = await env.DB.prepare('SELECT id, category, started_at, note FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NULL ORDER BY started_at DESC').bind(user.id).all();
+        return json({ timers: results || [] });
       }
 
       // --- ORG: ADD TIME MANUELLEMENT ---

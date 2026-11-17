@@ -7,6 +7,7 @@ import { SkeletonKpiGrid, SkeletonRows } from '../../components/Skeleton';
 import OrgAccountButton from '../../components/OrgAccount';
 import OrgAlerts from '../../components/OrgAlerts';
 import MesHeures from '../../components/MesHeures';
+import TempsInterne from '../../components/TempsInterne';
 import NouvellesTaches from '../../components/NouvellesTaches';
 import { EXPORT_LABELS } from '../../lib/orgAlerts';
 import { verifyRate, verifyRateTone, pendingRate, pendingVerify, elapsedLabel, VerifyCounts } from '../../lib/orgVerify';
@@ -948,6 +949,7 @@ export default function OrgDashboardExpert() {
 
       {/* Mes heures (les miennes) — realises vs norme 8h30, solde net de semaine */}
       <MesHeures exercice={exercice} />
+      <TempsInterne />
 
       {/* Échéances fiscales — alertes dates butoirs */}
       <OrgAlerts />
