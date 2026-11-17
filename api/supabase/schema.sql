@@ -483,6 +483,29 @@ CREATE TABLE IF NOT EXISTS org_time_entries (
   part TEXT CHECK (part IN ('entreprise','comptable')) DEFAULT 'comptable'
 );
 
+-- 0050 / 0052 — temps interne hors dossier (réunion, informatique, personnalisé)
+CREATE TABLE IF NOT EXISTS org_internal_time_entries (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  category TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  stopped_at TEXT,
+  duration_seconds BIGINT DEFAULT 0,
+  note TEXT,
+  created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS'))
+);
+
+CREATE TABLE IF NOT EXISTS org_internal_time_categories (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL,
+  code TEXT NOT NULL,
+  label TEXT NOT NULL,
+  created_by TEXT,
+  created_at TEXT DEFAULT (to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')),
+  UNIQUE (organization_id, code)
+);
+
 -- 0014 / 0015 / 0016 / 0019 — échéances fiscales
 CREATE TABLE IF NOT EXISTS org_fiscal_alerts (
   id TEXT PRIMARY KEY,
