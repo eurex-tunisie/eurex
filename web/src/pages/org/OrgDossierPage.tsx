@@ -329,10 +329,10 @@ export default function OrgDossierPage() {
   };
 
   // Module Cabinet e7tifel : vidéo (fini dans les temps) / motif (après la norme)
-  const [e7tifelOpen, setE7tifelOpen] = useState(false);
-  const [lateTarget, setLateTarget] = useState<OrgTask | null>(null);
-  const [lateReason, setLateReason] = useState('');
-  const [lateBusy, setLateBusy] = useState(false);
+  const [showE7tifel, setShowE7tifel] = useState(false);
+  const [lateTaskTarget, setLateTaskTarget] = useState<OrgTask | null>(null);
+  const [lateTaskReason, setLateTaskReason] = useState('');
+  const [lateTaskBusy, setLateTaskBusy] = useState(false);
 
   const submitVerify = async () => {
     if (!dossier || !verifyTaskTarget) return;
@@ -412,14 +412,14 @@ export default function OrgDossierPage() {
       const decision = task
         ? e7tifelDecision(task.effective_norm_seconds ?? task.norm_seconds ?? null, liveTaskSeconds(task))
         : null;
-      if (decision === 'motif' && task) {
-        setLateTarget(task);
-        setLateReason('');
+    if (decision === 'motif' && task) {
+        setLateTaskTarget(task);
+        setLateTaskReason('');
         return;
       }
       try {
         await orgApi.updateTask(dossier.id, taskId, newStatus, reason);
-        if (decision === 'video') setE7tifelOpen(true);
+        if (decision === 'video') setShowE7tifel(true);
         load();
       } catch (err: any) {
         alert(err.message);
@@ -437,19 +437,19 @@ export default function OrgDossierPage() {
   // Confirmation de la boîte « motif du retard » : la tâche part en vérification
   // (ou en « fait » pour l'expert) avec le motif enregistré dedans.
   const confirmLate = async () => {
-    if (!dossier || !lateTarget) return;
-    const reason = lateReason.trim();
+    if (!dossier || !lateTaskTarget) return;
+    const reason = lateTaskReason.trim();
     if (!reason) return;
-    setLateBusy(true);
+    setLateTaskBusy(true);
     try {
-      await orgApi.updateTask(dossier.id, lateTarget.id, 'fait', undefined, reason);
-      setLateTarget(null);
-      setLateReason('');
+      await orgApi.updateTask(dossier.id, lateTaskTarget.id, 'fait', undefined, reason);
+      setLateTaskTarget(null);
+      setLateTaskReason('');
       load();
     } catch (err: any) {
       alert(err.message);
     } finally {
-      setLateBusy(false);
+      setLateTaskBusy(false);
     }
   };
 
@@ -2486,17 +2486,17 @@ export default function OrgDossierPage() {
       )}
 
       {/* e7tifel : vidéo de célébration — tâche terminée dans les temps */}
-      {e7tifelOpen && <E7tifel onClose={() => setE7tifelOpen(false)} />}
+      {showE7tifel && <E7tifel onClose={() => setShowE7tifel(false)} />}
 
       {/* Motif du retard : tâche terminée APRÈS la norme (obligatoire) */}
-      {lateTarget && (
+      {lateTaskTarget && (
         <div className="modal-overlay" data-testid="task-late-modal">
           <div className="bg-white rounded-xl shadow-modal animate-rise p-6 w-full max-w-md">
             <h3 className="font-bold text-gray-800 mb-1">🕐 Terminé après la norme</h3>
             <p className="text-xs text-gray-500 mb-3">
-              « {lateTarget.label} » — temps normé
-              {lateTarget.effective_norm_seconds ? ` : ${formatTime(lateTarget.effective_norm_seconds)}` : ''}
-              , temps passé : {formatTime(liveTaskSeconds(lateTarget))}.
+              « {lateTaskTarget.label} » — temps normé
+              {lateTaskTarget.effective_norm_seconds ? ` : ${formatTime(lateTaskTarget.effective_norm_seconds)}` : ''}
+              , temps passé : {formatTime(liveTaskSeconds(lateTaskTarget))}.
               <br />
               Indiquez le <strong>motif du retard</strong> avant de terminer.
             </p>
@@ -2504,8 +2504,8 @@ export default function OrgDossierPage() {
               Motif du retard <span className="text-red-500">*</span>
             </label>
             <textarea
-              value={lateReason}
-              onChange={e => setLateReason(e.target.value)}
+              value={lateTaskReason}
+              onChange={e => setLateTaskReason(e.target.value)}
               rows={3}
               autoFocus
               maxLength={500}
@@ -2514,16 +2514,16 @@ export default function OrgDossierPage() {
               data-testid="task-late-reason"
             />
             <div className="flex gap-2 justify-end mt-4">
-              <button onClick={() => { setLateTarget(null); setLateReason(''); }} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">
+              <button onClick={() => { setLateTaskTarget(null); setLateTaskReason(''); }} className="px-4 py-2 rounded-lg text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">
                 Annuler
               </button>
               <button
                 onClick={confirmLate}
-                disabled={lateBusy || !lateReason.trim()}
+                disabled={lateTaskBusy || !lateTaskReason.trim()}
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
                 data-testid="task-late-submit"
               >
-                {lateBusy ? 'Envoi…' : 'Terminer'}
+                {lateTaskBusy ? 'Envoi…' : 'Terminer'}
               </button>
             </div>
           </div>
