@@ -5631,12 +5631,18 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // Presence : derniere activite (< 3 min = connecte) + heures pointees du jour (journée locale TN = UTC+1)
         const { results: dayRows } = await env.DB.prepare("SELECT user_id, COALESCE(SUM(duration_seconds),0) AS secs FROM org_time_entries WHERE stopped_at IS NOT NULL AND started_at >= datetime('now','start of day','-60 minutes') GROUP BY user_id").all();
         const dayByUser = new Map((dayRows as any[]).map(r => [r.user_id, r.secs]));
+        // Temps interne (reunion, informatique, ...) pointe aujourd'hui
+        const { results: internalDayRows } = await env.DB.prepare("SELECT user_id, COALESCE(SUM(duration_seconds),0) AS secs FROM org_internal_time_entries WHERE stopped_at IS NOT NULL AND started_at >= datetime('now','start of day','-60 minutes') GROUP BY user_id").all();
+        const internalDayByUser = new Map((internalDayRows as any[]).map(r => [r.user_id, r.secs]));
         // Chrono en cours (1 requete pour tout le cabinet) : on ramene aussi le
         // libelle de la tâche pour afficher « ce qu'elle fait maintenant » sur la
         // carte elle-meme, sans ouvrir sa fiche (LEFT JOIN : un chrono ne doit pas
         // disparaitre si la tâche a ete supprimee).
         const { results: running } = await env.DB.prepare('SELECT te.user_id, te.started_at, t.label AS task_label, t.dossier_id AS dossier_id FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL').all();
-        const runByUser = new Map((running as any[]).map(r => [r.user_id, r]));
+        const { results: runningInternal } = await env.DB.prepare('SELECT user_id, started_at, category AS task_label FROM org_internal_time_entries WHERE stopped_at IS NULL').all();
+        const runByUser = new Map<string, any>();
+        for (const r of running as any[]) runByUser.set(r.user_id, r);
+        for (const r of runningInternal as any[]) if (!runByUser.has(r.user_id)) runByUser.set(r.user_id, { ...r, task_label: r.task_label || 'Temps interne', dossier_id: null });
         const nowS = Math.floor(Date.now() / 1000);
         const parseUtc = (s: any) => s ? Math.floor(Date.parse(String(s).replace(' ', 'T') + 'Z') / 1000) : 0;
         // Norme par utilisateur (defaut 8h30 = 30600s) — Abla manager = 8h
@@ -5705,7 +5711,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at, dossier_id: runRow.dossier_id || null } : null,
             verify_stats: { verified: qual.verified, returned: qual.returned, score: qualTotal > 0 ? Math.round((qual.verified / qualTotal) * 100) : null },
             online: parseUtc(c.last_seen_at) >= nowS - 180,
-            worked_today_seconds: (Number(dayByUser.get(c.id)) || 0) + Math.max(0, runStart ? nowS - runStart : 0),
+            worked_today_seconds: (Number(dayByUser.get(c.id)) || 0) + (Number(internalDayByUser.get(c.id)) || 0) + Math.max(0, runStart ? nowS - runStart : 0),
             norm_seconds: normSecFor(c.id) };
         });
         return json(enriched);
