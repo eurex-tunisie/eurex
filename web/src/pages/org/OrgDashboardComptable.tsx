@@ -10,6 +10,7 @@ import OrgAlerts from '../../components/OrgAlerts';
 import MesHeures from '../../components/MesHeures';
 import TempsInterne from '../../components/TempsInterne';
 import NouvellesTaches from '../../components/NouvellesTaches';
+import TagsCollaboration from '../../components/TagsCollaboration';
 import TagsRecus from '../../components/TagsRecus';
 import { EXPORT_LABELS } from '../../lib/orgAlerts';
 import { verifyRate } from '../../lib/orgVerify';
@@ -244,6 +245,8 @@ export default function OrgDashboardComptable() {
 
       {/* Nouvelles tâches — dernières tâches ajoutées aux dossiers accessibles */}
       <NouvellesTaches exercice={exercice} />
+      {/* Collaboration : taches ou je suis tague (visible si tags) */}
+      <TagsCollaboration />
       {/* Tags recus (collaboration) : toast temps reel */}
       <TagsRecus />
 

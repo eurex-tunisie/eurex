@@ -4234,21 +4234,24 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         return json({ tasks, days });
       }
 
-      // --- ORG: TAGS RECUS (collaboration) — dernieres 48h, pour le toast cote comptable ---
+      // --- ORG: TAGS RECUS (collaboration) — toast (2j) + carte dashboard (30j) ---
       if (path === '/api/org/me/tags/recent' && method === 'GET') {
         const user = await verifyOrgToken(request);
         if (!user) return json({ error: 'Non autorisé' }, 401);
+        const params = new URL(request.url).searchParams;
+        const days = Math.max(1, Math.min(90, Number(params.get('days')) || 2));
+        const limit = Math.max(1, Math.min(100, Number(params.get('limit')) || 30));
         const { results } = await env.DB.prepare(
-          `SELECT tc.task_id, tc.created_at AS tagged_at, t.label AS task_label, t.dossier_id, d.exercice, c.name AS client_name, u.full_name AS tagged_by_name
+          `SELECT tc.task_id, tc.created_at AS tagged_at, t.label AS task_label, t.status AS task_status, t.dossier_id, d.exercice, c.name AS client_name, u.full_name AS tagged_by_name
            FROM org_task_collaborators tc
            JOIN org_tasks t ON t.id = tc.task_id
            JOIN org_dossiers d ON d.id = t.dossier_id
            JOIN org_clients c ON c.id = d.client_id
            LEFT JOIN org_users u ON u.id = tc.added_by
-           WHERE tc.user_id = ? AND tc.created_at >= datetime('now', '-2 days')
-           ORDER BY tc.created_at DESC LIMIT 20`,
-        ).bind(user.id).all();
-        return json({ tags: results || [] });
+           WHERE tc.user_id = ? AND t.hidden = 0 AND tc.created_at >= datetime('now', '-' || ? || ' days')
+           ORDER BY tc.created_at DESC LIMIT ?`,
+        ).bind(user.id, days, limit).all();
+        return json({ tags: results || [], days });
       }
 
       // --- ORG: MES TACHES TRANSVERSES (filtres status/retard/assignation/recherche) ---
