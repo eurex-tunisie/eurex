@@ -141,6 +141,9 @@ export default function MesHeures({ userId, title, exercice }: { userId?: string
         </span>
         <span className="text-xs text-gray-500">
           {totalsLabel} : <b className="text-gray-700">{fmtHm(hours.totals.worked_seconds)} / {fmtHm(hours.totals.norm_seconds)}</b>
+{(hours.extra_worked_seconds || 0) > 0 && (
+  <span className="text-amber-600 font-semibold"> · {fmtHm(hours.extra_worked_seconds)} pointées hors période</span>
+)}
           {hours.totals.net_missing_seconds > 0
             ? <span className="text-rose-500 font-semibold"> · manque {fmtHm(hours.totals.net_missing_seconds)} (solde net)</span>
             : hours.totals.surplus_seconds > 0

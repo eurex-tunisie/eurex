@@ -157,6 +157,7 @@ export interface OrgMyHours {
   totals: { worked_seconds: number; norm_seconds: number; missing_seconds: number; overtime_seconds: number; net_missing_seconds: number; surplus_seconds: number };
   online: boolean;
   today_dow: number;
+  extra_worked_seconds?: number;
 }
 
 export interface OrgTask {
