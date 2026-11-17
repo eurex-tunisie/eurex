@@ -123,6 +123,15 @@ export default function OrgMesTaches() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-gray-900 truncate">{t.label}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${meta.cls}`}>{meta.label}</span>
+                    {t.is_tagged && (
+                      <span
+                        className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700"
+                        data-testid="mes-taches-tagged"
+                        title={t.tagged_by_name ? `Tagué par ${t.tagged_by_name} sur cette tâche` : 'Vous êtes tagué sur cette tâche'}
+                      >
+                        👥 {t.tagged_by_name ? `Tagué par ${t.tagged_by_name}` : 'Tagué'}
+                      </span>
+                    )}
                     {late && (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 animate-pulse" data-testid="mes-taches-late">
                         Retard {t.days_left}j

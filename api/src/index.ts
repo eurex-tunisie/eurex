@@ -3739,11 +3739,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const grants = grantRows as any[];
         const isGranted = !isSupervisor(user.role) && grants.some(g => g.granted_to === user.id);
         // Collaborateurs taguees sur les taches (partage inter-comptables)
-        const { results: collabRows } = await env.DB.prepare('SELECT tc.task_id, tc.user_id, u.full_name FROM org_task_collaborators tc JOIN org_users u ON u.id = tc.user_id WHERE tc.task_id IN (SELECT id FROM org_tasks WHERE dossier_id = ?)').bind(orgDossierGetMatch[1]).all();
+        const { results: collabRows } = await env.DB.prepare('SELECT tc.task_id, tc.user_id, tc.added_by, u.full_name, cb.full_name AS added_by_name FROM org_task_collaborators tc JOIN org_users u ON u.id = tc.user_id LEFT JOIN org_users cb ON cb.id = tc.added_by WHERE tc.task_id IN (SELECT id FROM org_tasks WHERE dossier_id = ?)').bind(orgDossierGetMatch[1]).all();
         const collabByTask: Record<string, any[]> = {};
         for (const c of collabRows as any[]) {
           if (!collabByTask[c.task_id]) collabByTask[c.task_id] = [];
-          collabByTask[c.task_id].push({ user_id: c.user_id, full_name: c.full_name });
+          collabByTask[c.task_id].push({ user_id: c.user_id, full_name: c.full_name, added_by: c.added_by || null, added_by_name: c.added_by_name || null });
         }
         for (const t of tasks as any[]) t.collaborators = collabByTask[t.id] || [];
         // Chronos actifs de ce dossier : 1 par comptable, plusieurs en parallele sur la meme tache
@@ -4051,7 +4051,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!user) return json({ error: 'Non autorisé' }, 401);
         const [dossierId, taskId] = [orgCollabAddMatch[1], orgCollabAddMatch[2]];
         if (!await orgCanAccessDossier(user, dossierId)) return json({ error: 'Accès refusé' }, 403);
-        const dossier = await env.DB.prepare('SELECT d.id, ' + dossierComp() + ' as comptable_id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ? AND c.organization_id = ?').bind(dossierId, user.organization_id).first() as any;
+        const dossier = await env.DB.prepare('SELECT d.id, d.exercice, c.name as client_name, ' + dossierComp() + ' as comptable_id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ? AND c.organization_id = ?').bind(dossierId, user.organization_id).first() as any;
         if (!dossier) return json({ error: 'Dossier non trouvé' }, 404);
         const task = await env.DB.prepare('SELECT id, label FROM org_tasks WHERE id = ? AND dossier_id = ?').bind(taskId, dossierId).first() as any;
         if (!task) return json({ error: 'Tâche non trouvée' }, 404);
@@ -4082,6 +4082,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         }
         await env.DB.prepare('INSERT INTO org_task_collaborators (task_id, user_id, added_by) VALUES (?, ?, ?)').bind(taskId, targetId, user.id).run();
         await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'task_collab_added', 'task', taskId, JSON.stringify({ dossier_id: dossierId, user_id: targetId, user_name: target.full_name, grant_created: grantCreated, expires_at: expiresAt })).run();
+        // Notification immediate au comptable tague (cloche + compteur non-lus)
+        const notifMsg = `👥 ${user.full_name} vous a tagué sur « ${String(task.label).slice(0, 120)} » — ${dossier.client_name} · exercice ${dossier.exercice}`;
+        await env.DB.prepare('INSERT INTO org_notifications (id, user_id, dossier_id, message) VALUES (?, ?, ?, ?)').bind(genId(), targetId, dossierId, notifMsg).run();
         return json({ ok: true, collaborator: { user_id: targetId, full_name: target.full_name }, grant_created: grantCreated, expires_at: expiresAt }, 201);
       }
 
@@ -4211,13 +4214,41 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           : "(c.organization_id = ? AND (" + dossierComp() + " = ? OR EXISTS (SELECT 1 FROM org_dossier_grants g WHERE g.dossier_id = d.id AND g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now')))))";
         const binds: any[] = isSupervisor(user.role) ? [user.organization_id] : [user.organization_id, user.id, user.id];
         const { results } = await pgAll(env, `SELECT t.id, t.label, t.status, t.created_at, t.due_date, d.id as dossier_id, d.exercice, d.status as dossier_status, c.name as client_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE ${access} AND t.hidden = 0 AND t.created_by IS NOT NULL AND t.created_at >= datetime('now', '-' || ? || ' days') ${exSel ? 'AND d.exercice = ?' : ''} ORDER BY t.created_at DESC, t.id DESC LIMIT 10`, ...binds, days, ...(exSel ? [exSel] : []));
+        // Tague sur ces taches ? (badge « Tagué par X » cote comptable)
+        const tagByTask = new Map<string, string | null>();
+        for (const chunk of chunkIds((results as any[]).map(t => t.id))) {
+          if (!chunk.length) continue;
+          const { results: tagRows } = await env.DB.prepare(
+            `SELECT tc.task_id, u.full_name AS added_by_name FROM org_task_collaborators tc LEFT JOIN org_users u ON u.id = tc.added_by WHERE tc.user_id = ? AND tc.task_id IN (${chunk.map(() => '?').join(',')})`,
+          ).bind(user.id, ...chunk).all();
+          for (const r of tagRows as any[]) tagByTask.set(r.task_id, r.added_by_name || null);
+        }
         // J-x rapporté à la date en Tunisie (UTC+1)
         const today = new Date(Date.now() + 3600000).toISOString().slice(0, 10);
         const tasks = (results as any[]).map(t => ({
           ...t,
           days_left: t.due_date ? Math.round((Date.parse(t.due_date + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000) : null,
+          is_tagged: tagByTask.has(t.id),
+          tagged_by_name: tagByTask.get(t.id) ?? null,
         }));
         return json({ tasks, days });
+      }
+
+      // --- ORG: TAGS RECUS (collaboration) — dernieres 48h, pour le toast cote comptable ---
+      if (path === '/api/org/me/tags/recent' && method === 'GET') {
+        const user = await verifyOrgToken(request);
+        if (!user) return json({ error: 'Non autorisé' }, 401);
+        const { results } = await env.DB.prepare(
+          `SELECT tc.task_id, tc.created_at AS tagged_at, t.label AS task_label, t.dossier_id, d.exercice, c.name AS client_name, u.full_name AS tagged_by_name
+           FROM org_task_collaborators tc
+           JOIN org_tasks t ON t.id = tc.task_id
+           JOIN org_dossiers d ON d.id = t.dossier_id
+           JOIN org_clients c ON c.id = d.client_id
+           LEFT JOIN org_users u ON u.id = tc.added_by
+           WHERE tc.user_id = ? AND tc.created_at >= datetime('now', '-2 days')
+           ORDER BY tc.created_at DESC LIMIT 20`,
+        ).bind(user.id).all();
+        return json({ tags: results || [] });
       }
 
       // --- ORG: MES TACHES TRANSVERSES (filtres status/retard/assignation/recherche) ---
@@ -4240,14 +4271,25 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         let where = `WHERE ${access} AND t.hidden = 0 AND t.created_by IS NOT NULL`;
         if (statusSel) { where += ' AND t.status = ?'; binds.push(statusSel); }
         if (overdue) { where += " AND t.due_date IS NOT NULL AND t.due_date < date('now') AND t.status != 'fait'"; }
-        if (mine) { where += ' AND (t.assigned_comptable_id = ? OR t.done_by = ?)'; binds.push(user.id, user.id); }
+        if (mine) { where += ' AND (t.assigned_comptable_id = ? OR t.done_by = ? OR EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = t.id AND tc.user_id = ?))'; binds.push(user.id, user.id, user.id); }
         if (q) { where += ' AND (t.label LIKE ? OR c.name LIKE ?)'; binds.push(`%${q}%`, `%${q}%`); }
         if (exSel) { where += ' AND d.exercice = ?'; binds.push(exSel); }
         const { results } = await env.DB.prepare(`SELECT t.id, t.label, t.status, t.blocked_reason, t.due_date, t.verify_due_at, t.created_at, t.updated_at, t.assigned_comptable_id, t.done_by, d.id as dossier_id, d.exercice, d.status as dossier_status, c.name as client_name, (SELECT full_name FROM org_users WHERE id = t.assigned_comptable_id) as assigned_comptable_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id ${where} ORDER BY t.status = 'a_verifier' DESC, (t.due_date IS NULL), t.due_date ASC, t.updated_at DESC LIMIT ?`).bind(...binds, limit).all();
+        // Tague sur ces taches ? (collaboration inter-comptables) : qui m'a tague
+        const tagByTask = new Map<string, string | null>();
+        for (const chunk of chunkIds((results as any[]).map(t => t.id))) {
+          if (!chunk.length) continue;
+          const { results: tagRows } = await env.DB.prepare(
+            `SELECT tc.task_id, u.full_name AS added_by_name FROM org_task_collaborators tc LEFT JOIN org_users u ON u.id = tc.added_by WHERE tc.user_id = ? AND tc.task_id IN (${chunk.map(() => '?').join(',')})`,
+          ).bind(user.id, ...chunk).all();
+          for (const r of tagRows as any[]) tagByTask.set(r.task_id, r.added_by_name || null);
+        }
         const today = new Date(Date.now() + 3600000).toISOString().slice(0, 10);
         const tasks = (results as any[]).map(t => ({
           ...t,
           days_left: t.due_date ? Math.round((Date.parse(t.due_date + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000) : null,
+          is_tagged: tagByTask.has(t.id),
+          tagged_by_name: tagByTask.get(t.id) ?? null,
         }));
         return json({ tasks });
       }

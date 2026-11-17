@@ -1569,6 +1569,19 @@ export default function OrgDossierPage() {
                       Travaillé par {task.done_by_name}
                     </span>
                   )}
+                  {(() => {
+                    const mine = (task.collaborators || []).find(c => c.user_id === state.user?.id);
+                    if (!mine) return null;
+                    return (
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded-full font-medium"
+                        title={mine.added_by_name ? `Vous avez été tagué par ${mine.added_by_name}` : 'Vous êtes tagué sur cette tâche'}
+                        data-testid="task-tagged-me"
+                      >
+                        👥 Vous êtes tagué{mine.added_by_name ? ` par ${mine.added_by_name}` : ''}
+                      </span>
+                    );
+                  })()}
                   {task.status === 'fait' && task.verified_by_name && (
                     <span
                       className="text-[10px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-full font-medium"
@@ -1694,8 +1707,9 @@ export default function OrgDossierPage() {
                           key={c.user_id}
                           data-testid="task-collab"
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-medium"
+                          title={c.added_by_name ? `Tagué par ${c.added_by_name}` : undefined}
                         >
-                          {c.full_name}
+                          {c.full_name}{c.user_id === state.user?.id ? ' (vous)' : ''}
                           <button
                             onClick={() => removeCollab(task.id, c.user_id)}
                             title="Retirer le collaborateur"

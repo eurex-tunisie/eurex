@@ -9,6 +9,7 @@ import OrgAlerts from '../../components/OrgAlerts';
 import MesHeures from '../../components/MesHeures';
 import TempsInterne from '../../components/TempsInterne';
 import NouvellesTaches from '../../components/NouvellesTaches';
+import TagsRecus from '../../components/TagsRecus';
 import { EXPORT_LABELS } from '../../lib/orgAlerts';
 import { verifyRate, verifyRateTone, pendingRate, pendingVerify, elapsedLabel, VerifyCounts } from '../../lib/orgVerify';
 import { useCardMin } from '../../lib/useCardMin';
@@ -761,6 +762,8 @@ export default function OrgDashboardExpert() {
 
       {/* Nouvelles tâches — dernières tâches ajoutées aux dossiers de l'organisation */}
       <NouvellesTaches exercice={exercice} />
+      {/* Tags recus (collaboration) : toast temps reel */}
+      <TagsRecus />
 
       {/* Tâches à vérifier — faites par les comptables, en attente de validation */}
       {verifyTasks.length > 0 && (

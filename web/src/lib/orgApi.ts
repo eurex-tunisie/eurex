@@ -196,6 +196,8 @@ export interface OrgTask {
 export interface OrgTaskCollaborator {
   user_id: string;
   full_name: string;
+  added_by?: string | null;
+  added_by_name?: string | null;
 }
 
 export interface OrgCollabCandidate {
@@ -232,6 +234,20 @@ export interface OrgRecentTask {
   exercice: number;
   dossier_status: string;
   client_name: string;
+  // Collaboration : tache ou je suis tague + qui m'a tague
+  is_tagged?: boolean;
+  tagged_by_name?: string | null;
+}
+
+// Tag recu (collaboration) — pour le toast temps reel cote comptable
+export interface OrgRecentTag {
+  task_id: string;
+  tagged_at: string;
+  task_label: string;
+  dossier_id: string;
+  exercice: number;
+  client_name: string;
+  tagged_by_name: string | null;
 }
 
 // Taches transverses (page Mes taches) — filtres status/retard/assignation
@@ -252,6 +268,9 @@ export interface OrgMyTask {
   assigned_comptable_id: string | null;
   assigned_comptable_name: string | null;
   done_by: string | null;
+  // Collaboration : tache ou je suis tague + qui m'a tague
+  is_tagged?: boolean;
+  tagged_by_name?: string | null;
 }
 
 export interface OrgAuditEntry {
@@ -475,6 +494,9 @@ export const orgApi = {
   // Nouvelles tâches des dossiers accessibles (dashboard) — exercice optionnel
   getMyRecentTasks: (days: number = 30, exercice?: number | null) =>
     req<{ tasks: OrgRecentTask[]; days: number }>(`/org/me/tasks/recent?days=${days}${exercice ? `&exercice=${exercice}` : ''}`),
+  // Tags recus (collaboration, 48h) — toast temps reel cote comptable
+  getRecentTags: () =>
+    req<{ tags: OrgRecentTag[] }>('/org/me/tags/recent'),
   // Taches transverses filtrables (page Mes taches)
   getMyTasks: (params: { status?: string; overdue?: boolean; mine?: boolean; exercice?: number | null; q?: string; limit?: number } = {}) => {
     const p = new URLSearchParams();

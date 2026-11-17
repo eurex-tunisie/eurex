@@ -136,6 +136,15 @@ export default function NouvellesTaches({ exercice }: { exercice?: number | null
               </div>
               <p className="text-[10px] text-gray-500 truncate" data-testid="recent-task-dossier">
                 📁 {rt.client_name} · Exercice {rt.exercice}
+                {rt.is_tagged && (
+                  <span
+                    data-testid="recent-task-tagged"
+                    className="ml-1.5 inline-block text-[9px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded-full align-middle"
+                    title={rt.tagged_by_name ? `Tagué par ${rt.tagged_by_name}` : 'Vous êtes tagué sur cette tâche'}
+                  >
+                    👥 {rt.tagged_by_name ? `Tagué par ${rt.tagged_by_name}` : 'Tagué'}
+                  </span>
+                )}
                 {fresh && (
                   <span
                     data-testid="recent-task-new"
