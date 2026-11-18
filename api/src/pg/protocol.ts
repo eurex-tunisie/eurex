@@ -9,8 +9,14 @@ class Writer {
   i8(v: number) { this.buf.push(v & 0xff); }
   i16(v: number) { this.buf.push((v >> 8) & 0xff, v & 0xff); }
   i32(v: number) { this.buf.push((v >>> 24) & 0xff, (v >>> 16) & 0xff, (v >>> 8) & 0xff, v & 0xff); }
+  // Chaine terminee par zero. EN UTF-8, jamais en latin1 : la connexion
+  // annonce client_encoding=UTF8, donc tout octet accentue ecrit en latin1 fait
+  // echouer la requete cote serveur ("invalid byte sequence for encoding
+  // UTF8"). Regression constatee en prod : le SQL de la fiche comptable
+  // contient COALESCE(t.label, 'Tache supprimee') avec accents -> 500 ->
+  // "Comptable non trouve" pour TOUS les comptables.
   cstr(s: string) {
-    for (let i = 0; i < s.length; i++) this.buf.push(s.charCodeAt(i) & 0xff);
+    for (const b of new TextEncoder().encode(s)) this.buf.push(b);
     this.buf.push(0);
   }
   bytes(b: Uint8Array) { for (const x of b) this.buf.push(x); }

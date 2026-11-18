@@ -150,6 +150,31 @@ test('ErrorResponse : champs S/C/M/D', () => {
   assert.equal(e.t === 'error' && e.detail, 'DETAIL...');
 });
 
+test('Parse : le SQL accentue part en UTF-8 (pas en latin1)', () => {
+  // Regression prod : cstr() ecrivait chaque charCode & 0xff, donc 'â' (0xC3
+  // 0xA2 en UTF-8) partait en 0xE2 -> PostgreSQL (client_encoding=UTF8)
+  // repondait "invalid byte sequence for encoding UTF8" et la fiche comptable
+  // renvoyait 500 pour tous les comptables.
+  const sql = "SELECT COALESCE(t.label, 'Tâche supprimée')";
+  const p = parseMessage(sql);
+  // corps = nom de statement vide (\0) + sql + \0 + nb types (2 octets)
+  const sent = Buffer.from(p.slice(6, p.length - 3));
+  assert.equal(sent.toString('utf8'), sql);
+  assert.equal(sent.length, Buffer.byteLength(sql, 'utf8'));
+  assert.ok(sent.includes(Buffer.from([0xc3, 0xa2])), 'a-t-il ete envoye en UTF-8 ?');
+  assert.ok(sent.includes(Buffer.from([0xc3, 0xa9])), 'e-aigu a-t-il ete envoye en UTF-8 ?');
+  // La longueur de trame doit compter les OCTETS, pas les caracteres.
+  const view = new DataView(p.buffer, p.byteOffset, p.byteLength);
+  assert.equal(view.getInt32(1, false), p.length - 1);
+});
+
+test('Startup : un nom accentue part en UTF-8', () => {
+  const b = startup('rené', 'eurex');
+  const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  assert.equal(view.getInt32(0, false), b.length);
+  assert.equal(Buffer.from(b.slice(8)).toString('utf8'), 'user\x00rené\x00database\x00eurex\x00client_encoding\x00UTF8\x00\x00');
+});
+
 test('Bind : structure portal/statement/formats/params', () => {
   const b = bindMessage(['42', null, 'x']);
   assert.equal(b[0], 0x42);
