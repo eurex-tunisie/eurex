@@ -30,9 +30,12 @@ export default function OrgComptableDetail() {
   if (loading) return <div className="text-center py-12 text-gray-400">Chargement...</div>;
   if (!data) return <div className="text-center py-12 text-gray-400">Comptable non trouvé</div>;
 
-  const { comptable: c, dossiers, recent_tasks, recent_notes, time_entries, time_by_dossier, total_time_seconds, audit_log, active_timer, kpis } = data;
+  const { comptable: c, dossiers, recent_tasks, recent_notes, time_entries, time_by_dossier, total_time_seconds, internal_time_seconds, total_with_internal_seconds, audit_log, active_timer, kpis } = data;
   const hourlyCostCents = c.hourly_cost_cents == null ? null : Number(c.hourly_cost_cents);
-  const personnelCostCents = hourlyCostCents == null ? null : Math.round(hourlyCostCents * total_time_seconds / 3600);
+  // Heures personnelles = pointages dossiers + temps interne (reunions, informatique...)
+  const internalSeconds = Number(internal_time_seconds) || 0;
+  const personalSeconds = Number(total_with_internal_seconds ?? total_time_seconds) || 0;
+  const personnelCostCents = hourlyCostCents == null ? null : Math.round(hourlyCostCents * personalSeconds / 3600);
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -146,7 +149,7 @@ export default function OrgComptableDetail() {
           { label: 'Avancement', value: `${kpis.avg_progress}%`, color: 'emerald' },
           { label: 'Tâches faites', value: kpis.tasks_done, color: 'purple' },
           { label: 'Notes', value: kpis.total_notes, color: 'orange' },
-          { label: 'Temps total', value: formatTime(total_time_seconds), color: 'gray' },
+          { label: 'Temps total', value: formatTime(personalSeconds), color: 'gray' },
         ].map((kpi, i) => {
           const bgMap: Record<string, string> = { blue: 'bg-blue-50 border-blue-200', red: 'bg-red-50 border-red-200', emerald: 'bg-emerald-50 border-emerald-200', purple: 'bg-purple-50 border-purple-200', orange: 'bg-orange-50 border-orange-200', gray: 'bg-gray-50 border-gray-200' };
           const valMap: Record<string, string> = { blue: 'text-blue-700', red: 'text-red-700', emerald: 'text-emerald-700', purple: 'text-purple-700', orange: 'text-orange-700', gray: 'text-gray-700' };
@@ -343,8 +346,12 @@ export default function OrgComptableDetail() {
               <span className="text-[10px] text-gray-400">{formatDateTime(te.started_at)}</span>
             </div>
           ))}
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-center">
-            <span className="text-sm font-semibold text-purple-700">Temps total : {formatTime(total_time_seconds)}</span>
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-center space-y-0.5">
+            <div className="text-sm font-semibold text-purple-700">Temps total : {formatTime(personalSeconds)}</div>
+            <div className="text-[11px] text-purple-600">
+              Pointages dossiers {formatTime(Number(total_time_seconds) || 0)}
+              {internalSeconds > 0 && <> · Temps interne {formatTime(internalSeconds)}</>}
+            </div>
           </div>
         </div>
       )}

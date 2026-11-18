@@ -3733,7 +3733,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const { results: documents } = await env.DB.prepare('SELECT * FROM org_expected_documents WHERE dossier_id = ? ORDER BY label').bind(orgDossierGetMatch[1]).all();
         const { results: notes } = await env.DB.prepare('SELECT n.*, u.full_name as author_name FROM org_notes n LEFT JOIN org_users u ON n.user_id = u.id WHERE n.dossier_id = ? ORDER BY n.created_at DESC').bind(orgDossierGetMatch[1]).all();
         // Time entries breakdown
-        const { results: timeEntries } = await env.DB.prepare("SELECT te.*, t.label as task_label, 'comptable' as task_part, u.full_name as user_name, u.role as user_role, u.role_label as user_role_label FROM org_time_entries te JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC").bind(orgDossierGetMatch[1]).all();
+        const { results: timeEntries } = await env.DB.prepare("SELECT te.*, COALESCE(t.label, 'Tâche supprimée') as task_label, 'comptable' as task_part, u.full_name as user_name, u.role as user_role, u.role_label as user_role_label FROM org_time_entries te LEFT JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC").bind(orgDossierGetMatch[1]).all();
         const { results: customNorms } = await env.DB.prepare('SELECT task_label, norm_seconds FROM org_dossier_task_norms WHERE dossier_id = ?').bind(orgDossierGetMatch[1]).all();
         const customNormByLabel = new Map((customNorms as any[]).map(n => [n.task_label, Number(n.norm_seconds)]));
         for (const t of tasks as any[]) {
@@ -3815,7 +3815,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!isSupervisor(user.role)) return json({ error: 'Réservé au rôle expert/manager' }, 403);
         if (!await orgCanAccessDossier(user, orgDossierCostMatch[1])) return json({ error: 'Accès refusé' }, 403);
-        const { results: rows } = await env.DB.prepare('SELECT te.task_id, t.label AS task_label, te.user_id, u.full_name, u.role, u.role_label, u.hourly_cost_cents, COALESCE(SUM(te.duration_seconds), 0) AS seconds FROM org_time_entries te JOIN org_users u ON u.id = te.user_id JOIN org_tasks t ON t.id = te.task_id WHERE te.dossier_id = ? AND te.stopped_at IS NOT NULL GROUP BY te.task_id, t.label, te.user_id, u.full_name, u.role, u.role_label, u.hourly_cost_cents ORDER BY task_label, seconds DESC').bind(orgDossierCostMatch[1]).all();
+        const { results: rows } = await env.DB.prepare("SELECT te.task_id, COALESCE(t.label, 'Tâche supprimée') AS task_label, te.user_id, u.full_name, u.role, u.role_label, u.hourly_cost_cents, COALESCE(SUM(te.duration_seconds), 0) AS seconds FROM org_time_entries te JOIN org_users u ON u.id = te.user_id LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.dossier_id = ? AND te.stopped_at IS NOT NULL GROUP BY te.task_id, COALESCE(t.label, 'Tâche supprimée'), te.user_id, u.full_name, u.role, u.role_label, u.hourly_cost_cents ORDER BY task_label, seconds DESC").bind(orgDossierCostMatch[1]).all();
         const time_cost_by_user = (rows as any[]).map(r => {
           const seconds = Number(r.seconds) || 0;
           const rate = r.hourly_cost_cents == null ? null : Number(r.hourly_cost_cents);
@@ -4620,7 +4620,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const user = await verifyOrgToken(request);
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!await orgCanAccessDossier(user, orgTimerListMatch[1])) return json({ error: 'Accès refusé' }, 403);
-        const { results: entries } = await env.DB.prepare('SELECT te.*, t.label as task_label, u.full_name as user_name FROM org_time_entries te JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC').bind(orgTimerListMatch[1]).all();
+        const { results: entries } = await env.DB.prepare("SELECT te.*, COALESCE(t.label, 'Tâche supprimée') as task_label, u.full_name as user_name FROM org_time_entries te LEFT JOIN org_tasks t ON te.task_id = t.id JOIN org_users u ON te.user_id = u.id WHERE te.dossier_id = ? ORDER BY te.started_at DESC").bind(orgTimerListMatch[1]).all();
         // Also get task timer states
         const { results: tasks } = await env.DB.prepare('SELECT id, total_time_seconds, timer_started_at, timer_user_id FROM org_tasks WHERE dossier_id = ?').bind(orgTimerListMatch[1]).all();
         return json({ entries, tasks });
@@ -5854,8 +5854,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // All notes written by this comptable
         const { results: myNotes } = await env.DB.prepare('SELECT n.*, d.exercice, c.name as client_name FROM org_notes n JOIN org_dossiers d ON n.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT 50').bind(compId).all();
         // Time entries breakdown
-        const { results: timeEntries } = await env.DB.prepare('SELECT te.*, t.label as task_label, d.exercice, c.name as client_name FROM org_time_entries te JOIN org_tasks t ON te.task_id = t.id JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE te.user_id = ? ORDER BY te.started_at DESC').bind(compId).all();
+        const { results: timeEntries } = await env.DB.prepare("SELECT te.*, COALESCE(t.label, 'Tâche supprimée') as task_label, d.exercice, c.name as client_name FROM org_time_entries te LEFT JOIN org_tasks t ON te.task_id = t.id JOIN org_dossiers d ON te.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE te.user_id = ? ORDER BY te.started_at DESC").bind(compId).all();
         const totalTimeEntries = timeEntries.reduce((sum: number, te: any) => sum + (te.duration_seconds || 0), 0);
+        // Temps interne (reunions, informatique...) : compte dans les heures personnelles du comptable
+        const internalRow = await env.DB.prepare('SELECT COALESCE(SUM(duration_seconds), 0) AS secs FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL').bind(compId).first() as any;
+        const totalInternalSeconds = Number(internalRow?.secs) || 0;
         // Time by dossier : temps TOTAL cumulé sur chaque dossier (toutes personnes — chrono, auto-stop, saisie manuelle)
         const timeByDossier: Record<string, { client_name: string; exercice: number; seconds: number }> = {};
         const { results: taskTimes } = await env.DB.prepare('SELECT t.dossier_id, COALESCE(SUM(t.total_time_seconds), 0) as seconds, d.exercice, c.name as client_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE ' + dossierComp() + ' = ? AND c.organization_id = ? GROUP BY t.dossier_id, d.exercice, c.name HAVING COALESCE(SUM(t.total_time_seconds), 0) > 0').bind(compId, user.organization_id).all();
@@ -5883,6 +5886,8 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           time_entries: timeEntries,
           time_by_dossier: Object.values(timeByDossier),
           total_time_seconds: totalTimeEntries,
+          internal_time_seconds: totalInternalSeconds,
+          total_with_internal_seconds: totalTimeEntries + totalInternalSeconds,
           audit_log: auditLog,
           active_timer: activeTimer || null,
           kpis: { total_dossiers: totalDossiers, en_cours: enCoursDossiers, avg_progress: avgProgress, tasks_done: tasksDone, total_notes: totalNotes, blocked_tasks: blockedTasks },
