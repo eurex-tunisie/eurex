@@ -1892,9 +1892,25 @@ export default function OrgDossierPage() {
                               <span className="font-mono font-bold text-purple-700">{formatTime(e.duration_seconds || 0)}</span>
                               <span className="text-gray-500">{e.user_name}</span>
                               <span className="text-gray-400">
-                                {new Date(e.started_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                {new Date(String(e.started_at).replace(' ', 'T') + 'Z').toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                               </span>
                               {e.note && <span className="text-purple-600 italic flex-1 min-w-[120px]">📝 {e.note}</span>}
+                              {(e.user_id === state.user?.id || isExpert) && (
+                                <span className="flex gap-1 ml-auto">
+                                  <button
+                                    data-testid="task-time-entry-edit"
+                                    onClick={() => openEditTime(e)}
+                                    title="Modifier ce pointage"
+                                    className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                  >✎</button>
+                                  <button
+                                    data-testid="task-time-entry-delete"
+                                    onClick={() => deleteTimeEntry(e)}
+                                    title="Supprimer ce pointage"
+                                    className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-600 hover:bg-red-100"
+                                  >🗑</button>
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>
