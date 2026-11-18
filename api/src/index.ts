@@ -5834,8 +5834,23 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // All dossiers assigned to this comptable
         const { results: dossiers } = await env.DB.prepare('SELECT d.*, ' + ancientSql('d') + ' as is_ancient, c.name as client_name FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE ' + dossierComp() + ' = ? AND c.organization_id = ? ORDER BY d.exercice DESC, c.name').bind(compId, user.organization_id).all();
         // Enrich dossiers with task stats
-        const enrichedDossiers = await Promise.all(dossiers.map(async (d: any) => {
-          const { results: tasks } = await env.DB.prepare('SELECT t.label, t.status, t.export_scope, t.month, c.export_status, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.dossier_id = ? AND t.hidden = 0').bind(d.id).all();
+        // Une seule requete pour toutes les taches (au lieu d'une par dossier) : le
+        // plafond CPU du Worker gratuit (10 ms) est depasse par le N+1 et la fiche
+        // renvoyait une erreur 503 -> "Comptable non trouve" cote front.
+        const tasksByDossier = new Map<string, any[]>();
+        for (const d of dossiers as any[]) tasksByDossier.set(d.id, []);
+        for (const chunk of chunkIds((dossiers as any[]).map((d: any) => d.id))) {
+          if (!chunk.length) continue;
+          const { results: taskRows } = await env.DB.prepare(
+            `SELECT t.dossier_id, t.label, t.status, t.export_scope, t.month, c.export_status, COALESCE(t.total_time_seconds, 0) as total_time FROM org_tasks t JOIN org_dossiers d2 ON t.dossier_id = d2.id JOIN org_clients c ON d2.client_id = c.id WHERE t.hidden = 0 AND t.dossier_id IN (${chunk.map(() => '?').join(',')})`,
+          ).bind(...chunk).all();
+          for (const row of taskRows as any[]) {
+            const list = tasksByDossier.get(row.dossier_id);
+            if (list) list.push(row);
+          }
+        }
+        const enrichedDossiers = (dossiers as any[]).map((d: any) => {
+          const tasks = tasksByDossier.get(d.id) || [];
           const s = { total: 0, fait: 0, en_cours: 0, bloque_client: 0 };
           let totalTime = 0;
           for (const t of tasks as any[]) {
@@ -5848,7 +5863,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             s.total++; if (t.status === 'fait') s.fait++; else if (t.status === 'en_cours' || t.status === 'a_faire' || t.status === 'a_verifier') s.en_cours++; else if (t.status === 'bloque_client') s.bloque_client++;
           }
           return { ...d, task_stats: s, progress: d.is_ancient ? null : (s.total > 0 ? Math.round(s.fait / s.total * 1000) / 10 : 0), total_time_seconds: totalTime };
-        }));
+        });
         // All tasks modified by this comptable
         const { results: myTasks } = await env.DB.prepare('SELECT t.*, d.exercice, c.name as client_name FROM org_tasks t JOIN org_dossiers d ON t.dossier_id = d.id JOIN org_clients c ON d.client_id = c.id WHERE t.updated_by = ? AND t.hidden = 0 ORDER BY t.updated_at DESC LIMIT 50').bind(compId).all();
         // All notes written by this comptable
