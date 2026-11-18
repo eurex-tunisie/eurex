@@ -19,16 +19,27 @@ export default function OrgComptableDetail() {
   const { state } = useOrgAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    orgApi.getComptableDetail(id).then(setData).catch(console.error).finally(() => setLoading(false));
+    setError(null);
+    orgApi.getComptableDetail(id).then(setData).catch((e: any) => {
+      console.error(e);
+      setError(e?.message || 'Erreur inconnue');
+    }).finally(() => setLoading(false));
   }, [id]);
 
   if (loading) return <div className="text-center py-12 text-gray-400">Chargement...</div>;
-  if (!data) return <div className="text-center py-12 text-gray-400">Comptable non trouvé</div>;
+  if (!data) return (
+    <div className="text-center py-12 text-gray-500 space-y-1">
+      <div className="font-semibold">Comptable non trouvé</div>
+      {error && <div className="text-xs text-red-600">Motif : {error}</div>}
+      <div className="text-[11px] text-gray-400">id : {id}</div>
+    </div>
+  );
 
   const { comptable: c, dossiers, recent_tasks, recent_notes, time_entries, time_by_dossier, total_time_seconds, internal_time_seconds, total_with_internal_seconds, audit_log, active_timer, kpis } = data;
   const hourlyCostCents = c.hourly_cost_cents == null ? null : Number(c.hourly_cost_cents);
