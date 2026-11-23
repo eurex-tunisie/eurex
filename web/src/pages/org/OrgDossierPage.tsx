@@ -276,6 +276,14 @@ export default function OrgDossierPage() {
     return () => clearInterval(interval);
   }, [dossier?.tasks]);
 
+  // Garde-fou chrono : tant qu'un chrono tourne, on recharge pour refleter
+  // l'arret serveur (plafond norme + 30 mn ou coupure 18:00).
+  useEffect(() => {
+    if (!dossier?.running_timers?.length) return;
+    const iv = setInterval(() => { if (!document.hidden) load(); }, 60000);
+    return () => clearInterval(iv);
+  }, [dossier?.running_timers?.length]);
+
   const loadTimeline = async () => {
     if (!id) return;
     try {
@@ -751,6 +759,15 @@ export default function OrgDossierPage() {
     const start = new Date(startedAt + 'Z').getTime();
     return Math.floor((timerNow - start) / 1000);
   };
+
+  // Garde-fou chrono : mon compteur ne s'affiche jamais au-dela du reste du
+  // jour (norme + 30 mn, et coupure 18:00 cote serveur).
+  const myTimerRemaining = dossier?.time_guard?.remaining_seconds ?? null;
+  const getMyLiveElapsed = (startedAt: string) => {
+    const raw = getLiveElapsed(startedAt);
+    return myTimerRemaining != null ? Math.min(raw, myTimerRemaining) : raw;
+  };
+  const myTimerAtLimit = (startedAt: string) => myTimerRemaining != null && getLiveElapsed(startedAt) >= myTimerRemaining;
 
   const addTask = async () => {
     if (!dossier || !newTaskLabel.trim()) return;
@@ -1555,7 +1572,7 @@ export default function OrgDossierPage() {
                            className="text-[10px] font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded-full whitespace-nowrap hover:bg-red-100"
                            title="Arrêter votre chrono sur cette tâche"
                          >
-                           ⏹ Arrêter {formatTime(getLiveElapsed(myRunning.started_at))}
+                           ⏹ Arrêter {formatTime(getMyLiveElapsed(myRunning.started_at))}
                          </button>
                        );
                      }
@@ -1671,8 +1688,13 @@ export default function OrgDossierPage() {
                                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                                 <span className="text-xs text-gray-500">Depuis</span>
                                 <span className="text-sm font-mono font-bold text-red-600" data-testid="my-timer-elapsed">
-                                  {formatTime(getLiveElapsed(mine.started_at))}
+                                  {formatTime(getMyLiveElapsed(mine.started_at))}
                                 </span>
+                                {myTimerAtLimit(mine.started_at) && (
+                                  <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full" data-testid="my-timer-limit">
+                                    plafond atteint
+                                  </span>
+                                )}
                               </div>
                               {others.length > 0 && (
                                 <span className="text-[11px] text-orange-600 font-medium" data-testid="other-timers">
@@ -2614,7 +2636,10 @@ export default function OrgDossierPage() {
         return (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-emerald-600 text-white rounded-full shadow-lg" data-testid="floating-timer">
             <span className="text-xs font-semibold">⏱ {task.label}</span>
-            <span className="text-xs font-mono font-bold">{formatTime(getLiveElapsed(myRunning.started_at))}</span>
+            <span className="text-xs font-mono font-bold">{formatTime(getMyLiveElapsed(myRunning.started_at))}</span>
+            {myTimerAtLimit(myRunning.started_at) && (
+              <span className="text-[10px] font-semibold bg-rose-500 px-2 py-0.5 rounded-full" data-testid="floating-timer-limit">plafond atteint</span>
+            )}
             <button
               onClick={() => {
                 if (task.month != null) setMonthFilter(task.month); else setMonthFilter('tous');

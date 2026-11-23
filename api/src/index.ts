@@ -104,12 +104,16 @@ async function buildHoursPayload(env: Env, userId: string, view: string, exercic
   const tD = exYear && exYear < curYear ? 31 : tn.getUTCDate();
   const isPastExercice = !!exYear && exYear < curYear;
   const todayDow = tn.getUTCDay();
+  // Garde-fou : le chrono en cours ne peut pas depasser le plafond du jour.
+  const todayKey = `${tn.getUTCFullYear()}-${pad2(tn.getUTCMonth() + 1)}-${pad2(tn.getUTCDate())}`;
+  const capToday = (todayDow !== 0 && todayDow !== 6) ? userNorm + DAY_TOLERANCE_SECONDS : Infinity;
+  const runningSecCapped = capToday === Infinity ? runningSec : Math.min(runningSec, Math.max(0, capToday - (byDay.get(todayKey) || 0)));
   const mkDay = (ds: string, y: number, m: number, d: number, isToday: boolean) => {
     const dow = new Date(Date.UTC(y, m, d)).getUTCDay();
     const rest = dow === 0 || dow === 6;
     const norm = rest ? 0 : userNorm;
     let worked = byDay.get(ds) || 0;
-    if (isToday && !isPastExercice) worked += runningSec;
+    if (isToday && !isPastExercice) worked += runningSecCapped;
     const missing = norm > 0 ? Math.max(0, norm - worked) : 0;
     const overtime = Math.max(0, worked - norm);
     return { date: ds, dow, worked_seconds: worked, norm_seconds: norm, missing_seconds: missing, overtime_seconds: overtime, rest, is_today: isToday && !isPastExercice };
@@ -482,6 +486,173 @@ async function ensureNotifications(env: Env, orgId: string): Promise<void> {
   } catch (e) {
     console.error('ensureNotifications', e);
   }
+}
+
+// --- GARDE-FOU CHRONO -------------------------------------------------------
+// Regle du 23/11/2026 : une journee ne depasse pas la norme de l'utilisateur
+// + 30 min, et aucun chrono ne tourne apres 18:00 (Tunisie = UTC+1). Sans ce
+// garde-fou, un navigateur ferme laissait le chrono courir des nuits entieres
+// (16h a 22h enregistrees pour un seul pointage).
+export const DAY_TOLERANCE_SECONDS = 1800;   // +30 min au-dessus de la norme
+export const DAY_CUTOFF_HOUR_TN = 18;        // 18:00 heure locale Tunisie
+export const NORM_DEFAULT_SECONDS = 30600;   // norme par defaut : 8h30
+
+function parseUtcMs(s: any): number {
+  return s ? Date.parse(String(s).replace(' ', 'T') + 'Z') : NaN;
+}
+
+function fmtUtcSql(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
+}
+
+// Plafond d'un chrono : norme + 30 min (jours ouvres seulement, le week-end
+// n'a pas de norme) et coupure a 18:00 du jour LOCAL de debut. Exporte pour
+// que le calcul soit teste sans base.
+export function chronoDayLimit(startMs: number, norm: number, committedSeconds: number, nowMs: number): { day_tn: string; limit_seconds: number; elapsed_seconds: number } {
+  const startTn = new Date(startMs + 3600000);
+  const dow = startTn.getUTCDay();
+  const p = (n: number) => String(n).padStart(2, '0');
+  const dayTn = `${startTn.getUTCFullYear()}-${p(startTn.getUTCMonth() + 1)}-${p(startTn.getUTCDate())}`;
+  const cap = (dow !== 0 && dow !== 6) ? norm + DAY_TOLERANCE_SECONDS : Infinity;
+  // 18:00 TN = 17:00 UTC le meme jour local.
+  const cutoffMs = Date.UTC(startTn.getUTCFullYear(), startTn.getUTCMonth(), startTn.getUTCDate(), DAY_CUTOFF_HOUR_TN - 1, 0, 0);
+  const untilCutoff = Math.max(0, Math.floor((cutoffMs - startMs) / 1000));
+  const remaining = cap === Infinity ? Infinity : Math.max(0, cap - committedSeconds);
+  return {
+    day_tn: dayTn,
+    limit_seconds: Math.max(0, Math.min(remaining, untilCutoff)),
+    elapsed_seconds: Math.max(0, Math.floor((nowMs - startMs) / 1000)),
+  };
+}
+
+// Une notification "limite atteinte" par utilisateur et par jour (cle
+// deterministe + INSERT OR IGNORE, traduit en ON CONFLICT DO NOTHING sur PG).
+async function notifyDayLimit(db: any, userId: string, dayTn: string): Promise<void> {
+  const [y, m, d] = dayTn.split('-');
+  const tag = `${d}/${m}`;
+  const prefix = `Limite du jour atteinte (${tag})`;
+  try {
+    const seen = await db.prepare('SELECT 1 AS x FROM org_notifications WHERE user_id = ? AND message LIKE ?').bind(userId, prefix + '%').first();
+    if (seen) return;
+    await db.prepare('INSERT OR IGNORE INTO org_notifications (id, user_id, dossier_id, message) VALUES (?, ?, ?, ?)')
+      .bind(`limit:${userId}:${dayTn}`, userId, null, `${prefix} : chrono arrêté automatiquement.`).run();
+  } catch (e) { console.error('notifyDayLimit', e); }
+}
+
+// Recale les chronos ouverts. Le jour de reference est celui du DEBUT du
+// chrono (un chrono lance hier et oublie est recadre sur hier). Les UPDATE
+// sont conditionnels (stopped_at IS NULL) : deux lectures concurrentes ne
+// comptent pas deux fois le meme temps.
+async function enforceChronoLimits(db: any, opts: { organizationId?: string; userId?: string }): Promise<number> {
+  const nowMs = Date.now();
+  const normBinds: any[] = [];
+  let normSql = 'SELECT id, organization_id, hours_norm_seconds FROM org_users';
+  if (opts.organizationId) { normSql += ' WHERE organization_id = ?'; normBinds.push(opts.organizationId); }
+  const { results: normRows } = await db.prepare(normSql).bind(...normBinds).all();
+  const normByUser = new Map<string, { org: string; norm: number }>();
+  for (const r of normRows as any[]) {
+    normByUser.set(String(r.id), {
+      org: String(r.organization_id || ''),
+      norm: Number(r.hours_norm_seconds) > 0 ? Number(r.hours_norm_seconds) : NORM_DEFAULT_SECONDS,
+    });
+  }
+  if (!normByUser.size) return 0;
+  const wanted = (uid: string) => normByUser.has(uid) && (!opts.userId || uid === opts.userId);
+
+  const { results: runD } = await db.prepare('SELECT id, user_id, task_id, started_at FROM org_time_entries WHERE stopped_at IS NULL').all();
+  const { results: runI } = await db.prepare('SELECT id, user_id, started_at FROM org_internal_time_entries WHERE stopped_at IS NULL').all();
+  const jobs: { kind: 'dossier' | 'interne'; row: any }[] = [];
+  for (const r of runD as any[]) if (wanted(String(r.user_id))) jobs.push({ kind: 'dossier', row: r });
+  for (const r of runI as any[]) if (wanted(String(r.user_id))) jobs.push({ kind: 'interne', row: r });
+
+  let corrected = 0;
+  for (const job of jobs) {
+    try {
+      const e = job.row;
+      const uid = String(e.user_id);
+      const startMs = parseUtcMs(e.started_at);
+      if (!Number.isFinite(startMs)) continue;
+      const info = normByUser.get(uid)!;
+      const { day_tn: dayTn } = chronoDayLimit(startMs, info.norm, 0, nowMs);
+
+      // Autres pointages du meme jour local. Le temps tague ne compte ni dans
+      // la norme ni dans le plafond : il est exclu.
+      const { results: aD } = await db.prepare(
+        "SELECT COALESCE(SUM(te.duration_seconds),0) AS s FROM org_time_entries te WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND date(datetime(te.started_at, '+60 minutes')) = ? AND NOT EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = te.task_id AND tc.user_id = te.user_id)"
+      ).bind(uid, dayTn).all();
+      const { results: aI } = await db.prepare(
+        "SELECT COALESCE(SUM(duration_seconds),0) AS s FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND date(datetime(started_at, '+60 minutes')) = ?"
+      ).bind(uid, dayTn).all();
+      const committed = Number((aD as any[])[0]?.s || 0) + Number((aI as any[])[0]?.s || 0);
+
+      const lim = chronoDayLimit(startMs, info.norm, committed, nowMs);
+      if (lim.elapsed_seconds < lim.limit_seconds) continue;
+      const allowed = Math.floor(lim.limit_seconds);
+
+      if (job.kind === 'dossier') {
+        if (allowed <= 0) {
+          const del = await db.prepare('DELETE FROM org_time_entries WHERE id = ? AND stopped_at IS NULL').bind(e.id).run();
+          if (!((del as any)?.meta?.changes)) continue;
+        } else {
+          const upd = await db.prepare('UPDATE org_time_entries SET stopped_at = ?, duration_seconds = ? WHERE id = ? AND stopped_at IS NULL')
+            .bind(fmtUtcSql(startMs + allowed * 1000), allowed, e.id).run();
+          if (!((upd as any)?.meta?.changes)) continue;
+          const collab = await db.prepare('SELECT 1 AS x FROM org_task_collaborators WHERE task_id = ? AND user_id = ?').bind(e.task_id, uid).first();
+          if (!collab && e.task_id) {
+            await db.prepare('UPDATE org_tasks SET total_time_seconds = COALESCE(total_time_seconds, 0) + ? WHERE id = ?').bind(allowed, e.task_id).run();
+          }
+        }
+        if (e.task_id) {
+          const still = await db.prepare('SELECT user_id, started_at FROM org_time_entries WHERE task_id = ? AND stopped_at IS NULL ORDER BY started_at, id LIMIT 1').bind(e.task_id).first() as any;
+          if (still) await db.prepare('UPDATE org_tasks SET timer_started_at = ?, timer_user_id = ? WHERE id = ?').bind(still.started_at, still.user_id, e.task_id).run();
+          else await db.prepare('UPDATE org_tasks SET timer_started_at = NULL, timer_user_id = NULL WHERE id = ?').bind(e.task_id).run();
+        }
+      } else {
+        if (allowed <= 0) {
+          const del = await db.prepare('DELETE FROM org_internal_time_entries WHERE id = ? AND stopped_at IS NULL').bind(e.id).run();
+          if (!((del as any)?.meta?.changes)) continue;
+        } else {
+          const upd = await db.prepare('UPDATE org_internal_time_entries SET stopped_at = ?, duration_seconds = ? WHERE id = ? AND stopped_at IS NULL')
+            .bind(fmtUtcSql(startMs + allowed * 1000), allowed, e.id).run();
+          if (!((upd as any)?.meta?.changes)) continue;
+        }
+      }
+
+      await db.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(genId(), info.org, uid, 'systeme', 'chrono_auto_stopped', job.kind === 'dossier' ? 'time_entry' : 'internal_time', e.id, JSON.stringify({ day: dayTn, seconds: allowed, reason: allowed <= 0 ? 'plafond deja atteint' : 'plafond norme+30mn ou coupure 18h00' })).run();
+      await notifyDayLimit(db, uid, dayTn);
+      corrected++;
+    } catch (err) {
+      console.error('enforceChronoLimits', err);
+    }
+  }
+  return corrected;
+}
+
+// Etat du jour pour le front : pointages arretes + plafond. Le chrono en
+// cours n'est pas dans day_seconds ; le front compare son ecoule a
+// remaining_seconds pour ne jamais afficher au-dela du plafond.
+async function dayGuardInfo(db: any, userId: string): Promise<{ day_seconds: number; norm_day_seconds: number; cap_seconds: number | null; remaining_seconds: number | null; tolerance_seconds: number }> {
+  const me = await db.prepare('SELECT hours_norm_seconds FROM org_users WHERE id = ?').bind(userId).first() as any;
+  const norm = Number(me?.hours_norm_seconds) > 0 ? Number(me.hours_norm_seconds) : NORM_DEFAULT_SECONDS;
+  const { results: aD } = await db.prepare(
+    "SELECT COALESCE(SUM(duration_seconds),0) AS s FROM org_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND date(datetime(started_at, '+60 minutes')) = date(datetime('now', '+60 minutes'))"
+  ).bind(userId).all();
+  const { results: aI } = await db.prepare(
+    "SELECT COALESCE(SUM(duration_seconds),0) AS s FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND date(datetime(started_at, '+60 minutes')) = date(datetime('now', '+60 minutes'))"
+  ).bind(userId).all();
+  const daySeconds = Number((aD as any[])[0]?.s || 0) + Number((aI as any[])[0]?.s || 0);
+  const dow = new Date(Date.now() + 3600000).getUTCDay();
+  const cap = (dow !== 0 && dow !== 6) ? norm + DAY_TOLERANCE_SECONDS : null;
+  return {
+    day_seconds: daySeconds,
+    norm_day_seconds: norm,
+    cap_seconds: cap,
+    remaining_seconds: cap === null ? null : Math.max(0, cap - daySeconds),
+    tolerance_seconds: DAY_TOLERANCE_SECONDS,
+  };
 }
 
 // Cron 1er janvier : passage automatique pour toutes les organisations
@@ -3724,6 +3895,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!await orgCanAccessDossier(user, orgDossierGetMatch[1])) return json({ error: 'Accès refusé' }, 403);
         const dossier = await env.DB.prepare('SELECT d.*, c.name as client_name, c.matricule_fiscal, c.id as client_id, c.contact_email, c.person_type, c.export_status, c.assigned_comptable_id as client_comptable_id, d.assigned_comptable_id as dossier_comptable_id, ' + dossierComp() + ' as comptable_id, (SELECT full_name FROM org_users WHERE id = ' + dossierComp() + ') as comptable_name FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ?').bind(orgDossierGetMatch[1]).first() as any;
         if (!dossier) return json({ error: 'Dossier non trouvé' }, 404);
+        // Garde-fou : recale le chrono de CE comptable avant de lire les taches
+        // et les pointages, pour que les totaux affiches soient deja plafonnes.
+        await enforceChronoLimits(env.DB, { organizationId: user.organization_id, userId: user.id });
         const { results: rawTasks } = await env.DB.prepare('SELECT t.*, u.full_name as updated_by_name, vu.full_name as verified_by_name, COALESCE(vu.role_label, vu.role) as verified_by_role, au.full_name as assigned_comptable_name, du.full_name as done_by_name FROM org_tasks t LEFT JOIN org_users u ON t.updated_by = u.id LEFT JOIN org_users vu ON t.verified_by = vu.id LEFT JOIN org_users au ON t.assigned_comptable_id = au.id LEFT JOIN org_users du ON t.done_by = du.id WHERE t.dossier_id = ? AND t.hidden = 0 ORDER BY t.month IS NULL, t.month, t.order_index').bind(orgDossierGetMatch[1]).all();
         // Filtre export : les tâches à portée hors statut du client n'apparaissent pas
         const tasks = (rawTasks as any[]).filter(t => exportScopeKeeps(t.export_scope, dossier.export_status));
@@ -3805,7 +3979,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           t.time_cost_cents = isSupervisor(user.role) && c?.complete ? (c.cost_cents || 0) : null;
         }
         const timeByPart = { entreprise: 0, comptable: (timeEntries as any[]).reduce((sum, te) => sum + (Number(te.duration_seconds) || 0), 0) };
-        return json({ ...dossier, tasks, documents, notes, time_entries: timeEntries, time_by_user: Object.values(timeByUser), task_stats: stats, doc_stats: docStats, can_close: canClose, can_force_close: isSupervisor(user.role), block_reasons: blockReasons, progress: isAncientDossier ? null : (stats.total > 0 ? Math.round(stats.fait / stats.total * 1000) / 10 : 0), is_granted: isGranted, grants: isSupervisor(user.role) ? grants : [], running_timers: runningRows, reporting, time_cost_by_user: isSupervisor(user.role) ? personCosts : [], total_time_cost_cents: totalCostCents, time_cost_complete: costComplete, time_by_part: timeByPart });
+        return json({ ...dossier, tasks, documents, notes, time_entries: timeEntries, time_by_user: Object.values(timeByUser), task_stats: stats, doc_stats: docStats, can_close: canClose, can_force_close: isSupervisor(user.role), block_reasons: blockReasons, progress: isAncientDossier ? null : (stats.total > 0 ? Math.round(stats.fait / stats.total * 1000) / 10 : 0), is_granted: isGranted, grants: isSupervisor(user.role) ? grants : [], running_timers: runningRows, reporting, time_cost_by_user: isSupervisor(user.role) ? personCosts : [], total_time_cost_cents: totalCostCents, time_cost_complete: costComplete, time_by_part: timeByPart, time_guard: await dayGuardInfo(env.DB, user.id) });
       }
 
       // Detail confidentiel du coût de temps (coût horaire visible superviseur uniquement).
@@ -4147,6 +4321,8 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const params = new URL(request.url).searchParams;
         const view = params.get('view') || 'days';
         const exParam = params.get('exercice');
+        // Garde-fou : un chrono oublie ne doit pas gonfler la vue "Mes heures".
+        await enforceChronoLimits(env.DB, { organizationId: user.organization_id, userId: user.id });
         return json(await buildHoursPayload(env, user.id, view, exParam ? Number(exParam) : null));
       }
 
@@ -4529,8 +4705,12 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const user = await verifyOrgToken(request);
         if (!user) return json({ error: 'Non autorisé' }, 401);
         if (!isSupervisor(user.role) && user.role !== 'comptable') return json({ error: 'Accès refusé' }, 403);
+        // Garde-fou : recale d'abord le chrono en cours (plafond / 18:00), puis
+        // renvoie l'etat du jour pour que le front plafonne son compteur.
+        const guardStopped = await enforceChronoLimits(env.DB, { organizationId: user.organization_id, userId: user.id });
+        const day = await dayGuardInfo(env.DB, user.id);
         const { results } = await env.DB.prepare('SELECT id, category, started_at, note FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NULL ORDER BY started_at DESC').bind(user.id).all();
-        return json({ timers: results || [] });
+        return json({ timers: results || [], ...day, just_stopped: guardStopped > 0 });
       }
 
       // --- ORG: CATEGORIES DE TEMPS INTERNE ---
@@ -5600,6 +5780,54 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const qualReturned = qRows.filter(r => r.action === 'task_returned').reduce((s, r) => s + Number(r.n), 0);
         const qualTotal = qualVerified + qualReturned;
 
+        // Heures normales du mois : norme journaliere de chaque utilisateur
+        // (org_users.hours_norm_seconds, defaut 8h30) x jours ouvres. Le mois
+        // courant ne compte que les jours deja passes, sinon tout le monde
+        // parait en deficit des le 1er du mois.
+        let workdays = 0;
+        {
+          const end = mEnd < todayStr ? mEnd : todayStr;
+          if (end >= mStart) {
+            const d = new Date(mStart + 'T00:00:00Z');
+            const stop = new Date(end + 'T00:00:00Z');
+            while (d <= stop) {
+              const dow = d.getUTCDay();
+              if (dow !== 0 && dow !== 6) workdays++;
+              d.setUTCDate(d.getUTCDate() + 1);
+            }
+          }
+        }
+        const NORM_DEFAULT = 30600;
+        const { results: normRows } = await env.DB.prepare(
+          "SELECT id, full_name, hours_norm_seconds FROM org_users WHERE organization_id = ? AND is_active = 1 AND role IN ('comptable','expert') ORDER BY full_name"
+        ).bind(user.organization_id).all();
+        // Temps interne du mois (reunions, informatique...) : il fait partie de la
+        // journee, donc il entre dans le total compare a la norme.
+        const { results: intRows } = await env.DB.prepare(
+          "SELECT user_id, COALESCE(SUM(duration_seconds),0) as secs FROM org_internal_time_entries WHERE organization_id = ? AND stopped_at IS NOT NULL AND datetime(started_at, '+60 minutes') >= ? AND datetime(started_at, '+60 minutes') < ? GROUP BY user_id"
+        ).bind(user.organization_id, mStart, mNext).all();
+        const intByUser = new Map((intRows as any[]).map(r => [String(r.user_id), Number(r.secs) || 0]));
+        const hByUser = new Map((hURows as any[]).map(r => [String(r.user_id), r]));
+        const people = (normRows as any[]).filter(p => isSup || String(p.id) === String(user.id));
+        const hoursByUser = people.map(p => {
+          const h: any = hByUser.get(String(p.id));
+          const dossierSec = Number(h?.secs) || 0;
+          const internalSec = intByUser.get(String(p.id)) || 0;
+          const normDay = Number(p.hours_norm_seconds) > 0 ? Number(p.hours_norm_seconds) : NORM_DEFAULT;
+          return {
+            user_id: p.id,
+            full_name: p.full_name,
+            seconds: dossierSec,
+            internal_seconds: internalSec,
+            total_seconds: dossierSec + internalSec,
+            entries: Number(h?.entries) || 0,
+            norm_day_seconds: normDay,
+            norm_seconds: normDay * workdays,
+          };
+        }).sort((a, b) => b.total_seconds - a.total_seconds);
+        const normTotal = hoursByUser.reduce((s, u) => s + u.norm_seconds, 0);
+        const totalHoursAll = hoursByUser.reduce((s, u) => s + u.total_seconds, 0);
+
         return json({
           exercice, month, month_label: `${MONTHS[month - 1]} ${exercice}`,
           generated_at: new Date().toISOString(),
@@ -5612,11 +5840,16 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
             tasks_late: (lateRows as any[]).length,
             docs_total: docsTotal, docs_received: docsReceived,
             hours_seconds: hoursSec,
+            hours_total_seconds: totalHoursAll,
+            hours_internal_seconds: Math.max(0, totalHoursAll - hoursSec),
+            hours_norm_seconds: normTotal,
+            hours_tolerance_seconds: 1800,
+            workdays,
             alerts_due: alerts.length, alerts_done: alerts.filter(a => a.done).length,
             verify_done: qualVerified, verify_returned: qualReturned,
             verify_score: qualTotal > 0 ? Math.round(qualVerified / qualTotal * 100) : null,
           },
-          hours_by_user: (hURows as any[]).map(r => ({ user_id: r.user_id, full_name: r.full_name, seconds: Number(r.secs) || 0, entries: Number(r.entries) || 0 })),
+          hours_by_user: hoursByUser,
           dossiers: dossierList,
           alerts,
           late_tasks: (lateRows as any[]).map(x => ({ label: x.label, due_date: x.due_date, status: x.status, dossier_label: x.dossier_label })),
@@ -5701,6 +5934,10 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           }
           const runRow = runByUser.get(c.id);
           const runStart = parseUtc(runRow?.started_at);
+          // Garde-fou : l'affichage ne depasse jamais le plafond du jour.
+          const runElapsed = Math.max(0, runStart ? nowS - runStart : 0);
+          const ownNorm = normSecFor(c.id);
+          const ownCap = ownNorm > 0 ? ownNorm + DAY_TOLERANCE_SECONDS : null;
           const qual = qualByUid.get(c.id) || { verified: 0, returned: 0 };
           const qualTotal = qual.verified + qual.returned;
           // Moyenne : les dossiers d'exercice ancien (avancement « — ») sont exclus
@@ -5708,11 +5945,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const progRows = clients.filter((cl: any) => !cl.is_ancient);
           return { ...c, role: c.role_label || c.role, client_count: clients.length, avg_progress: progRows.length > 0 ? Math.round(progRows.reduce((sum: number, cl: any) => sum + (cl.cached_progress || 0), 0) / progRows.length * 10) / 10 : 0, task_stats: s,
             verify_counts: vc,
-            active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at, dossier_id: runRow.dossier_id || null } : null,
+            active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at, dossier_id: runRow.dossier_id || null, elapsed_seconds: ownCap === null ? runElapsed : Math.min(runElapsed, ownCap), over_limit: ownCap !== null && runElapsed > ownCap } : null,
             verify_stats: { verified: qual.verified, returned: qual.returned, score: qualTotal > 0 ? Math.round((qual.verified / qualTotal) * 100) : null },
             online: parseUtc(c.last_seen_at) >= nowS - 180,
-            worked_today_seconds: (Number(dayByUser.get(c.id)) || 0) + (Number(internalDayByUser.get(c.id)) || 0) + Math.max(0, runStart ? nowS - runStart : 0),
-            norm_seconds: normSecFor(c.id) };
+            worked_today_seconds: Math.min((Number(dayByUser.get(c.id)) || 0) + (Number(internalDayByUser.get(c.id)) || 0) + runElapsed, ownCap === null ? Infinity : ownCap),
+            norm_seconds: ownNorm };
         });
         return json(enriched);
       }
@@ -6529,8 +6766,23 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     // Keep-alive pur : reveille Supabase (la gratuite se met en pause apres
     // 7 jours d'inactivite). Rythme q6h en plus du cron journalier 00:05.
-    if (event.cron === '11 */6 * * *') {
+    // Garde-fou chrono + keep-alive. Le tir de 17:11 UTC tombe a 18:11 Tunis :
+    // les chronos encore ouverts sont arretes a 18:00 pile (stopped_at recalcule).
+    // 00:11 UTC sert de filet de securite pour ceux lances la veille au soir.
+    if (event.cron === '11 0,6,12,17 * * *') {
       ctx.waitUntil(keepSupabaseAwake(env));
+      ctx.waitUntil((async () => {
+        try {
+          const st = await backendState(env);
+          const active = applyBackend(env, st.mode, st.dual);
+          const n = await enforceChronoLimits(active.DB, {});
+          if (n) console.log('chrono guard: ' + n + ' chrono(s) recadre(s)');
+        } catch (e) {
+          console.error('chrono guard', e);
+        } finally {
+          releaseSupabaseConn(env);
+        }
+      })());
       return;
     }
     // Retour sur D1 : le quota gratuit se remet a zero a 00:00 UTC, on attend

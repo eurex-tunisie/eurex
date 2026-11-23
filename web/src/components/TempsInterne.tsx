@@ -26,7 +26,10 @@ export default function TempsInterne() {
   const [mNote, setMNote] = useState('');
   const [mBusy, setMBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [guard, setGuard] = useState<{ day_seconds: number; norm_day_seconds: number; cap_seconds: number | null; remaining_seconds: number | null; tolerance_seconds: number } | null>(null);
+  const [justStopped, setJustStopped] = useState(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const limitHitRef = useRef(false);
 
   const refreshCats = async () => {
     try {
@@ -40,6 +43,8 @@ export default function TempsInterne() {
       const r = await orgApi.getActiveInternalTimers();
       const t = (r.timers || [])[0] || null;
       setActive(t);
+      setGuard({ day_seconds: r.day_seconds || 0, norm_day_seconds: r.norm_day_seconds || 0, cap_seconds: r.cap_seconds ?? null, remaining_seconds: r.remaining_seconds ?? null, tolerance_seconds: r.tolerance_seconds || 1800 });
+      setJustStopped(!!r.just_stopped);
       if (t) setElapsed(Math.max(0, Math.floor(Date.now() / 1000) - parseUtc(t.started_at)));
       else setElapsed(0);
     } catch { /* ignore */ }
@@ -47,6 +52,11 @@ export default function TempsInterne() {
   const refresh = async () => { await Promise.all([refreshCats(), refreshActive()]); };
 
   useEffect(() => { refresh(); }, []);
+  // Poll : le serveur peut avoir arrete le chrono (plafond ou 18:00).
+  useEffect(() => {
+    const iv = setInterval(() => { if (!document.hidden) refreshActive(); }, 60000);
+    return () => clearInterval(iv);
+  }, []);
   useEffect(() => {
     if (active) {
       tickRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
@@ -56,6 +66,20 @@ export default function TempsInterne() {
     }
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, [active?.id]);
+
+  // Plafond du jour : le compteur affiche ne depasse jamais le reste
+  // disponible, et une fois la limite atteinte on redemande l'etat au serveur
+  // (qui arrete le chrono).
+  const remaining = guard?.remaining_seconds;
+  const cappedElapsed = (active && remaining != null) ? Math.min(elapsed, remaining) : elapsed;
+  const atLimit = !!active && remaining != null && elapsed >= remaining;
+  useEffect(() => {
+    if (!active || remaining == null) { limitHitRef.current = false; return; }
+    if (elapsed >= remaining && !limitHitRef.current) {
+      limitHitRef.current = true;
+      refreshActive();
+    }
+  }, [elapsed, active?.id, remaining]);
 
   const labelOf = (code: string) => categories.find(c => c.code === code)?.label || code;
 
@@ -126,6 +150,21 @@ export default function TempsInterne() {
         </div>
       </div>
       {err && <p className="text-xs text-rose-600 mb-2">{err}</p>}
+      {justStopped && (
+        <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1.5 mb-2" data-testid="ti-limit-stopped">
+          Limite du jour atteinte : le chrono a été arrêté automatiquement.
+        </p>
+      )}
+      {atLimit && !justStopped && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5 mb-2" data-testid="ti-limit-warn">
+          Plafond du jour atteint (norme + 30 mn) — le chrono va s'arrêter.
+        </p>
+      )}
+      {guard?.cap_seconds != null && (
+        <p className="text-[11px] text-gray-500 mb-2" data-testid="ti-day-guard">
+          Journée : {fmtHm(guard.day_seconds + (active ? cappedElapsed : 0))} / {fmtHm(guard.cap_seconds)} max · reste {fmtHm(Math.max(0, guard.cap_seconds - guard.day_seconds - (active ? cappedElapsed : 0)))} (arrêt auto à 18:00)
+        </p>
+      )}
       {showAdd && (
         <div className="mb-3 flex items-end gap-2">
           <div className="flex flex-col flex-1">
@@ -166,7 +205,7 @@ export default function TempsInterne() {
               >
                 {isRunning ? <Square size={13} /> : <Play size={13} />}
                 {cat.label}
-                {isRunning && <span className="font-mono text-xs">· {fmtHm(elapsed)}</span>}
+                {isRunning && <span className="font-mono text-xs">· {fmtHm(cappedElapsed)}</span>}
               </button>
               {cat.deletable && (
                 <button

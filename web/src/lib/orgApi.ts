@@ -80,6 +80,8 @@ export interface OrgDossier {
   is_granted?: boolean;
   grants?: OrgGrant[];
   running_timers?: OrgRunningTimer[];
+  // Garde-fou chrono : plafond du jour (norme + 30 mn) et reste disponible
+  time_guard?: TimeGuard;
   // Tâche optionnelle « Reporting mensuel » : état masqué/restaurable du dossier
   reporting?: { total: number; hidden: number };
 }
@@ -90,6 +92,16 @@ export interface OrgRunningTimer {
   user_id: string;
   started_at: string;
   user_name: string;
+}
+
+// Garde-fou chrono (plafond norme + 30 mn, coupure 18:00). day_seconds =
+// pointages deja arretes aujourd'hui (le chrono en cours n'y est pas).
+export interface TimeGuard {
+  day_seconds: number;
+  norm_day_seconds: number;
+  cap_seconds: number | null;
+  remaining_seconds: number | null;
+  tolerance_seconds: number;
 }
 
 export interface OrgGrant {
@@ -525,7 +537,7 @@ export const orgApi = {
   manualInternalTime: (category: 'reunion' | 'informatique', seconds: number, note?: string) =>
     req<{ ok: boolean; entry_id: string; duration_seconds: number }>('/org/internal-time/manual', { method: 'POST', body: JSON.stringify({ category, seconds, note }) }),
   getActiveInternalTimers: () =>
-    req<{ timers: { id: string; category: string; started_at: string; note: string | null }[] }>('/org/internal-time/active'),
+    req<{ timers: { id: string; category: string; started_at: string; note: string | null }[]; day_seconds?: number; norm_day_seconds?: number; cap_seconds?: number | null; remaining_seconds?: number | null; tolerance_seconds?: number; just_stopped?: boolean }>('/org/internal-time/active'),
   // Categories de temps interne (reunion, informatique + personnalisees)
   getInternalTimeCategories: () =>
     req<{ categories: { code: string; label: string; created_by: string | null; deletable: boolean }[] }>('/org/internal-time/categories'),

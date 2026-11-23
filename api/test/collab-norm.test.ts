@@ -66,10 +66,13 @@ test('site 4 : saisie manuelle — newTotal neutre si tague, pointage conserve',
 test('aucun autre site d\'ecriture du total sans garde', () => {
   // toutes les ecritures SQL du total sont dans les 4 zones ci-dessus
   const matches = SRC.match(/UPDATE org_tasks SET total_time_seconds[^\n]*/g) || [];
-  assert.equal(matches.length, 9, 'exactement 9 UPDATE (6 sites originaux + 3 nouveaux : suppression + modification +/- d un pointage)');
+  assert.equal(matches.length, 10, 'exactement 10 UPDATE (9 sites + le garde-fou chrono, lui aussi garde par isTaskCollab/org_task_collaborators)');
   // les 3 sites incrementaux (+?) sont enveloppes d'une garde collab
   const guards = SRC.match(/isTaskCollab\(/g) || [];
   assert.ok(guards.length >= 6, 'helper appele au moins 5 fois + declaration');
+  // le garde-fou chrono verifie le tag avant d'ajouter le temps au total
+  assert.match(SRC, /const collab = await db\.prepare\('SELECT 1 AS x FROM org_task_collaborators WHERE task_id = \? AND user_id = \?'\)/);
+  assert.match(SRC, /if \(!collab && e\.task_id\) \{\s*\n\s*await db\.prepare\('UPDATE org_tasks SET total_time_seconds/);
 });
 
 test('cumul d\'age (over_since_days) : pointages des tagues exclus', () => {

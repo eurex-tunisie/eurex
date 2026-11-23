@@ -14,6 +14,14 @@ export function fmtH(sec: number): string {
   return `${h}h${p2(m)}`;
 }
 
+// Tolerance au-dessus de la norme : 30 minutes. Au-dela, la journee est
+// signalee en rouge (les chronos oublies gonflaient les heures sans limite).
+export const HOURS_TOLERANCE = 1800;
+export function signedH(actual: number, norm: number): string {
+  const d = (Number(actual) || 0) - (Number(norm) || 0);
+  return (d >= 0 ? '+' : '−') + fmtH(Math.abs(d));
+}
+
 const fmtDate = (d: string) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '');
 const statusLabel: Record<string, string> = { en_cours: 'En cours', clos: 'Clos', archive: 'Archivé' };
 
@@ -67,8 +75,8 @@ export default function OrgReport() {
       ['Dossiers', 'État', 'Avancement %', 'Tâches faites', 'Tâches total', 'Retards', 'Documents reçus', 'Documents total', 'Heures'],
       ...data.dossiers.map((d: any) => [d.client_name, statusLabel[d.status] || d.status, d.progress ?? '—', d.tasks_done, d.tasks_total, d.tasks_late, d.docs_received, d.docs_total, fmtH(d.hours_seconds)]),
       [],
-      ['Heures par collaborateur', 'Saisies', 'Heures'],
-      ...data.hours_by_user.map((u: any) => [u.full_name, u.entries, fmtH(u.seconds)]),
+      ['Heures par collaborateur', 'Saisies', 'Heures', 'Norme', 'Ecart'],
+      ...data.hours_by_user.map((u: any) => [u.full_name, u.entries, fmtH(u.total_seconds ?? u.seconds), fmtH(u.norm_seconds), signedH(u.total_seconds ?? u.seconds, u.norm_seconds)]),
       [],
       ['Échéances du mois', 'Date', 'Dossier', 'État'],
       ...data.alerts.map((a: any) => [a.title, fmtDate(a.due_date), a.dossier_label || 'Cabinet', a.done ? 'Fait' : 'À faire']),
@@ -129,7 +137,7 @@ export default function OrgReport() {
             {kpi('tasks', 'Tâches', `${t.tasks_done}/${t.tasks_total}`, 'faites')}
             {kpi('late', 'En retard', String(t.tasks_late))}
             {kpi('docs', 'Documents', `${t.docs_received}/${t.docs_total}`, 'reçus')}
-            {kpi('hours', 'Heures', fmtH(t.hours_seconds), 'pointées sur le mois')}
+            {kpi('hours', 'Heures', fmtH(t.hours_total_seconds ?? t.hours_seconds), `norme ${fmtH(t.hours_norm_seconds)} · +30 mn tolérées`)}
             {kpi('alerts', 'Échéances', `${t.alerts_done}/${t.alerts_due}`, 'faites / du mois')}
             {kpi('quality', 'Qualité', t.verify_score != null ? `${t.verify_score}%` : '—', t.verify_returned != null ? `${t.verify_done} vérifs · ${t.verify_returned} renvois` : 'vérifications du mois')}
           </div>
@@ -177,17 +185,42 @@ export default function OrgReport() {
             <div className="card overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">⏱ Heures par collaborateur</div>
               <table className="w-full text-sm">
-                <thead><tr className="text-left text-[11px] uppercase text-gray-400 border-b border-gray-100"><th className="px-4 py-2">Collaborateur</th><th className="px-2 py-2">Saisies</th><th className="px-4 py-2 text-right">Heures</th></tr></thead>
+                <thead><tr className="text-left text-[11px] uppercase text-gray-400 border-b border-gray-100"><th className="px-4 py-2">Collaborateur</th><th className="px-2 py-2">Saisies</th><th className="px-2 py-2 text-right">Heures</th><th className="px-2 py-2 text-right">Norme</th><th className="px-4 py-2 text-right">Écart</th></tr></thead>
                 <tbody>
-                  {data.hours_by_user.length === 0 && <tr><td colSpan={3} className="px-4 py-4 text-gray-400 text-center">Aucune heure pointée sur le mois</td></tr>}
-                  {data.hours_by_user.map((u: any) => (
-                    <tr key={u.user_id} data-testid="report-hours-row" className="border-b last:border-0 border-[rgba(60,60,67,0.12)]">
-                      <td className="px-4 py-2 font-semibold text-gray-900">{u.full_name}</td>
-                      <td className="px-2 py-2 text-gray-600">{u.entries}</td>
-                      <td className="px-4 py-2 text-right font-bold text-gray-900">{fmtH(u.seconds)}</td>
-                    </tr>
-                  ))}
+                  {data.hours_by_user.length === 0 && <tr><td colSpan={5} className="px-4 py-4 text-gray-400 text-center">Aucune heure pointée sur le mois</td></tr>}
+                  {data.hours_by_user.map((u: any) => {
+                    const total = Number(u.total_seconds ?? u.seconds) || 0;
+                    const norm = Number(u.norm_seconds) || 0;
+                    const diff = total - norm;
+                    const cls = diff > HOURS_TOLERANCE ? 'text-rose-600' : diff >= 0 ? 'text-emerald-600' : 'text-amber-600';
+                    return (
+                      <tr key={u.user_id} data-testid="report-hours-row" className="border-b last:border-0 border-[rgba(60,60,67,0.12)]">
+                        <td className="px-4 py-2 font-semibold text-gray-900">{u.full_name}</td>
+                        <td className="px-2 py-2 text-gray-600">{u.entries}</td>
+                        <td className="px-2 py-2 text-right font-bold text-gray-900" title={`dossiers ${fmtH(u.seconds)} · interne ${fmtH(u.internal_seconds || 0)}`}>{fmtH(total)}</td>
+                        <td className="px-2 py-2 text-right text-gray-500" title={`${fmtH(u.norm_day_seconds || 0)} par jour ouvré · +30 mn tolérées`}>{fmtH(norm)}</td>
+                        <td className={`px-4 py-2 text-right font-bold ${cls}`}>{signedH(total, norm)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
+                {data.hours_by_user.length > 0 && (() => {
+                  const total = data.hours_by_user.reduce((s: number, u: any) => s + (Number(u.total_seconds ?? u.seconds) || 0), 0);
+                  const norm = data.hours_by_user.reduce((s: number, u: any) => s + (Number(u.norm_seconds) || 0), 0);
+                  const diff = total - norm;
+                  const cls = diff > HOURS_TOLERANCE ? 'text-rose-600' : diff >= 0 ? 'text-emerald-600' : 'text-amber-600';
+                  return (
+                    <tfoot>
+                      <tr className="border-t border-gray-200 bg-gray-50">
+                        <td className="px-4 py-2 text-xs font-bold uppercase text-gray-500">Total</td>
+                        <td className="px-2 py-2 text-gray-500">{data.hours_by_user.reduce((s: number, u: any) => s + (Number(u.entries) || 0), 0)}</td>
+                        <td className="px-2 py-2 text-right font-extrabold text-gray-900">{fmtH(total)}</td>
+                        <td className="px-2 py-2 text-right font-bold text-gray-500">{fmtH(norm)}</td>
+                        <td className={`px-4 py-2 text-right font-extrabold ${cls}`}>{signedH(total, norm)}</td>
+                      </tr>
+                    </tfoot>
+                  );
+                })()}
               </table>
             </div>
 
