@@ -207,9 +207,7 @@ export default function OrgDossierPage() {
     if (collabTaskId === taskId) { setCollabTaskId(null); return; }
     setCollabTaskId(taskId);
     setCollabUser('');
-    if (!collabCands.length) {
-      try { setCollabCands(await orgApi.listCollabCandidates(id!)); } catch (err: any) { alert(err.message); setCollabTaskId(null); }
-    }
+    try { setCollabCands(await orgApi.listCollabCandidates(id!)); } catch (err: any) { alert(err.message); setCollabTaskId(null); }
   };
   const submitCollab = async (taskId: string) => {
     if (!dossier || !collabUser) return;
