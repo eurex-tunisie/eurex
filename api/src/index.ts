@@ -5234,6 +5234,24 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!content?.trim()) return json({ error: 'Contenu requis' }, 400);
         const noteId = genId();
         await env.DB.prepare('INSERT INTO org_notes (id, dossier_id, user_id, user_name, content) VALUES (?, ?, ?, ?, ?)').bind(noteId, orgNoteMatch[1], user.id, user.full_name, content.trim()).run();
+        // @mention : notifier les comptables mentionnes dans la note
+        try {
+          const tokens = new Set<string>();
+          for (const m of String(content).matchAll(/@(\w+)/g)) tokens.add(String(m[1]).toLowerCase());
+          if (tokens.size) {
+            const { results: orgUsers } = await env.DB.prepare('SELECT id, full_name FROM org_users WHERE organization_id = ?').bind(user.organization_id).all();
+            const mentioned = new Set<string>();
+            for (const u of (orgUsers as any[])) {
+              if (String(u.id) === user.id) continue;
+              const name = String(u.full_name || '').toLowerCase();
+              for (const tok of tokens) { if (name.includes(tok)) { mentioned.add(String(u.id)); break; } }
+            }
+            for (const uid of mentioned) {
+              await env.DB.prepare('INSERT INTO org_notifications (id, user_id, dossier_id, message) VALUES (?, ?, ?, ?)')
+                .bind(genId(), uid, orgNoteMatch[1], `${user.full_name} vous a mentionné dans une note : « ${content.trim().slice(0, 80)} »`).run();
+            }
+          }
+        } catch (e) { console.error('mention notify', e); }
         // Also log to audit for timeline
         await env.DB.prepare('INSERT INTO org_audit_log (id, organization_id, user_id, user_name, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(genId(), user.organization_id, user.id, user.full_name, 'note_added', 'note', noteId, JSON.stringify({ dossier_id: orgNoteMatch[1], preview: content.trim().slice(0, 100) })).run();
         return json({ id: noteId }, 201);

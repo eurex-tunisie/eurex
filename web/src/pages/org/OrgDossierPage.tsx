@@ -2395,7 +2395,7 @@ export default function OrgDossierPage() {
             <textarea
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
-              placeholder={t('dossier.add_note')}
+              placeholder={`${t('dossier.add_note')} — tapez @nom pour mentionner un collègue`}
               rows={2}
               className="input-field w-full p-2.5 text-sm resize-none"
             />
