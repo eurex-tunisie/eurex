@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { orgApi } from '../../lib/orgApi';
 import ExerciceSelect from '../../components/ExerciceSelect';
 import { currentExercice } from '../../lib/useExercice';
@@ -47,6 +48,68 @@ export default function OrgReport() {
       .finally(() => { if (alive) setBusy(false); });
     return () => { alive = false; };
   }, [exercice, month]);
+
+  const exportPdf = async () => {
+    if (!data) return;
+    const t = data.totals;
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const fontB = await doc.embedFont(StandardFonts.HelveticaBold);
+    const page = doc.addPage([595, 842]); // A4
+    const { width, height } = page.getSize();
+    let y = height - 40;
+    const line = (text: string, size = 10, bold = false, color = rgb(0.1, 0.1, 0.1)) => {
+      page.drawText(text, { x: 40, y, size, font: bold ? fontB : font, color });
+      y -= size + 4;
+    };
+    const row = (cols: string[], widths: number[], size = 9, bold = false) => {
+      let x = 40;
+      for (let i = 0; i < cols.length; i++) {
+        page.drawText(String(cols[i] ?? ''), { x, y, size, font: bold ? fontB : font, color: rgb(0.1, 0.1, 0.1) });
+        x += widths[i];
+      }
+      y -= size + 3;
+    };
+    line(`Rapport mensuel — ${data.month_label}`, 16, true, rgb(0.4, 0.2, 0.6));
+    line(`Généré le ${new Date(data.generated_at).toLocaleString('fr-FR')} · Périmètre : ${data.scope === 'cabinet' ? 'Cabinet' : 'Comptable'}`, 9);
+    y -= 6;
+    line('Indicateurs', 12, true);
+    const kpis = [
+      ['Dossiers', `${t.dossiers_clos}/${t.dossiers}`],
+      ['Tâches', `${t.tasks_done}/${t.tasks_total} (${t.progress}%)`],
+      ['Tâches en retard', String(t.tasks_late)],
+      ['Documents', `${t.docs_received}/${t.docs_total}`],
+      ['Heures pointées', fmtH(t.hours_total_seconds ?? t.hours_seconds)],
+      ['Norme', fmtH(t.hours_norm_seconds)],
+      ['Jours ouvrés', String(t.workdays)],
+      ['Alertes', `${t.alerts_done}/${t.alerts_due}`],
+      ['Vérifications', t.verify_score != null ? `${t.verify_score}%` : '-'],
+    ];
+    for (const [k, v] of kpis) row([k, v], [200, 120]);
+    y -= 6;
+    line('Heures par collaborateur', 12, true);
+    row(['Collaborateur', 'Saisies', 'Heures', 'Norme', 'Écart'], [150, 60, 70, 70, 70], 9, true);
+    for (const u of data.hours_by_user) {
+      const total = Number(u.total_seconds ?? u.seconds) || 0;
+      const norm = Number(u.norm_seconds) || 0;
+      row([u.full_name, String(u.entries), fmtH(total), fmtH(norm), signedH(total, norm)], [150, 60, 70, 70, 70]);
+    }
+    if ((data.late_tasks || []).length) {
+      y -= 6;
+      if (y < 120) { y = height - 40; doc.addPage([595, 842]); }
+      line('Tâches en retard', 12, true);
+      row(['Tâche', 'Échéance', 'Dossier'], [260, 90, 160], 9, true);
+      for (const l of data.late_tasks) row([l.label, fmtDate(l.due_date), l.dossier_label || ''], [260, 90, 160]);
+    }
+    const bytes = await doc.save();
+    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rapport-mensuel-${data.exercice}-${p2(data.month)}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const shiftMonth = (delta: number) => {
     const d = new Date(Date.UTC(exercice, month - 1 + delta, 1));
@@ -125,6 +188,7 @@ export default function OrgReport() {
         <button type="button" data-testid="report-prev" onClick={() => shiftMonth(-1)} title="Mois précédent" className="btn btn-outline px-2.5 py-1.5 rounded-lg text-sm font-semibold">‹</button>
         <button type="button" data-testid="report-today" onClick={() => { setExercice(currentExercice()); setMonth(new Date().getMonth() + 1); }} className="btn btn-outline px-2.5 py-1.5 rounded-lg text-sm font-semibold">Mois courant</button>
         <button type="button" data-testid="report-next" onClick={() => shiftMonth(1)} title="Mois suivant" className="btn btn-outline px-2.5 py-1.5 rounded-lg text-sm font-semibold">›</button>
+        <button type="button" data-testid="report-pdf" onClick={exportPdf} disabled={!data} className="px-3 py-1.5 rounded-lg btn btn-outline hover:bg-gray-100 disabled:opacity-50 text-sm font-semibold">⬇ PDF</button>
         <button type="button" data-testid="report-excel" onClick={exportExcel} disabled={!data} className="px-3 py-1.5 rounded-lg btn btn-emerald hover:bg-emerald-700 disabled:opacity-50 text-sm font-semibold">⬇ Excel</button>
         <button type="button" data-testid="report-print" onClick={() => window.print()} className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold">🖨 PDF / Imprimer</button>
       </div>
