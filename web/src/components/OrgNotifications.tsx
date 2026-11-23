@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orgApi } from '../lib/orgApi';
+import { playNotify } from '../lib/sound';
 
 type Item = {
   id: string;
@@ -27,10 +28,17 @@ export default function OrgNotifications() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const boxRef = useRef<HTMLDivElement>(null);
+  const prevUnread = useRef(0);
 
   const load = () => {
     orgApi.getNotifications()
-      .then(r => { setItems(r.notifications || []); setUnread(r.unread || 0); })
+      .then(r => {
+        const n = r.unread || 0;
+        if (n > prevUnread.current) playNotify();
+        prevUnread.current = n;
+        setItems(r.notifications || []);
+        setUnread(n);
+      })
       .catch(() => {});
   };
 

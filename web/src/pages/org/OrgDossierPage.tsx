@@ -14,6 +14,7 @@ import ProgressDonut, { DonutLegend } from '../../components/ProgressDonut';
 import Timeline from '../../components/Timeline';
 import E7tifel from '../../components/E7tifel';
 import { e7tifelDecision } from '../../lib/e7tifel';
+import { playSuccess, playAction, playError, playUnblock } from '../../lib/sound';
 import { SkeletonDossier } from '../../components/Skeleton';
 import {
   ArrowLeft, CheckCircle2, Circle, AlertTriangle, Lock, Unlock,
@@ -433,17 +434,20 @@ export default function OrgDossierPage() {
       }
       try {
         await orgApi.updateTask(dossier.id, taskId, newStatus, reason);
-        if (decision === 'video') setShowE7tifel(true);
+        if (decision === 'video') { setShowE7tifel(true); playSuccess(); }
         load();
       } catch (err: any) {
+        playError();
         alert(err.message);
       }
       return;
     }
     try {
       await orgApi.updateTask(dossier.id, taskId, newStatus, reason);
+      playAction();
       load();
     } catch (err: any) {
+      playError();
       alert(err.message);
     }
   };
@@ -456,8 +460,10 @@ export default function OrgDossierPage() {
     if (!dossier) return;
     try {
       await orgApi.updateTask(dossier.id, task.id, 'en_cours', '');
+      playUnblock();
       load();
     } catch (err: any) {
+      playError();
       alert(err.message);
     }
   };

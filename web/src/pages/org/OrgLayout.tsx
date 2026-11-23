@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useOrgAuth } from '../../lib/orgAuth';
 import { getLang, onLangChange, t, Lang } from '../../lib/orgI18n';
+import { isMuted, toggleMuted } from '../../lib/sound';
 import { SkeletonAuth } from '../../components/Skeleton';
 import PwdField from '../../components/PwdField';
 import OrgLogin from './OrgLogin';
@@ -24,6 +25,7 @@ function OrgInner() {
   const navigate = useNavigate();
   const onPlanning = location.pathname.startsWith('/cabinet/planning');
   const [navigating, setNavigating] = useState(false);
+  const [muted, setMuted] = useState(isMuted());
 
   useEffect(() => {
     return onLangChange(() => setLangState(getLang()));
@@ -91,6 +93,14 @@ function OrgInner() {
           >
             <BarChart3 size={15} />
             Rapport
+          </button>
+          <button
+            onClick={() => setMuted(toggleMuted())}
+            title={muted ? 'Activer les sons' : 'Couper les sons'}
+            className="btn-tab mb-4 shrink-0"
+            data-testid="sound-toggle"
+          >
+            {muted ? '🔇' : '🔊'}
           </button>
           <OrgNotifications />
         </div>
