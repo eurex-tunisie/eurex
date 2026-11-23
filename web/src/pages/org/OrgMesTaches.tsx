@@ -102,7 +102,9 @@ export default function OrgMesTaches() {
       {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-gray-400">Chargement…</p>
+        <div className="flex items-center justify-center py-20">
+          <span className="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+        </div>
       ) : tasks.length === 0 ? (
         <div className="card p-8 text-center text-sm text-gray-400">
           Aucune tâche pour ce filtre.

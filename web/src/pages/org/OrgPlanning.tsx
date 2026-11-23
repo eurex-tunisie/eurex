@@ -25,10 +25,11 @@ export default function OrgPlanning() {
   const [m, setM] = useState(now.getUTCMonth());
   const [feed, setFeed] = useState<OrgAlertFeed | null>(null);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    orgApi.getAlerts().then(setFeed).catch(e => setError(e.message));
+    orgApi.getAlerts().then(setFeed).catch(e => setError(e.message)).finally(() => setLoading(false));
   }, []);
 
   const todayStr = `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())}`;
@@ -90,6 +91,12 @@ export default function OrgPlanning() {
   const open = (e: EventItem) => {
     if (e.dossierId) navigate(`/cabinet/dossier/${e.dossierId}`);
   };
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20" data-testid="planning-loading">
+      <span className="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+    </div>
+  );
 
   return (
     <div className="space-y-4" data-testid="planning-page">

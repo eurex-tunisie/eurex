@@ -100,6 +100,12 @@ export default function OrgReport() {
     </div>
   );
 
+  if (busy && !data) return (
+    <div className="flex items-center justify-center py-20" data-testid="report-loading">
+      <span className="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+    </div>
+  );
+
   return (
     <div data-testid="report-page" className="pb-8">
       <style>{`@media print { .report-no-print { display: none !important; } }`}</style>
