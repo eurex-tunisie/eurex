@@ -202,12 +202,15 @@ export default function OrgDossierPage() {
   const [collabTaskId, setCollabTaskId] = useState<string | null>(null);
   const [collabUser, setCollabUser] = useState('');
   const [collabBusy, setCollabBusy] = useState(false);
+  const [collabLoading, setCollabLoading] = useState(false);
 
   const openCollab = async (taskId: string) => {
     if (collabTaskId === taskId) { setCollabTaskId(null); return; }
     setCollabTaskId(taskId);
     setCollabUser('');
+    setCollabLoading(true);
     try { setCollabCands(await orgApi.listCollabCandidates(id!)); } catch (err: any) { alert(err.message); setCollabTaskId(null); }
+    finally { setCollabLoading(false); }
   };
   const submitCollab = async (taskId: string) => {
     if (!dossier || !collabUser) return;
@@ -1788,17 +1791,24 @@ export default function OrgDossierPage() {
                       )}
                       {collabTaskId === task.id && (
                         <div className="flex flex-wrap items-center gap-1.5 w-full">
-                          <select
-                            value={collabUser}
-                            onChange={e => setCollabUser(e.target.value)}
-                            data-testid="task-collab-select"
-                            className="border border-indigo-200 rounded-lg px-2 py-1 text-xs bg-white focus:ring-2 focus:ring-indigo-500 outline-none max-w-[190px]"
-                          >
-                            <option value="">Choisir un comptable…</option>
-                            {collabCands.map(c => (
-                              <option key={c.id} value={c.id}>{c.full_name}{c.has_access ? ' (accès)' : ''}</option>
-                            ))}
-                          </select>
+                          {collabLoading ? (
+                            <span className="inline-flex items-center gap-2 text-xs text-indigo-600 px-2 py-1" data-testid="task-collab-loading">
+                              <span className="inline-block w-3.5 h-3.5 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                              Chargement des comptables…
+                            </span>
+                          ) : (
+                            <select
+                              value={collabUser}
+                              onChange={e => setCollabUser(e.target.value)}
+                              data-testid="task-collab-select"
+                              className="border border-indigo-200 rounded-lg px-2 py-1 text-xs bg-white focus:ring-2 focus:ring-indigo-500 outline-none max-w-[190px]"
+                            >
+                              <option value="">Choisir un comptable…</option>
+                              {collabCands.map(c => (
+                                <option key={c.id} value={c.id}>{c.full_name}{c.has_access ? ' (accès)' : ''}</option>
+                              ))}
+                            </select>
+                          )}
                           <button
                             onClick={() => submitCollab(task.id)}
                             disabled={!collabUser || collabBusy}
