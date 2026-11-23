@@ -1094,11 +1094,11 @@ export default function OrgDashboardExpert() {
                         rien. Affiche en permanence : « connectée » ne veut pas dire
                         « en train de travailler ». */}
                     {c.active_timer ? (
-                      <span className="flex items-center gap-1 font-semibold text-purple-600 max-w-[240px]" title={`${c.active_timer.task_label} · chrono actif depuis ${elapsedLabel(c.active_timer.started_at)}`}>
+                      <Link to={c.active_timer.dossier_id ? `/cabinet/dossier/${c.active_timer.dossier_id}?task=${c.active_timer.task_id || ''}` : '#'} className="flex items-center gap-1 font-semibold text-purple-600 max-w-[240px] hover:underline" title={`${c.active_timer.task_label} · chrono actif depuis ${elapsedLabel(c.active_timer.started_at)}`}>
                         <span className="shrink-0">▶</span>
                         <span className="truncate">{c.active_timer.task_label}</span>
                         <span className="shrink-0 font-normal text-purple-400">· {elapsedLabel(c.active_timer.started_at)}</span>
-                      </span>
+                       </Link>
                     ) : (
                       <span className="text-gray-400 italic">⏸ Ne travaille pas actuellement</span>
                     )}

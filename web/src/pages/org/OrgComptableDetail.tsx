@@ -144,11 +144,15 @@ export default function OrgComptableDetail() {
 
       {/* Active timer alert */}
       {active_timer && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-red-100 transition-colors"
+          onClick={() => { if (active_timer.dossier_id) navigate(`/cabinet/dossier/${active_timer.dossier_id}?task=${active_timer.task_id || ''}`); }}
+          title="Ouvrir la tâche chronométrée"
+        >
           <Timer size={16} className="text-red-500 animate-pulse" />
           <span className="text-sm text-red-700">
             ⏱ Chrono actif : <strong>{active_timer.task_label}</strong> — en cours depuis {formatTime(Math.floor((Date.now() - new Date(active_timer.started_at + 'Z').getTime()) / 1000))}
           </span>
+          <span className="ml-auto text-xs font-semibold text-red-600">Ouvrir →</span>
         </div>
       )}
 

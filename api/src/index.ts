@@ -4471,7 +4471,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           ? 'c.organization_id = ?'
           : "(c.organization_id = ? AND (" + dossierComp() + " = ? OR EXISTS (SELECT 1 FROM org_dossier_grants g WHERE g.dossier_id = d.id AND g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now'))) OR EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = t.id AND tc.user_id = ?)))";
         const binds: any[] = isSupervisor(user.role) ? [user.organization_id] : [user.organization_id, user.id, user.id, user.id];
-        let where = `WHERE ${access} AND t.hidden = 0 AND t.created_by IS NOT NULL`;
+        let where = `WHERE ${access} AND t.hidden = 0`;
         if (statusSel) { where += ' AND t.status = ?'; binds.push(statusSel); }
         if (overdue) { where += " AND t.due_date IS NOT NULL AND t.due_date < date('now') AND t.status != 'fait'"; }
         if (mine) { where += ' AND (t.assigned_comptable_id = ? OR t.done_by = ? OR EXISTS (SELECT 1 FROM org_task_collaborators tc WHERE tc.task_id = t.id AND tc.user_id = ?))'; binds.push(user.id, user.id, user.id); }
@@ -5871,7 +5871,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         // libelle de la tâche pour afficher « ce qu'elle fait maintenant » sur la
         // carte elle-meme, sans ouvrir sa fiche (LEFT JOIN : un chrono ne doit pas
         // disparaitre si la tâche a ete supprimee).
-        const { results: running } = await env.DB.prepare('SELECT te.user_id, te.started_at, t.label AS task_label, t.dossier_id AS dossier_id FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL').all();
+        const { results: running } = await env.DB.prepare('SELECT te.user_id, te.task_id, te.started_at, t.label AS task_label, t.dossier_id AS dossier_id FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id WHERE te.stopped_at IS NULL').all();
         const { results: runningInternal } = await env.DB.prepare('SELECT user_id, started_at, category AS task_label FROM org_internal_time_entries WHERE stopped_at IS NULL').all();
         const runByUser = new Map<string, any>();
         for (const r of running as any[]) runByUser.set(r.user_id, r);
@@ -5945,7 +5945,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const progRows = clients.filter((cl: any) => !cl.is_ancient);
           return { ...c, role: c.role_label || c.role, client_count: clients.length, avg_progress: progRows.length > 0 ? Math.round(progRows.reduce((sum: number, cl: any) => sum + (cl.cached_progress || 0), 0) / progRows.length * 10) / 10 : 0, task_stats: s,
             verify_counts: vc,
-            active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at, dossier_id: runRow.dossier_id || null, elapsed_seconds: ownCap === null ? runElapsed : Math.min(runElapsed, ownCap), over_limit: ownCap !== null && runElapsed > ownCap } : null,
+            active_timer: runRow ? { task_label: runRow.task_label || 'Tâche', started_at: runRow.started_at, dossier_id: runRow.dossier_id || null, task_id: runRow.task_id || null, elapsed_seconds: ownCap === null ? runElapsed : Math.min(runElapsed, ownCap), over_limit: ownCap !== null && runElapsed > ownCap } : null,
             verify_stats: { verified: qual.verified, returned: qual.returned, score: qualTotal > 0 ? Math.round((qual.verified / qualTotal) * 100) : null },
             online: parseUtc(c.last_seen_at) >= nowS - 180,
             worked_today_seconds: Math.min((Number(dayByUser.get(c.id)) || 0) + (Number(internalDayByUser.get(c.id)) || 0) + runElapsed, ownCap === null ? Infinity : ownCap),
