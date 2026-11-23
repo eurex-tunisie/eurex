@@ -4231,7 +4231,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         if (!await orgCanAccessDossier(user, dossierId)) return json({ error: 'Accès refusé' }, 403);
         const dossier = await env.DB.prepare('SELECT d.id, ' + dossierComp() + ' as comptable_id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE d.id = ? AND c.organization_id = ?').bind(dossierId, user.organization_id).first() as any;
         if (!dossier) return json({ error: 'Dossier non trouvé' }, 404);
-        const { results: comps } = await env.DB.prepare("SELECT id, full_name FROM org_users WHERE organization_id = ? AND role = 'comptable' AND is_active = 1 AND id != ? ORDER BY full_name").bind(user.organization_id, user.id).all();
+        const { results: comps } = await env.DB.prepare("SELECT id, full_name FROM org_users WHERE organization_id = ? AND role IN ('comptable','expert','manager') AND is_active = 1 AND id != ? ORDER BY full_name").bind(user.organization_id, user.id).all();
         const { results: gr } = await env.DB.prepare(`SELECT granted_to FROM org_dossier_grants WHERE dossier_id = ? AND ${ORG_GRANT_ACTIVE}`).bind(dossierId).all();
         const granted = new Set((gr as any[]).map((r: any) => r.granted_to));
         return json((comps as any[]).map(c => ({ id: c.id, full_name: c.full_name, has_access: c.id === dossier.comptable_id || granted.has(c.id) })));
@@ -4252,7 +4252,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const targetId = body?.user_id;
         if (!targetId) return json({ error: 'Comptable requis' }, 400);
         if (targetId === user.id) return json({ error: 'Vous êtes déjà sur cette tâche' }, 400);
-        const target = await env.DB.prepare("SELECT id, full_name FROM org_users WHERE id = ? AND organization_id = ? AND role = 'comptable' AND is_active = 1").bind(targetId, user.organization_id).first() as any;
+        const target = await env.DB.prepare("SELECT id, full_name FROM org_users WHERE id = ? AND organization_id = ? AND role IN ('comptable','expert','manager') AND is_active = 1").bind(targetId, user.organization_id).first() as any;
         if (!target) return json({ error: 'Comptable introuvable' }, 400);
         const dup = await env.DB.prepare('SELECT 1 AS x FROM org_task_collaborators WHERE task_id = ? AND user_id = ?').bind(taskId, targetId).first();
         if (dup) return json({ error: 'Déjà collaborateur sur cette tâche' }, 400);
