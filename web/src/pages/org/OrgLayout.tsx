@@ -32,7 +32,7 @@ function OrgInner() {
   // Animation de chargement centrée lors du changement de page
   useEffect(() => {
     setNavigating(true);
-    const to = setTimeout(() => setNavigating(false), 450);
+    const to = setTimeout(() => setNavigating(false), 200);
     return () => clearTimeout(to);
   }, [location.pathname]);
 
