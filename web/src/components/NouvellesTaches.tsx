@@ -33,6 +33,7 @@ const restBadge = (daysLeft: number | null) => {
 export default function NouvellesTaches({ exercice }: { exercice?: number | null } = {}) {
   const [tasks, setTasks] = useState<OrgRecentTask[]>([]);
   const [toast, setToast] = useState<OrgRecentTask | null>(null);
+  const [loading, setLoading] = useState(true);
   const knownIds = useRef<Set<string> | null>(null);
   const { min, toggleMin } = useCardMin('eurex_nt_min');
 
@@ -42,6 +43,7 @@ export default function NouvellesTaches({ exercice }: { exercice?: number | null
     knownIds.current = null;
     setToast(null);
     setTasks([]);
+    setLoading(true);
     const pull = () => {
       orgApi.getMyRecentTasks(30, exercice).then(r => {
         if (!alive) return;
@@ -55,7 +57,8 @@ export default function NouvellesTaches({ exercice }: { exercice?: number | null
           if (fresh) setToast(fresh);
         }
         setTasks(list);
-      }).catch(() => {});
+        setLoading(false);
+      }).catch(() => { if (alive) setLoading(false); });
     };
     pull();
     // Pause quand l'onglet est cache, comme les trois autres sondeurs de l'app
@@ -84,6 +87,11 @@ export default function NouvellesTaches({ exercice }: { exercice?: number | null
     return () => clearTimeout(to);
   }, [toast]);
 
+  if (loading) return (
+    <div className="card rounded-lg p-4 flex items-center justify-center" data-testid="nouvelles-taches-loading">
+      <span className="inline-block w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+    </div>
+  );
   if (tasks.length === 0) return null;
   const freshCount = tasks.filter(x => isNew(x.created_at)).length;
 

@@ -65,7 +65,11 @@ export default function MesHeures({ userId, title, exercice }: { userId?: string
       : missing > 0 ? <span className="text-rose-500 font-semibold">{fmtHm(missing)}</span>
       : <span className="text-green-600 font-semibold">✓ atteint</span>;
 
-  if (!hours) return null;
+  if (!hours) return (
+    <div className="card rounded-2xl p-4 flex items-center justify-center py-8">
+      <span className="inline-block w-6 h-6 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+    </div>
+  );
 
   return (
     <div className={`card rounded-2xl ${min ? 'px-3 py-1.5' : 'p-4'}`} data-testid="mes-heures">
