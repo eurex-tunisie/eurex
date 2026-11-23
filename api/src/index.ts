@@ -4510,7 +4510,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const monday = d.toISOString().slice(0, 10);
         const mNext = new Date(d.getTime() + 7 * 86400000).toISOString().slice(0, 10);
         const { results: rows } = await env.DB.prepare(
-          `SELECT date(datetime(te.started_at, '+60 minutes')) AS day, te.task_id, COALESCE(t.label, 'Tâche supprimée') AS task_label, te.dossier_id, c.name AS client_name, COALESCE(SUM(te.duration_seconds), 0) AS seconds FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id LEFT JOIN org_dossiers dd ON dd.id = te.dossier_id LEFT JOIN org_clients c ON c.id = dd.client_id WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND date(datetime(te.started_at, '+60 minutes')) >= ? AND date(datetime(te.started_at, '+60 minutes')) < ? GROUP BY day, te.task_id, te.dossier_id`
+          `SELECT date(datetime(te.started_at, '+60 minutes')) AS day, te.task_id, COALESCE(t.label, 'Tâche supprimée') AS task_label, te.dossier_id, c.name AS client_name, COALESCE(SUM(te.duration_seconds), 0) AS seconds FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id LEFT JOIN org_dossiers dd ON dd.id = te.dossier_id LEFT JOIN org_clients c ON c.id = dd.client_id WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND date(datetime(te.started_at, '+60 minutes')) >= ? AND date(datetime(te.started_at, '+60 minutes')) < ? GROUP BY day, te.task_id, te.dossier_id, COALESCE(t.label, 'Tâche supprimée'), c.name`
         ).bind(user.id, monday, mNext).all();
         const { results: irows } = await env.DB.prepare(
           `SELECT date(datetime(started_at, '+60 minutes')) AS day, category, COALESCE(SUM(duration_seconds), 0) AS seconds FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND date(datetime(started_at, '+60 minutes')) >= ? AND date(datetime(started_at, '+60 minutes')) < ? GROUP BY day, category`
@@ -4527,8 +4527,11 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         }
         return json({ monday, sunday: new Date(d.getTime() + 6 * 86400000).toISOString().slice(0, 10), days });
       }
+
+      // --- ORG: MES CHRONOS ACTIFS (comptable) ---
+      if (path === '/api/org/me/timers' && method === 'GET') {
         const user = await verifyOrgToken(request);
-        if (!user) return json({ error: 'Non autorisé' }, 401);
+        if (!user) return json({ error: 'Non autoris�' }, 401);
         const { results } = await env.DB.prepare(`SELECT te.task_id, te.started_at, t.label as task_label, d.id as dossier_id, c.name as client_name, d.exercice FROM org_time_entries te JOIN org_tasks t ON t.id = te.task_id JOIN org_dossiers d ON d.id = te.dossier_id JOIN org_clients c ON c.id = d.client_id WHERE te.user_id = ? AND te.stopped_at IS NULL ORDER BY te.started_at DESC`).bind(user.id).all();
         return json({ timers: results || [] });
       }
