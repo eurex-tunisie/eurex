@@ -146,11 +146,11 @@ describe('service worker', () => {
 
 describe('page : referencement du manifeste', () => {
   test('manifeste, icone iOS, couleur de theme et favicon EUREX declares', () => {
-    expect(indexHtml).toContain('rel="manifest" href="/manifest.webmanifest"');
-    expect(indexHtml).toContain('rel="apple-touch-icon" href="/icons/apple-touch-icon.png"');
+    expect(indexHtml).toContain('rel="manifest" href="%BASE_URL%manifest.webmanifest"');
+    expect(indexHtml).toContain('rel="apple-touch-icon" href="%BASE_URL%icons/apple-touch-icon.png"');
     expect(indexHtml).toContain('name="theme-color" content="#6d28d9"');
     expect(indexHtml).toContain('name="apple-mobile-web-app-capable" content="yes"');
-    expect(indexHtml).toContain('rel="icon" type="image/png" href="/icons/favicon.png"');
+    expect(indexHtml).toContain('rel="icon" type="image/png" href="%BASE_URL%icons/favicon.png"');
     expect(indexHtml).not.toContain('vite.svg');
   });
 

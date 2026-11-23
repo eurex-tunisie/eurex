@@ -16,6 +16,7 @@ import OrgNotifications from '../../components/OrgNotifications';
 import OrgPlanning from './OrgPlanning';
 import OrgReport from './OrgReport';
 import OrgMesTaches from './OrgMesTaches';
+import OrgTimesheet from './OrgTimesheet';
 import { CheckSquare, CalendarDays, BarChart3 } from 'lucide-react';
 
 function OrgInner() {
@@ -77,6 +78,15 @@ function OrgInner() {
             Mes tâches
           </button>
           <button
+            onClick={() => navigate('/cabinet/timesheet')}
+            data-testid="timesheet-nav"
+            title="Feuille de temps hebdomadaire"
+            className={`btn-tab mb-4 shrink-0 ${location.pathname.startsWith('/cabinet/timesheet') ? 'active' : ''}`}
+          >
+            <CalendarDays size={15} />
+            Feuille de temps
+          </button>
+          <button
             onClick={() => navigate('/cabinet/planning')}
             data-testid="planning-nav"
             title="Planning des échéances et tâches par date"
@@ -107,6 +117,7 @@ function OrgInner() {
         <Routes>
           <Route path="/" element={isExpert ? <OrgDashboardExpert /> : <OrgDashboardComptable />} />
           <Route path="/mes-taches" element={<OrgMesTaches />} />
+<Route path="/timesheet" element={<OrgTimesheet />} />
           <Route path="/planning" element={<OrgPlanning />} />
           <Route path="/report" element={<OrgReport />} />
           <Route path="/dossier/:id" element={<OrgDossierPage />} />

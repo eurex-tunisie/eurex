@@ -527,8 +527,8 @@ export const orgApi = {
     return req<{ tasks: OrgMyTask[] }>(`/org/me/tasks${qs ? `?${qs}` : ''}`);
   },
   // Mes chronos actifs (comptable) : taches en cours de chronometrage
-  getMyTimers: () =>
-    req<{ timers: { task_id: string; started_at: string; task_label: string; dossier_id: string; client_name: string; exercice: number }[] }>('/org/me/timers'),
+  getMyTimesheet: (date?: string) =>
+    req<{ monday: string; sunday: string; days: { date: string; total_seconds: number; tasks: { task_id: string; task_label: string; dossier_id: string; client_name: string; seconds: number }[]; internal: { category: string; seconds: number }[] }[] }>(`/org/me/timesheet${date ? `?date=${date}` : ''}`),
   // Temps interne (reunion, informatique) : hors dossier client, compte dans Mes heures
   startInternalTime: (category: 'reunion' | 'informatique', note?: string) =>
     req<{ ok: boolean; entry_id: string; category: string; started_at: string }>('/org/internal-time/start', { method: 'POST', body: JSON.stringify({ category, note }) }),
@@ -677,6 +677,8 @@ export const orgApi = {
     req<any>(`/org/dossiers/${dossierId}/tasks/${taskId}/time`, { method: 'POST', body: JSON.stringify({ seconds, note }) }),
   getTimers: (dossierId: string) =>
     req<{ entries: any[]; tasks: any[] }>(`/org/dossiers/${dossierId}/timers`),
+  getMyTimers: () =>
+    req<{ timers: { task_id: string; started_at: string; task_label: string; dossier_id: string; client_name: string; exercice: number }[] }>('/org/me/timers'),
 
   // Timeline
   getTimeline: (dossierId: string) => req<TimelineEvent[]>(`/org/dossiers/${dossierId}/timeline`),
