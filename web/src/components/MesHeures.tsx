@@ -170,6 +170,38 @@ export default function MesHeures({ userId, title, exercice }: { userId?: string
         />
       </div>
 
+      {/* Graphique 7 jours : barres verticales realise vs norme */}
+      {view === 'days' && (hours.days || []).length > 0 && (
+        <div className="mt-3 mb-2" data-testid="heures-chart">
+          <div className="flex items-end gap-1.5 h-24">
+            {(hours.days || []).map(d => {
+              const norm = d.norm_seconds || 1;
+              const pct = Math.min(100, Math.round((d.worked_seconds / norm) * 100));
+              const color = d.rest ? '#e5e7eb'
+                : d.worked_seconds >= norm ? '#22c55e'
+                : d.worked_seconds >= norm / 2 ? '#f59e0b'
+                : '#f43f5e';
+              return (
+                <div key={d.date} className="flex-1 flex flex-col items-center gap-0.5" title={`${fmtDay(d)} : ${fmtHm(d.worked_seconds)} / ${fmtHm(d.norm_seconds)}`}>
+                  <div className="w-full flex items-end justify-center" style={{ height: '72px' }}>
+                    <div
+                      className="w-3/4 rounded-t transition-all duration-500"
+                      style={{ height: `${Math.max(2, pct * 0.72)}px`, background: color }}
+                    />
+                  </div>
+                  <span className="text-[9px] text-gray-500">{fmtDay(d).slice(0, 3)}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-gray-400 mt-1">
+            <span>0</span>
+            <span>Moy. hebdo : {fmtHm(Math.round((hours.days || []).reduce((s: number, d: any) => s + (d.worked_seconds || 0), 0) / Math.max(1, (hours.days || []).filter((d: any) => !d.rest).length || 1)))}</span>
+            <span>{fmtHm(Math.max(...(hours.days || []).map((d: any) => d.norm_seconds || 0)))}</span>
+          </div>
+        </div>
+      )}
+
       {/* Detail : jours (vues jours/mois) ou mois (vue annee) */}
       <table className="w-full text-xs mt-3" data-testid="heures-table">
         <thead>
