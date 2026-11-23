@@ -1090,6 +1090,11 @@ export default function OrgDashboardExpert() {
                     ) : (
                       <span className="text-gray-400 italic">Repos (samedi / dimanche){(c.worked_today_seconds || 0) > 0 ? ` · ${fmtHm(c.worked_today_seconds)} pointées` : ''}</span>
                     )}
+                    {c.norm_seconds && (c.worked_today_seconds || 0) === 0 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full" data-testid="no-work-badge">
+                        ⚠ Aucun pointage aujourd'hui
+                      </span>
+                    )}
                     {/* Ce qu'elle fait maintenant : chrono en cours (tâche + durée) ou
                         rien. Affiche en permanence : « connectée » ne veut pas dire
                         « en train de travailler ». */}

@@ -184,7 +184,18 @@ export default function OrgDashboardComptable() {
         </div>
       )}
 
-      {/* API indisponible : ne PAS afficher une liste vide qui ressemble a des clients/dossiers perdus */}
+      {/* Alerte présence : aucun chrono actif en journée */}
+      {myTimers.length === 0 && (() => {
+        const h = new Date(Date.now() + 3600000).getUTCHours();
+        const dow = new Date(Date.now() + 3600000).getUTCDay();
+        const workday = dow !== 0 && dow !== 6;
+        if (!workday || h < 9 || h >= 18) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800" data-testid="presence-alert">
+            ⚠ Aucun chrono actif — pensez à démarrer un chrono sur votre tâche en cours.
+          </div>
+        );
+      })()}
       {loadError && (
         <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4 text-sm text-rose-700">
           <span>Chargement impossible : l'API est momentanément indisponible. Aucune donnée n'a été supprimée.</span>
