@@ -11,7 +11,7 @@
 export type E7tifelDecision = 'video' | 'motif' | null;
 
 // Nombre de vidéos embarquées dans public/e7tifel/ (v1.mp4 … vN.mp4)
-export const E7TIFEL_VIDEOS = 6;
+export const E7TIFEL_VIDEOS = 9;
 
 // Une seule vidéo, choisie au hasard parmi les N embarquées (1-indexé).
 export function e7tifelPickIndex(count: number = E7TIFEL_VIDEOS): number {
