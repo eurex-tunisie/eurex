@@ -1600,7 +1600,16 @@ export default function OrgDossierPage() {
                        </button>
                      );
                    })()}
-                   {task.status === 'a_verifier' && task.verify_due_at && editingTaskId !== task.id && (
+                   {task.status === 'bloque_client' && (
+                    <button
+                      data-testid="task-unblock-btn-inline"
+                      onClick={(e) => { e.stopPropagation(); unblockTask(task); }}
+                      className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full whitespace-nowrap hover:bg-blue-100"
+                    >
+                      ▶ Débloquer
+                    </button>
+                  )}
+                  {task.status === 'a_verifier' && task.verify_due_at && editingTaskId !== task.id && (
                     <span
                       title="Délai de validation (fixé par l'expert/manager)"
                       className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
