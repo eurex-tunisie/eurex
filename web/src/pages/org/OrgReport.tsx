@@ -252,6 +252,32 @@ export default function OrgReport() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-5">
+            {/* Comparaison visuelle inter-comptables */}
+            {data.hours_by_user.length > 0 && (() => {
+              const maxH = Math.max(...data.hours_by_user.map((u: any) => Number(u.total_seconds ?? u.seconds) || 0), 1);
+              return (
+                <div className="card p-4 shadow-sm" data-testid="hours-compare-chart">
+                  <div className="text-[11px] font-bold uppercase text-gray-400 mb-2">Comparaison inter-comptables</div>
+                  <div className="space-y-1.5">
+                    {data.hours_by_user.map((u: any) => {
+                      const total = Number(u.total_seconds ?? u.seconds) || 0;
+                      const norm = Number(u.norm_seconds) || 0;
+                      const pct = Math.min(100, Math.round((total / maxH) * 100));
+                      const color = norm > 0 && total > norm + 1800 ? '#f43f5e' : norm > 0 && total >= norm ? '#22c55e' : '#f59e0b';
+                      return (
+                        <div key={u.user_id} className="flex items-center gap-2 text-xs">
+                          <span className="w-24 truncate text-gray-700 font-medium" title={u.full_name}>{u.full_name}</span>
+                          <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+                          </div>
+                          <span className="w-12 text-right font-mono text-gray-600">{fmtH(total)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="card overflow-hidden shadow-sm">
               <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 text-sm font-bold text-gray-700">⏱ Heures par collaborateur</div>
               <table className="w-full text-sm">
