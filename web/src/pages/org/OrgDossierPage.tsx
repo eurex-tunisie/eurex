@@ -270,13 +270,39 @@ export default function OrgDossierPage() {
     if (isExpert) orgApi.getComptables().then(cs => setComptables(cs.filter(c => c.role === 'comptable'))).catch(() => {});
   }, [isExpert]);
 
-  // Live timer tick
+  // Raccourcis clavier : N = nouvelle tâche, S = démarrer/arrêter le chrono,
+  // Esc = fermer les modales.
   useEffect(() => {
-    const hasActiveTimer = dossier?.tasks?.some(t => t.timer_started_at) || !!dossier?.running_timers?.length;
-    if (!hasActiveTimer) return;
-    const interval = setInterval(() => setTimerNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [dossier?.tasks]);
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inInput = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (e.key === 'Escape') {
+        setLateTaskTarget(null);
+        setLateTaskReason('');
+        setReturnTaskTarget(null);
+        setReturnReason('');
+        setShowCloseModal(false);
+        return;
+      }
+      if (inInput) return;
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        setShowAddTask(true);
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        const myRunning = (dossier?.running_timers || []).find(r => r.user_id === state.user?.id);
+        if (myRunning) {
+          const t = dossier?.tasks?.find(x => x.id === myRunning.task_id);
+          if (t) stopTimer(t.id);
+        } else {
+          const first = dossier?.tasks?.find(t => t.status !== 'fait' && t.status !== 'bloque_client');
+          if (first) startTimer(first.id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [dossier, state.user?.id]);
 
   // Garde-fou chrono : tant qu'un chrono tourne, on recharge pour refleter
   // l'arret serveur (plafond norme + 30 mn ou coupure 18:00).
