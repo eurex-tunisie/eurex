@@ -19,7 +19,7 @@
 // d'asset, donc rien a regenerer a chaque build.
 
 const BASE = self.location.pathname.replace(/sw\.js$/, ''); // « /eurex/ »
-const CACHE = 'eurex-v1';
+const CACHE = 'eurex-v2';
 const MAX_ENTRIES = 200;
 
 async function ranger(cache, requete, reponse) {
