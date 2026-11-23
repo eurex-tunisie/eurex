@@ -73,13 +73,13 @@ export default function MesHeures({ userId, title, exercice }: { userId?: string
         <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
           ⏱ {title || 'Mes heures'}
           {!min && (
-            <span className="text-gray-400 font-normal">— norme 8h30 du lundi au vendredi · repos sam-dim</span>
+            <span className="text-gray-400 font-normal">— norme {fmtHm(hours.today.norm_seconds || 30600)} du lundi au vendredi · repos sam-dim</span>
           )}
         </h3>
         {/* En carte minimale : le resume du jour tient dans l'entete */}
         {min && (
           <span data-testid="heures-today-chip" className="ml-auto text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-            Aujourd'hui {fmtHm(hours.today.worked_seconds)}{hours.today.rest ? ' · repos' : ' / 8h30'}
+            Aujourd'hui {fmtHm(hours.today.worked_seconds)}{hours.today.rest ? ' · repos' : ` / ${fmtHm(hours.today.norm_seconds)}`}
           </span>
         )}
         {/* Onglets de periode : jours / mois / annee */}
@@ -133,7 +133,7 @@ export default function MesHeures({ userId, title, exercice }: { userId?: string
         <span className="text-gray-500">
           Aujourd'hui ({fmtDay(hours.today)}) :{' '}
           <b className="text-gray-800">
-            {fmtHm(hours.today.worked_seconds)} / {hours.today.rest ? 'Repos' : '8h30'}
+            {fmtHm(hours.today.worked_seconds)} / {hours.today.rest ? 'Repos' : fmtHm(hours.today.norm_seconds)}
           </b>
           {hours.today.overtime_seconds > 0 && (
             <span className="text-green-600 font-semibold ml-1">· +{fmtHm(hours.today.overtime_seconds)}</span>
@@ -197,7 +197,7 @@ export default function MesHeures({ userId, title, exercice }: { userId?: string
                   </td>
                   <td className="py-1.5 text-right text-gray-700">{fmtHm(d.worked_seconds)}</td>
                   <td className="py-1.5 text-right">
-                    {d.rest ? <span className="text-gray-400 italic">Repos</span> : <span className="text-gray-600">8h30</span>}
+                    {d.rest ? <span className="text-gray-400 italic">Repos</span> : <span className="text-gray-600">{fmtHm(d.norm_seconds)}</span>}
                   </td>
                   <td className="py-1.5 text-right">{ecartCell(d.overtime_seconds, d.rest, d.missing_seconds)}</td>
                 </tr>
