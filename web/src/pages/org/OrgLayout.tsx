@@ -23,10 +23,18 @@ function OrgInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const onPlanning = location.pathname.startsWith('/cabinet/planning');
+  const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
     return onLangChange(() => setLangState(getLang()));
   }, []);
+
+  // Animation de chargement centrée lors du changement de page
+  useEffect(() => {
+    setNavigating(true);
+    const to = setTimeout(() => setNavigating(false), 450);
+    return () => clearTimeout(to);
+  }, [location.pathname]);
 
   if (state.loading) {
     return <SkeletonAuth />;
@@ -43,7 +51,15 @@ function OrgInner() {
 
   // Nav + footer gérés par App (une seule barre, un seul footer sur tout le site)
   return (
-    <div className="flex-1">
+    <div className="flex-1 relative">
+      {navigating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm" data-testid="page-loading-spinner">
+          <div className="flex flex-col items-center gap-3">
+            <span className="inline-block w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+            <span className="text-sm font-medium text-indigo-700">Chargement…</span>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 py-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
