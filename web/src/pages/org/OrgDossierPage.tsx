@@ -450,6 +450,18 @@ export default function OrgDossierPage() {
 
   // Confirmation de la boîte « motif du retard » : la tâche part en vérification
   // (ou en « fait » pour l'expert) avec le motif enregistré dedans.
+  // Déblocage d'une tâche « Bloqué client » : repasse en « En cours » et
+  // efface la raison de blocage.
+  const unblockTask = async (task: OrgTask) => {
+    if (!dossier) return;
+    try {
+      await orgApi.updateTask(dossier.id, task.id, 'en_cours', '');
+      load();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const confirmLate = async () => {
     if (!dossier || !lateTaskTarget) return;
     const reason = lateTaskReason.trim();
@@ -1397,7 +1409,7 @@ export default function OrgDossierPage() {
                               <button onClick={() => updateTaskStatus(task.id, 'en_cours')} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">↩ Rouvrir</button>
                             )}
                             {task.status === 'bloque_client' && (
-                              <button onClick={() => updateTaskStatus(task.id, 'en_cours')} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100">▶ Débloquer</button>
+                              <button onClick={() => unblockTask(task)} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100" data-testid="task-unblock-btn">▶ Débloquer</button>
                             )}
                              {task.status !== 'fait' && (dossier?.running_timers || []).some(r => r.task_id === task.id && r.user_id === state.user?.id) ? (
                                <button onClick={(e) => { e.stopPropagation(); stopTimer(task.id); }} className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-600 hover:bg-red-100">⏹</button>
@@ -2001,6 +2013,11 @@ export default function OrgDossierPage() {
                       {task.status !== 'fait' && task.status !== 'a_verifier' && (
                         <button onClick={() => updateTaskStatus(task.id, 'fait')} className="px-3 py-1.5 rounded-lg text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
                           {t('status.fait')}
+                        </button>
+                      )}
+                      {task.status === 'bloque_client' && (
+                        <button onClick={() => unblockTask(task)} className="px-3 py-1.5 rounded-lg text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold" data-testid="task-unblock-btn-detail">
+                          ▶ Débloquer
                         </button>
                       )}
                       {task.status === 'a_verifier' && isExpert && (
