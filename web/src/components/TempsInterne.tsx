@@ -26,6 +26,7 @@ export default function TempsInterne() {
   const [mNote, setMNote] = useState('');
   const [mBusy, setMBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [guard, setGuard] = useState<{ day_seconds: number; norm_day_seconds: number; cap_seconds: number | null; remaining_seconds: number | null; tolerance_seconds: number } | null>(null);
   const [justStopped, setJustStopped] = useState(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -52,6 +53,16 @@ export default function TempsInterne() {
   const refresh = async () => { await Promise.all([refreshCats(), refreshActive()]); };
 
   useEffect(() => { refresh(); }, []);
+  // Ferme le menu + si on clique ailleurs.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement).closest('[data-testid="ti-menu-toggle"], [data-testid="ti-menu"]');
+      if (!el) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuOpen]);
   // Poll : le serveur peut avoir arrete le chrono (plafond ou 18:00).
   useEffect(() => {
     const iv = setInterval(() => { if (!document.hidden) refreshActive(); }, 60000);
@@ -130,23 +141,35 @@ export default function TempsInterne() {
     <div className="card rounded-2xl p-4" data-testid="temps-interne">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-          <Clock size={14} /> Temps interne (réunion, informatique, …)
+          <Clock size={14} /> Temps interne
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="relative">
           <button
-            onClick={() => setShowAdd(v => !v)}
-            className="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1"
-            data-testid="ti-add-toggle"
+            onClick={() => setMenuOpen(v => !v)}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-purple-600 hover:bg-purple-50 border border-gray-200 hover:border-purple-300 transition-colors"
+            data-testid="ti-menu-toggle"
+            title="Plus d'options"
           >
-            {showAdd ? <><X size={12} /> Fermer</> : <><Plus size={12} /> Ajouter une catégorie</>}
+            {menuOpen ? <X size={14} /> : <Plus size={14} />}
           </button>
-          <button
-            onClick={() => setShowManual(v => !v)}
-            className="text-xs text-gray-500 hover:text-gray-700 font-medium flex items-center gap-1"
-            data-testid="ti-manual-toggle"
-          >
-            {showManual ? <><X size={12} /> Fermer</> : <><Plus size={12} /> Saisie manuelle</>}
-          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-8 z-10 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-48" data-testid="ti-menu">
+              <button
+                onClick={() => { setShowAdd(v => !v); setMenuOpen(false); }}
+                className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5"
+                data-testid="ti-add-toggle"
+              >
+                <Plus size={12} /> Ajouter une catégorie
+              </button>
+              <button
+                onClick={() => { setShowManual(v => !v); setMenuOpen(false); }}
+                className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5"
+                data-testid="ti-manual-toggle"
+              >
+                <Plus size={12} /> Saisie manuelle
+              </button>
+            </div>
+          )}
         </div>
       </div>
       {err && <p className="text-xs text-rose-600 mb-2">{err}</p>}
@@ -160,11 +183,26 @@ export default function TempsInterne() {
           Plafond du jour atteint (norme + 30 mn) — le chrono va s'arrêter.
         </p>
       )}
-      {guard?.cap_seconds != null && (
-        <p className="text-[11px] text-gray-500 mb-2" data-testid="ti-day-guard">
-          Journée : {fmtHm(guard.day_seconds + (active ? cappedElapsed : 0))} / {fmtHm(guard.cap_seconds)} max · reste {fmtHm(Math.max(0, guard.cap_seconds - guard.day_seconds - (active ? cappedElapsed : 0)))} (arrêt auto à 18:00)
-        </p>
-      )}
+      {guard?.cap_seconds != null && (() => {
+        const used = guard.day_seconds + (active ? cappedElapsed : 0);
+        const rest = Math.max(0, guard.cap_seconds - used);
+        const pct = Math.min(100, Math.round((used / Math.max(1, guard.cap_seconds)) * 100));
+        const bar = pct >= 100 ? 'bg-rose-500' : pct >= 85 ? 'bg-amber-500' : 'bg-emerald-500';
+        return (
+          <div className="mb-3" data-testid="ti-day-guard">
+            <div className="flex items-baseline justify-between text-[11px] text-gray-500 mb-1">
+              <span className="font-semibold text-gray-600">
+                {fmtHm(used)} <span className="font-normal text-gray-400">/ {fmtHm(guard.cap_seconds)}</span>
+                <span className="text-gray-400"> · reste {fmtHm(rest)}</span>
+              </span>
+              <span className="text-[10px] text-gray-400">arrêt auto à 18:00</span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${bar}`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })()}
       {showAdd && (
         <div className="mb-3 flex items-end gap-2">
           <div className="flex flex-col flex-1">
@@ -192,7 +230,7 @@ export default function TempsInterne() {
         {categories.map(cat => {
           const isRunning = active?.category === cat.code;
           return (
-            <div key={cat.code} className="flex items-center gap-1">
+            <div key={cat.code} className="group flex items-center gap-1">
               <button
                 disabled={busy}
                 onClick={() => (isRunning ? stop(cat.code) : start(cat.code))}
@@ -205,7 +243,12 @@ export default function TempsInterne() {
               >
                 {isRunning ? <Square size={13} /> : <Play size={13} />}
                 {cat.label}
-                {isRunning && <span className="font-mono text-xs">· {fmtHm(cappedElapsed)}</span>}
+                {isRunning && (
+                  <span className="flex items-center gap-1.5 font-mono text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    {fmtHm(cappedElapsed)}
+                  </span>
+                )}
               </button>
               {cat.deletable && (
                 <button
@@ -213,7 +256,7 @@ export default function TempsInterne() {
                   disabled={busy}
                   title="Supprimer cette catégorie"
                   data-testid={`ti-del-${cat.code}`}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-0"
                 >
                   <Trash2 size={12} />
                 </button>
