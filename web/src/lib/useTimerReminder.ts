@@ -36,7 +36,7 @@ export function useTimerReminder(label: string | null) {
       const cur = labelRef.current;
       if (!cur) return;
       const title = '⏱ Chrono toujours en cours';
-      const body = `${cur} — tu travailles toujours dessus ? Clique pour ouvrir.`;
+      const body = `${cur} — tu travailles toujours dessus ?\n👉 Clique ici pour ouvrir EUREX et arrêter le chrono.`;
       const perm = await ensurePermission();
       if (perm === 'granted') {
         try {

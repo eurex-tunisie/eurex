@@ -51,7 +51,7 @@ export default function OrgNotifications() {
     const unreadItems = list.filter(i => !i.read).slice(0, 3);
     for (const it of unreadItems) {
       try {
-        const n = new Notification('🔔 EUREX', { body: it.message, tag: `eurex-notif-${it.id}` });
+        const n = new Notification('🔔 EUREX', { body: `${it.message}\n👉 Clique pour ouvrir le dossier`, tag: `eurex-notif-${it.id}` });
         n.onclick = () => { try { window.focus(); } catch { /* ignore */ } n.close(); if (it.dossier_id) navigate(`/cabinet/dossier/${it.dossier_id}`); };
         setTimeout(() => { try { n.close(); } catch { /* ignore */ } }, 10000);
       } catch { /* ignore */ }
