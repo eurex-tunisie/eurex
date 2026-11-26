@@ -108,7 +108,7 @@ export default function OrgDossierPage() {
   const [dossier, setDossier] = useState<OrgDossier | null>(null);
   const _myRunningTask = (dossier?.running_timers || []).find((r: any) => r.user_id === state.user?.id);
   const _runningTaskLabel = _myRunningTask ? ((dossier?.tasks || []).find((t: any) => t.id === _myRunningTask.task_id)?.label || `Tâche ${_myRunningTask.task_id}`) : null;
-  useTimerReminder(_runningTaskLabel);
+  const timerToast = useTimerReminder(_runningTaskLabel);
   const [costSummary, setCostSummary] = useState<any>(null);
   const [loadError, setLoadError] = useState('');
   const [grantComp, setGrantComp] = useState('');
@@ -952,6 +952,11 @@ export default function OrgDossierPage() {
 
   return (
     <div className="space-y-4">
+      {timerToast && (
+        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" data-testid="timer-reminder-toast">
+          {timerToast}
+        </div>
+      )}
       <input
         ref={fileInputRef}
         type="file"
