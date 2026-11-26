@@ -226,9 +226,8 @@ async function orgRecalcProgress(db: any, dossierId: string) {
 // Pack d'echeances type — seed auto-correctif (id deterministe, upsert seulement si ecart)
 // Variante dossier : chaque dossier recoit son propre pack (ids _d<id>, dossier_id rempli)
 // export_scope : JSON array des statuts export concernes, NULL = toutes
-async function ensureAlertPack(db: any, orgId: string, dossierId: string | null = null) {
-  const y = new Date().getUTCFullYear();
-  const pack = [
+export function alertPack(y: number) {
+  return [
     { key: 'pm_mensuelle', title: 'Déclaration mensuelle d\'impôts (DMI) — TVA, retenues, TFP, FOPROLOS (PM télé-déclarante)', due_date: `${y}-12-20`, recurrence: 'mensuelle', months: null, category: 'morale', lead_days: 5, export_scope: null, note: 'Personnes morales soumises à la télé-déclaration : au plus tard le 20 du mois suivant (télé-déclaration DGI) — report au 1er jour ouvrable si férié/dimanche' },
     { key: 'cnss_tr', title: 'CNSS — déclaration trimestrielle des salaires & cotisations', due_date: `${y}-01-15`, recurrence: 'trimestrielle', months: '[1,4,7,10]', category: null, lead_days: 5, export_scope: '["semi_exportatrice","non_exportatrice"]', note: 'Régime général non agricole — droit commun : 15 du mois suivant le trimestre (15 janv/avr/juil/oct), BTP >50 salariés : 20 · entreprises totalement exportatrices : 25 (communiqué CNSS)' },
     { key: 'employeur', title: 'Déclaration annuelle de l\'employeur (retenues & salaires)', due_date: `${y}-02-28`, recurrence: 'annuelle', months: null, category: null, lead_days: 5, export_scope: null, note: 'Employeurs : retenues à la source et salaires versés — droit commun 28 février ; cas régime forfaitaire : jusqu\'au 30 avril (DGI) — vérifier le communiqué annuel DGI' },
@@ -245,11 +244,26 @@ async function ensureAlertPack(db: any, orgId: string, dossierId: string | null 
     { key: 'renouv_autorisation_susp', title: "Renouvellement Autorisation d'achat en suspension de TVA", due_date: `${y}-01-15`, recurrence: 'annuelle', months: null, category: null, lead_days: 5, export_scope: null, note: "Renouvellement annuel de l'autorisation d'achat en suspension (art. 16 LF 2013) — date indicative, à aligner sur la date de délivrance portée sur l'autorisation" },
     { key: 'visa_bon_commande_susp', title: 'Visa bon de commande en suspension de TVA', due_date: `${y}-12-31`, recurrence: 'annuelle', months: null, category: null, lead_days: 5, export_scope: null, note: "Visa systématique de chaque bon de commande en suspension (contrôle continu) — point annuel de procédure" },
   ];
-  const { results: existing } = await db.prepare('SELECT id, title, due_date, lead_days, recurrence, months, category, note, export_scope FROM org_fiscal_alerts WHERE organization_id = ?').bind(orgId).all();
+}
+
+// Seed auto-corrige du pack d'echeances : ne relit QUE les ids de CE pack
+// (voir commentaire egress plus bas).
+async function ensureAlertPack(db: any, orgId: string, dossierId: string | null = null) {
+  const y = new Date().getUTCFullYear();
+  const pack = alertPack(y);
+  // Lecture RESTREINTE aux ids de CE pack (ids deterministes) : l'ancien SELECT
+  // relisait les ~1200 lignes de la table (champ note enorme) a chaque appel —
+  // 9314 appels x 1190 lignes = 11 M lignes lues = egress Supabase epuise
+  // (5,5/5 GB le 2026-11-26). 15 ids max, 15 lignes au lieu de 1200.
+  const packIds = pack.map(p => `pack_${p.key}_${dossierId ? `d${dossierId}` : orgId}`);
+  const { results: existing } = await db.prepare(
+    `SELECT id, title, due_date, lead_days, recurrence, months, category, note, export_scope FROM org_fiscal_alerts WHERE organization_id = ? AND id IN (${packIds.map(() => '?').join(',')})`
+  ).bind(orgId, ...packIds).all();
   const byId = new Map((existing as any[]).map(r => [r.id, r]));
   const stmts: any[] = [];
-  for (const p of pack) {
-    const id = `pack_${p.key}_${dossierId ? `d${dossierId}` : orgId}`;
+  for (let i = 0; i < pack.length; i++) {
+    const p = pack[i];
+    const id = packIds[i];
     const cur = byId.get(id);
     const same = cur && cur.title === p.title && cur.due_date === p.due_date && cur.lead_days === p.lead_days
       && cur.recurrence === p.recurrence && (cur.months || null) === p.months
@@ -5506,8 +5520,17 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           if (dOk) await ensureAlertPack(env.DB, user.organization_id, dossierId);
         } else if (!isSupervisor(user.role)) {
           // Le comptable n'a pas de pack global : pack propre à chacun de ses dossiers en cours (assignes + renforts actifs)
-            const { results: myDossiers } = await env.DB.prepare(`SELECT d.id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id WHERE c.organization_id = ? AND d.status = 'en_cours' AND (` + dossierComp() + ` = ? OR EXISTS (SELECT 1 FROM org_dossier_grants g WHERE g.dossier_id = d.id AND g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now')))) ORDER BY d.exercice DESC LIMIT 100`).bind(user.organization_id, user.id, user.id).all();
-          for (const d of myDossiers as any[]) await ensureAlertPack(env.DB, user.organization_id, d.id);
+          // Seed UNIQUEMENT les dossiers sans pack du courant OU au pack perime
+          // (1 requête), au lieu de re-appeler ensureAlertPack pour CHAQUE dossier
+          // à chaque appel : c'était ~1200 lignes relues par dossier = le gros
+          // poste d'egress Supabase (5,5/5 GB le 2026-11-26).
+          const yNow = new Date().getUTCFullYear();
+          const { results: needSeed } = await env.DB.prepare(
+            `SELECT d.id FROM org_dossiers d JOIN org_clients c ON d.client_id = c.id
+             WHERE c.organization_id = ? AND d.status = 'en_cours' AND (` + dossierComp() + ` = ? OR EXISTS (SELECT 1 FROM org_dossier_grants g WHERE g.dossier_id = d.id AND g.granted_to = ? AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > datetime('now'))))
+               AND (SELECT count(*) FROM org_fiscal_alerts a WHERE a.dossier_id = d.id AND a.created_by_name = 'Type EUREX' AND a.due_date LIKE ?) < ?
+             ORDER BY d.exercice DESC LIMIT 100`).bind(user.organization_id, user.id, user.id, `${yNow}-%`, alertPack(yNow).length).all();
+          for (const d of needSeed as any[]) await ensureAlertPack(env.DB, user.organization_id, d.id);
         }
 
         let aSql = `SELECT a.id, a.title, a.due_date, a.lead_days, a.done, a.note, a.recurrence, a.months, a.category, a.export_scope, a.dossier_id, a.created_by_name, a.created_at,
