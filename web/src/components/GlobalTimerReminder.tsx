@@ -28,7 +28,7 @@ export default function GlobalTimerReminder() {
         const timers = r.timers || [];
         const t = timers[0] || null;
         setTaskLabel(t ? labelForTask(t) : null);
-        setTaskTarget(t?.dossier_id ? `/cabinet/dossier/${t.dossier_id}?task=${t.task_id || ''}` : null);
+        setTaskTarget(t?.dossier_id ? `/dossier/${t.dossier_id}?task=${t.task_id || ''}` : null);
       } catch { /* ignore */ }
       try {
         const r = await orgApi.getActiveInternalTimers();
