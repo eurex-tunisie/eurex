@@ -13,6 +13,7 @@ import OrgSettings from './OrgSettings';
 import OrgComptableDetail from './OrgComptableDetail';
 import OrgSearch from '../../components/OrgSearch';
 import OrgNotifications from '../../components/OrgNotifications';
+import GlobalTimerReminder from '../../components/GlobalTimerReminder';
 import OrgPlanning from './OrgPlanning';
 import OrgReport from './OrgReport';
 import OrgMesTaches from './OrgMesTaches';
@@ -113,6 +114,7 @@ function OrgInner() {
             {muted ? '🔇' : '🔊'}
           </button>
           <OrgNotifications />
+          <GlobalTimerReminder />
         </div>
         <Routes>
           <Route path="/" element={isExpert ? <OrgDashboardExpert /> : <OrgDashboardComptable />} />

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Clock, Play, Square, Plus, X, Trash2 } from 'lucide-react';
 import { orgApi } from '../lib/orgApi';
-import { useTimerReminder } from '../lib/useTimerReminder';
 
 type Cat = { code: string; label: string; deletable: boolean };
 
@@ -30,7 +29,6 @@ export default function TempsInterne() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [guard, setGuard] = useState<{ day_seconds: number; norm_day_seconds: number; cap_seconds: number | null; remaining_seconds: number | null; tolerance_seconds: number } | null>(null);
   const [justStopped, setJustStopped] = useState(false);
-  const timerToast = useTimerReminder(active ? (categories.find(c => c.code === active.category)?.label || active.category) : null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const limitHitRef = useRef(false);
 
@@ -175,11 +173,6 @@ export default function TempsInterne() {
         </div>
       </div>
       {err && <p className="text-xs text-rose-600 mb-2">{err}</p>}
-      {timerToast && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5 mb-2" data-testid="timer-reminder-toast">
-          {timerToast}
-        </p>
-      )}
       {justStopped && (
         <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1.5 mb-2" data-testid="ti-limit-stopped">
           Limite du jour atteinte : le chrono a été arrêté automatiquement.

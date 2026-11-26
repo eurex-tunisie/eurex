@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useTimerReminder } from '../../lib/useTimerReminder';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { orgApi, OrgDossier, OrgTask, OrgDocument, OrgComptable, OrgCollabCandidate, OrgAuditEntry } from '../../lib/orgApi';
 import { useOrgAuth } from '../../lib/orgAuth';
@@ -106,9 +105,7 @@ export default function OrgDossierPage() {
   const { state } = useOrgAuth();
   const isExpert = state.user?.role === 'expert' || state.user?.role === 'manager';
   const [dossier, setDossier] = useState<OrgDossier | null>(null);
-  const _myRunningTask = (dossier?.running_timers || []).find((r: any) => r.user_id === state.user?.id);
-  const _runningTaskLabel = _myRunningTask ? ((dossier?.tasks || []).find((t: any) => t.id === _myRunningTask.task_id)?.label || `Tâche ${_myRunningTask.task_id}`) : null;
-  const timerToast = useTimerReminder(_runningTaskLabel);
+  // (le rappel 15 min est gere globalement par GlobalTimerReminder dans OrgLayout)
   const [costSummary, setCostSummary] = useState<any>(null);
   const [loadError, setLoadError] = useState('');
   const [grantComp, setGrantComp] = useState('');
@@ -952,11 +949,6 @@ export default function OrgDossierPage() {
 
   return (
     <div className="space-y-4">
-      {timerToast && (
-        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" data-testid="timer-reminder-toast">
-          {timerToast}
-        </div>
-      )}
       <input
         ref={fileInputRef}
         type="file"
