@@ -34,7 +34,11 @@ export default function OrgNotifications() {
     orgApi.getNotifications()
       .then(r => {
         const n = r.unread || 0;
-        if (n > prevUnread.current) playNotify();
+        if (n > prevUnread.current) {
+          playNotify();
+          // Notification systeme sur le PC (si autorisee).
+          fireBrowserNotify(r.notifications || []);
+        }
         prevUnread.current = n;
         setItems(r.notifications || []);
         setUnread(n);
@@ -42,7 +46,24 @@ export default function OrgNotifications() {
       .catch(() => {});
   };
 
+  const fireBrowserNotify = (list: Item[]) => {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const unreadItems = list.filter(i => !i.read).slice(0, 3);
+    for (const it of unreadItems) {
+      try {
+        const n = new Notification('🔔 EUREX', { body: it.message, tag: `eurex-notif-${it.id}` });
+        n.onclick = () => { try { window.focus(); } catch { /* ignore */ } n.close(); if (it.dossier_id) navigate(`/cabinet/dossier/${it.dossier_id}`); };
+        setTimeout(() => { try { n.close(); } catch { /* ignore */ } }, 10000);
+      } catch { /* ignore */ }
+    }
+  };
+
   useEffect(() => {
+    // Demande la permission notification une fois (pour que les alertes
+    // apparaissent sur le PC, pas seulement dans l'app).
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => { /* ignore */ });
+    }
     load();
     const iv = setInterval(() => { if (!document.hidden) load(); }, 120000);
     return () => clearInterval(iv);
