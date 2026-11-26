@@ -64,11 +64,11 @@ export default function OrgTimesheet() {
           <tbody>
             {/* Collect unique tasks across the week */}
             {(() => {
-              const taskMap = new Map<string, { label: string; dossier_id: string; client_name: string; days: number[] }>();
+              const taskMap = new Map<string, { label: string; dossier_id: string; client_name: string; days: number[]; norm: number | null; late_reason: string | null }>();
               days.forEach((d: any, di: number) => {
                 for (const t of (d.tasks || [])) {
                   const key = t.task_id || t.task_label;
-                  if (!taskMap.has(key)) taskMap.set(key, { label: t.task_label, dossier_id: t.dossier_id, client_name: t.client_name, days: Array(7).fill(0) });
+                  if (!taskMap.has(key)) taskMap.set(key, { label: t.task_label, dossier_id: t.dossier_id, client_name: t.client_name, days: Array(7).fill(0), norm: t.effective_norm_seconds ?? t.task_norm_seconds ?? null, late_reason: t.late_reason || null });
                   taskMap.get(key)!.days[di] += t.seconds || 0;
                 }
               });
@@ -83,6 +83,12 @@ export default function OrgTimesheet() {
                     <td className="py-2 px-3">
                       <div className="font-medium text-gray-800 truncate max-w-[220px]" title={info.label}>{info.label}</div>
                       {info.client_name && <div className="text-[10px] text-gray-400 truncate">{info.client_name}</div>}
+                      {info.norm != null && rowTotal > 0 && (
+                        <div className={`text-[10px] mt-0.5 font-semibold ${rowTotal > info.norm ? 'text-amber-600' : 'text-emerald-600'}`} data-testid="timesheet-norm">
+                          Norme : {fmtH(info.norm)} · {rowTotal > info.norm ? `+${fmtH(rowTotal - info.norm)} dépassement` : 'dans les temps'}
+                          {info.late_reason && <span className="block text-amber-700 font-normal" title={info.late_reason}>🕐 {info.late_reason}</span>}
+                        </div>
+                      )}
                     </td>
                     {info.days.map((sec: number, di: number) => (
                       <td key={di} className="py-2 px-2 text-center text-gray-700 font-mono text-[11px]">

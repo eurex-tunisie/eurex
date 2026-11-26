@@ -4524,7 +4524,7 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
         const monday = d.toISOString().slice(0, 10);
         const mNext = new Date(d.getTime() + 7 * 86400000).toISOString().slice(0, 10);
         const { results: rows } = await env.DB.prepare(
-          `SELECT date(datetime(te.started_at, '+60 minutes')) AS day, te.task_id, COALESCE(t.label, 'Tâche supprimée') AS task_label, te.dossier_id, c.name AS client_name, COALESCE(SUM(te.duration_seconds), 0) AS seconds FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id LEFT JOIN org_dossiers dd ON dd.id = te.dossier_id LEFT JOIN org_clients c ON c.id = dd.client_id WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND date(datetime(te.started_at, '+60 minutes')) >= ? AND date(datetime(te.started_at, '+60 minutes')) < ? GROUP BY day, te.task_id, te.dossier_id, COALESCE(t.label, 'Tâche supprimée'), c.name`
+          `SELECT date(datetime(te.started_at, '+60 minutes')) AS day, te.task_id, COALESCE(t.label, 'Tâche supprimée') AS task_label, te.dossier_id, c.name AS client_name, COALESCE(SUM(te.duration_seconds), 0) AS seconds, t.norm_seconds AS task_norm_seconds, t.late_reason AS late_reason, COALESCE(n.norm_seconds, t.norm_seconds) AS effective_norm_seconds FROM org_time_entries te LEFT JOIN org_tasks t ON t.id = te.task_id LEFT JOIN org_dossiers dd ON dd.id = te.dossier_id LEFT JOIN org_clients c ON c.id = dd.client_id LEFT JOIN org_dossier_task_norms n ON n.dossier_id = te.dossier_id AND n.task_label = t.label WHERE te.user_id = ? AND te.stopped_at IS NOT NULL AND date(datetime(te.started_at, '+60 minutes')) >= ? AND date(datetime(te.started_at, '+60 minutes')) < ? GROUP BY day, te.task_id, te.dossier_id, COALESCE(t.label, 'Tâche supprimée'), c.name, t.norm_seconds, t.late_reason, COALESCE(n.norm_seconds, t.norm_seconds)`
         ).bind(user.id, monday, mNext).all();
         const { results: irows } = await env.DB.prepare(
           `SELECT date(datetime(started_at, '+60 minutes')) AS day, category, COALESCE(SUM(duration_seconds), 0) AS seconds FROM org_internal_time_entries WHERE user_id = ? AND stopped_at IS NOT NULL AND date(datetime(started_at, '+60 minutes')) >= ? AND date(datetime(started_at, '+60 minutes')) < ? GROUP BY day, category`
@@ -4534,6 +4534,9 @@ JSON: {"verdict":"OK/ERREUR","score":0-100,"checks":[{"piece":"...","type":"FAC/
           const dd = new Date(d.getTime() + i * 86400000).toISOString().slice(0, 10);
           const tasks = (rows as any[]).filter(r => r.day === dd).map(r => ({
             task_id: r.task_id, task_label: r.task_label, dossier_id: r.dossier_id, client_name: r.client_name, seconds: Number(r.seconds) || 0,
+            task_norm_seconds: r.task_norm_seconds == null ? null : Number(r.task_norm_seconds),
+            effective_norm_seconds: r.effective_norm_seconds == null ? null : Number(r.effective_norm_seconds),
+            late_reason: r.late_reason || null,
           }));
           const internal = (irows as any[]).filter(r => r.day === dd).map(r => ({ category: r.category, seconds: Number(r.seconds) || 0 }));
           const total = tasks.reduce((s: number, t: any) => s + t.seconds, 0) + internal.reduce((s: number, t: any) => s + t.seconds, 0);

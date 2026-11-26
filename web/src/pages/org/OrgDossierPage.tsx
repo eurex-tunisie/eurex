@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTimerReminder } from '../../lib/useTimerReminder';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { orgApi, OrgDossier, OrgTask, OrgDocument, OrgComptable, OrgCollabCandidate, OrgAuditEntry } from '../../lib/orgApi';
 import { useOrgAuth } from '../../lib/orgAuth';
@@ -105,6 +106,9 @@ export default function OrgDossierPage() {
   const { state } = useOrgAuth();
   const isExpert = state.user?.role === 'expert' || state.user?.role === 'manager';
   const [dossier, setDossier] = useState<OrgDossier | null>(null);
+  const _myRunningTask = (dossier?.running_timers || []).find((r: any) => r.user_id === state.user?.id);
+  const _runningTaskLabel = _myRunningTask ? ((dossier?.tasks || []).find((t: any) => t.id === _myRunningTask.task_id)?.label || `Tâche ${_myRunningTask.task_id}`) : null;
+  useTimerReminder(_runningTaskLabel);
   const [costSummary, setCostSummary] = useState<any>(null);
   const [loadError, setLoadError] = useState('');
   const [grantComp, setGrantComp] = useState('');

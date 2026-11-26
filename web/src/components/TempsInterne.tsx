@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Clock, Play, Square, Plus, X, Trash2 } from 'lucide-react';
 import { orgApi } from '../lib/orgApi';
+import { useTimerReminder } from '../lib/useTimerReminder';
 
 type Cat = { code: string; label: string; deletable: boolean };
 
@@ -29,6 +30,7 @@ export default function TempsInterne() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [guard, setGuard] = useState<{ day_seconds: number; norm_day_seconds: number; cap_seconds: number | null; remaining_seconds: number | null; tolerance_seconds: number } | null>(null);
   const [justStopped, setJustStopped] = useState(false);
+  useTimerReminder(active ? (categories.find(c => c.code === active.category)?.label || active.category) : null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const limitHitRef = useRef(false);
 
